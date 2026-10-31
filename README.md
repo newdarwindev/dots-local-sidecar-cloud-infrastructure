@@ -14,7 +14,7 @@ Build an agent-operable local cloud from eight owner-controlled notebooks (macOS
 | Host OS | K3s runs on Linux hosts; macOS and Windows notebooks contribute Linux VMs only after virtualization, resource, and network checks. | K3s targets Linux. Native Windows workers require supported Windows Server and Linux control plane; ordinary Windows notebooks should not be assumed eligible. macOS is not a native Kubernetes node. VM CPU architecture must match available images. |
 | GPU | Keep GPU host out of GPU scheduling until vendor/model, OS, drivers, passthrough, and device-plugin support are proven. | A GPU in a notebook does not imply accessible Kubernetes acceleration, especially through a VM. CPU scheduling remains possible. |
 | Desired state | Git repository holds reviewed platform claims and Argo CD Applications; Argo CD reconciles approved cluster targets. Crossplane reconciles selected platform and cloud resources. | Git is the auditable intent boundary. Crossplane is not a substitute for GitOps approval or provider credentials. |
-| Secrets | OpenBao as proposed OSS secret store; External Secrets Operator (ESO) syncs specifically authorized values to namespaced Kubernetes Secrets. | Store encrypted backups and unseal/recovery material outside the cluster. Use separate OpenBao policies and auth mounts per cluster. ESO integration is an acceptance gate because provider support status can change. No secret values in Git. |
+| Secrets | OpenBao as proposed OSS secret store; ESO runs in each destination cluster and syncs specifically authorized values to namespaced Kubernetes Secrets in that cluster. | Store encrypted backups and unseal/recovery material outside the cluster. Use separate OpenBao policies and auth mounts per cluster. ESO integration is an acceptance gate because provider support status can change. No secret values in Git. |
 | Agent control | Dot agent formation proposes typed operations through a local sidecar gateway and policy engine; human approval gates sensitive changes. | Agents never receive a shared root credential or unrestricted kubeconfig. Existing Tether work is a possible integration boundary, not deployed infrastructure. |
 
 ## Architecture
@@ -25,12 +25,13 @@ flowchart LR
   A[Dot agents] --> S[Local sidecar API: identity, policy, plan, audit]
   S --> O
   G --> AC[Argo CD on management cluster]
-  AC --> M[Management cluster: Crossplane, ESO, OpenBao, telemetry]
-  AC --> W[Local Linux workload cluster]
-  M -->|scoped provider identities| C[AWS / Google Cloud / Azure workload clusters]
+  AC --> M[Management cluster: Crossplane, ESO, telemetry]
+  AC --> W[Local Linux workload cluster: ESO]
+  M --> B
+  M -->|scoped provider identities| C[AWS / Google Cloud / Azure workload clusters: ESO]
   AC --> C
-  M -->|scoped secrets| W
-  M -->|scoped secrets| C
+  W -->|scoped secret reads| B[OpenBao on management]
+  C -->|scoped secret reads| B
   S -->|approved typed request| G
 ```
 
