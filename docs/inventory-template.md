@@ -1,8 +1,8 @@
-# Blank inventory template
+# Blank private inventory template
 
-Fill in a private system. Do not commit real hostnames, addresses, serial numbers, or account IDs to this public repository.
+Keep completed inventory out of this public repository. Do not commit hostnames, addresses, serial numbers, account IDs or access details.
 
-| Slot | Host OS/version | CPU architecture | RAM/disk | Virtualization support | GPU vendor/model/driver | Power/sleep reliability | Network/storage notes | Eligible role |
+| Slot | Host OS/version | CPU architecture | RAM/disk | Virtualization | GPU/driver | Power/sleep | Network/storage | Eligible role |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | 2 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
