@@ -2,6 +2,10 @@
 
 Architecture proposal only · 2026-10-31 · No cluster, credential service, cloud resources, or agent controller has been deployed by this repository.
 
+The [primary macOS host rollout](docs/primary-host-rollout.md) records the staged
+bootstrap, private desired-state boundary, Homarr integration, approval scopes
+and recovery checks. It is not an installed deployment or a verified GitOps loop.
+
 ## Goal and assumptions
 
 Build an agent-operable local cloud from eight owner-controlled notebooks (macOS, Linux, and Windows; one with an unspecified GPU), with optional AWS, Google Cloud, and Azure capacity. The inventory, CPU architectures, GPU model, RAM, networking, power behavior, and cloud accounts are **unknown**. A notebook may sleep or leave the network; this is a lab or pilot architecture until availability and recovery are measured. No production high-availability claim is made.
