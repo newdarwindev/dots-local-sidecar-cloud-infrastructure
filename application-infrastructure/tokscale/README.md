@@ -14,7 +14,7 @@ a deterministic file-content digest after the explicitly recorded privacy patch.
 - Upstream `Dockerfile` installs the Bun workspace with `--frozen-lockfile`, builds
   Next.js standalone output, runs non-root, and starts on port 3000. The derived
   recipe here replaces the floating Bun base with a **required digest input** and
-  makes its non-root UID/GID explicit (`10001`). No app image was built or pushed.
+  makes its non-root UID/GID explicit (`10001`). Hosted CI builds the image without publishing it; see the exact revision’s run outcome.
 - `docker-entrypoint.sh` runs Drizzle migrations **before every server start**.
   Scaling/restarting the hub therefore needs migration/backup approval, not only
   a container-start decision. Downgrading an image does not reverse migrations.
@@ -106,7 +106,8 @@ VALIDATION_IMAGE=staged-app-validation CI=true sh application-infrastructure/tok
 The named validation image must already be built by the parent workflow and
 contain Python. Source fetching, full-tree checks and all Python tests execute
 inside Docker. The recipe builds only `linux/amd64` on the hosted AMD64 runner,
-checks the non-root image user and required application files using an isolated
+checks the non-root image user, required application files and the Bun-provided
+`node` script wrapper using an isolated
 `--network=none` container, and records the local image ID. It does not push an
 image, start a server, run database migrations, connect to a cluster, or supply
 credentials. ARM64 metadata is locked but an ARM64 build/run is not claimed.
