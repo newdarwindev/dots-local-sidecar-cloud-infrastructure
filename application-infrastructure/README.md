@@ -155,3 +155,15 @@ remain explicitly false. A changed/missing template fails closed. The original
 archive is preserved; only a local deterministic derivative is used. CI rejects
 any nonempty rendered Secret. This is a reviewed local vendor correction, not a
 claim that the upstream chart has fixed it. No real service credential is supplied.
+
+## Hypothetical future-cluster contract (new, untested)
+
+The owner deferred live inspection and permits design against a compatible future
+cluster—not a readiness assertion. See [the activation/recovery handoff](runbooks/future-cluster-activation.md),
+[JSON schema](contracts/future-cluster.schema.json), and [essential-input template](contracts/future-cluster.example.json).
+`cluster_contract.py` can prepare private synthetic render inputs once essential
+values exist; it never executes rendering or enables deployment.
+`resource_report.py` estimates declared requests with explicit omissions and never
+approves fit. All new tests remain unrun with CI paused. Browser-runtime acceptance
+is a separate repository contract; generic cluster capabilities do not prove its
+lifecycle/lease fencing.
