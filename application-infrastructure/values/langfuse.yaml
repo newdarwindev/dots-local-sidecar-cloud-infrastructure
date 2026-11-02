@@ -80,6 +80,9 @@ clickhouse:
 s3:
   global:
     seaweedfs:
+      createClusterRole: false
+      serviceAccountName: langfuse-seaweedfs
+      automountServiceAccountToken: false
       enableSecurity: false # staging only; avoids chart-generated JWT signing keys
   master: {enabled: false}
   volume: {enabled: false}
@@ -96,13 +99,15 @@ s3:
   batchExport: {enabled: false}
   mediaUpload: {enabled: false}
   allInOne:
+    serviceAccountName: langfuse-seaweedfs
     enabled: true
     s3:
       enabled: true
       enableAuth: true
       existingConfigSecret: langfuse-s3-auth
-      createBuckets:
-        - name: langfuse-events
+      # Upstream hook cannot disable default-SA token mount. Keep it disabled;
+      # approved bucket provisioning and denial tests are a separate activation gate.
+      createBuckets: []
     data: {type: persistentVolumeClaim, size: 50Gi, storageClass: REQUIRED_PRIVATE_STORAGE_CLASS}
     service: {type: ClusterIP}
 # No inline credentials. Chart renders an EMPTY keep-annotated app Secret even

@@ -80,7 +80,7 @@ move workloads or fabricate readiness from a JSON boolean.
 | Component | Staged artifact | Before actual deployment |
 |---|---|---|
 | Langfuse and dependencies | Vendor chart lock + explicit values | Verify all image digests/architectures; review dependency PVCs, resource budget, operator/CRD permissions and existing secret references; synthetic ingestion and isolated restore |
-| SeaweedFS | Provisional chart dependency | Validate private bucket credentials/scopes, S3 compatibility and off-cluster encrypted recovery; not independent HA |
+| SeaweedFS | Provisional chart dependency | Validate private bucket credentials/scopes, explicit bucket provisioning, S3 compatibility and off-cluster encrypted recovery; chart bucket hook disabled because it lacks token-mount hardening; not independent HA |
 | OTel Collector | Trace-only mTLS values | Exact-binary config validation, TLS/private ingress and scoped diagnostic-project credential; source-side envelope adapter and live canary tests; logs/metrics disabled |
 | Tokscale + dedicated PostgreSQL | [Build/staging contract](tokscale/README.md) | Source/image build, database migration/recovery and authenticated browser/read surface with tested narrow machine route; no scheduler |
 | Homarr workload | Independent chart values | Own PVC/encryption key, private authenticated onboarding, approved storage class and backup; no dependency on deferred ESO |
