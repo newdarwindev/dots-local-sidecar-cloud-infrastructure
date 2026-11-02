@@ -21,8 +21,8 @@ function failureChain(error: unknown): string {
   return messages.join("\n");
 }
 const secureContext = createSecureContext({
-  key: readFileSync(`${FIXTURES}/agent1-key.pem`),
-  cert: readFileSync(`${FIXTURES}/agent1-cert.pem`),
+  key: readFileSync(`${FIXTURES}/agent1-key.pem.fixture`),
+  cert: readFileSync(`${FIXTURES}/agent1-cert.pem.fixture`),
 });
 
 function errorPacket() {
@@ -100,7 +100,7 @@ for (const [name, invoke] of Object.entries(paths)) {
     test(`${name}: ${scenario}`, async () => {
       const mock = await mockDatabase(scenario === "plaintext-refused");
       process.env.DATABASE_SSL = "verify-full";
-      process.env.DATABASE_CA_FILE = `${FIXTURES}/${scenario === "wrong-ca" ? "ca2" : "ca1"}-cert.pem`;
+      process.env.DATABASE_CA_FILE = `${FIXTURES}/${scenario === "wrong-ca" ? "ca2" : "ca1"}-cert.pem.fixture`;
       const host = scenario === "wrong-hostname" ? "wrongname" : "agent1";
       const url = `postgresql://synthetic:PUBLIC_TEST_VALUE@${host}:${mock.port}/synthetic`;
       process.env.DATABASE_URL = url;
@@ -122,7 +122,7 @@ for (const [name, invoke] of Object.entries(paths)) {
 }
 
 test("no insecure modes, URL overrides, IP bypass or process override", () => {
-  process.env.DATABASE_CA_FILE = `${FIXTURES}/ca1-cert.pem`;
+  process.env.DATABASE_CA_FILE = `${FIXTURES}/ca1-cert.pem.fixture`;
   for (const mode of [undefined, "require", "false", "disable", "prefer", "true"]) {
     if (mode === undefined) delete process.env.DATABASE_SSL;
     else process.env.DATABASE_SSL = mode;

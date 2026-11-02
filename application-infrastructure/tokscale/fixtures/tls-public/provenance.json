@@ -2,10 +2,11 @@
   "source": "https://github.com/nodejs/node/tree/v24.11.0/test/fixtures/keys",
   "purpose": "Public nonproduction Node.js test certificates/key; never use for a deployed service. No new key generated.",
   "files": {
-    "ca1-cert.pem": "cfc60db87bd758cd89e69973484b60a14fb2f3d9cf798bb4ce0dcc17e59643b6",
+    "ca1-cert.pem.fixture": "cfc60db87bd758cd89e69973484b60a14fb2f3d9cf798bb4ce0dcc17e59643b6",
     "LICENSE.node": "537308465103a306d0e3eecf42632b4ff1b48aaaec044e9fc10a78c81fd00b34",
-    "agent1-cert.pem": "5968cc95396f7a49d0fccaee6cf2c6b8a2f66b907efa21531c4c98d20962783c",
-    "ca2-cert.pem": "5117d80e6c85e92c5707e66979cb39bc352d6d782c0719afd82eefd88328d24f",
-    "agent1-key.pem": "2b75ca8377f0963f5ce0d47a416b9d40de09dbd6e128ffe6e00af0e52be0eda9"
-  }
+    "agent1-cert.pem.fixture": "5968cc95396f7a49d0fccaee6cf2c6b8a2f66b907efa21531c4c98d20962783c",
+    "ca2-cert.pem.fixture": "5117d80e6c85e92c5707e66979cb39bc352d6d782c0719afd82eefd88328d24f",
+    "agent1-key.pem.fixture": "2b75ca8377f0963f5ce0d47a416b9d40de09dbd6e128ffe6e00af0e52be0eda9"
+  },
+  "filenameNote": "Public PEM fixture bytes unchanged; .fixture suffix distinguishes test material from deployable secrets."
 }
