@@ -1,5 +1,11 @@
 # Langfuse: fleet session observability plan
 
+**Current phase boundary:** see [application phases](application-phases.md). Shared
+Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
+reference sequences below are not immediate rollout instructions. Secure local
+bootstrap, private authenticated access and encrypted secret custody remain
+mandatory before any separately approved deployment.
+
 **Research and installation draft · 2026-11-02 · Not deployed.** No collectors,
 hooks, accounts, keys, services, DNS, retention policies or GitOps sync are enabled
 by this document. Use the [fleet gates](fleet-alignment.md) and
@@ -105,7 +111,7 @@ Keep worker health and all database, queue, object-store and operator endpoints
 private. Permit only version-verified internal component ports, never blanket
 host networking/public database ports. TLS verification stays enabled.
 
-Use the selected Authentik IdP through [native OIDC](https://langfuse.com/self-hosting/security/authentication-and-sso):
+For the later stage, propose Authentik integration through [native OIDC](https://langfuse.com/self-hosting/security/authentication-and-sso):
 prefer the dedicated Authentik provider when the pinned release supports it.
 Otherwise use the documented custom provider only after a separate compatibility
 review (`AUTH_CUSTOM_*`, exact `/api/auth/callback/custom` redirect). Verify the

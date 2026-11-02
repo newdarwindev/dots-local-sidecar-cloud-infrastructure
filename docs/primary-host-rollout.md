@@ -1,5 +1,11 @@
 # Primary macOS host rollout
 
+**Current phase boundary:** see [application phases](application-phases.md). Shared
+Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
+reference sequences below are not immediate rollout instructions. Secure local
+bootstrap, private authenticated access and encrypted secret custody remain
+mandatory before any separately approved deployment.
+
 Status: staged plan, 2026-11-01. No cluster, Homarr, OpenBao, or continuous
 deployment is installed or verified by this change. This public repository holds
 architecture and [staged generic implementation](../primary-infrastructure/README.md).

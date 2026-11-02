@@ -1,9 +1,14 @@
 # Unified application identity and endpoint plan
 
-**Proposed architecture, 2026-11-02. No installation, identity enrollment, access
+**Later-stage proposal, 2026-11-02. No installation, identity enrollment, access
 change, DNS change, certificate issuance or public exposure is performed by this
 document.** Repository configuration and a running service are different facts.
 The inventory owner must verify placement and application health before rollout.
+
+The [current application phases](application-phases.md) defer shared identity,
+central secrets and domain integration. Authentik remains the preferred proposal,
+not an active rollout commitment. Mandatory secure local bootstrap/access remains
+a gate before any application deployment.
 
 ## One policy, separate sources of truth
 
@@ -23,18 +28,18 @@ The inventory owner must verify placement and application health before rollout.
   memberships, domain choices, recovery custody and secret-location references
   remain private. Secret values belong in neither repository.
 
-## Selected identity provider: Authentik
+## Preferred later-stage identity proposal: Authentik
 
-Select **one Authentik identity provider**, not one per host, for this mixed
+Propose **one Authentik identity provider**, not one per host, for this mixed
 native-OIDC and proxy-protected application estate. Its [OIDC and proxy provider
 support](https://docs.goauthentik.io/add-secure-apps/providers) and
 [per-application forward authentication](https://docs.goauthentik.io/add-secure-apps/providers/proxy/forward_auth/)
-fit the two integration patterns below. This is the selected architecture, not a measured sizing result, pinned version,
+fit the two integration patterns below. This is the preferred future architecture, not a measured sizing result, pinned version,
 installed service or access grant.
 
 | Option | Documented fit | Decision consideration |
 | --- | --- | --- |
-| Authentik | OIDC plus proxy providers and configurable authentication flows | Selected: one administration surface for both patterns. Explicit MFA configuration and outpost operations still required. |
+| Authentik | OIDC plus proxy providers and configurable authentication flows | Preferred proposal: one administration surface for both patterns. Explicit MFA configuration and outpost operations still required. |
 | [Authelia](https://www.authelia.com/integration/openid-connect/introduction/) | OpenID Connect provider and reverse-proxy integration | Valid alternative for a configuration-led proxy estate; do not describe it as lacking native OIDC. Prefer it if operational evaluation favors its configuration/user-directory model. |
 | [Keycloak](https://www.keycloak.org/securing-apps/overview) | OAuth2/OIDC/SAML and application ecosystem integrations | Valid alternative where realm/federation requirements justify it; legacy apps still need a suitable authentication proxy/integration. Do not add custom login code merely to adopt it. |
 
@@ -47,7 +52,7 @@ an acceptable identity host. Replicas sharing one host or disk are not HA.
 ### Why this choice fits OpenBao and the wider fleet
 
 OpenBao supports standard OIDC; no IdP replaces its own policies or machine auth.
-**Authentik is selected for the whole estate**, combining native OIDC for Homarr,
+**Authentik is the preferred proposal for the whole estate**, combining native OIDC for Homarr,
 Argo CD and Langfuse with proxy/outpost protection for other sites. Keycloak has
 an [OpenBao-specific integration guide](https://openbao.org/docs/auth/jwt/oidc-providers/keycloak/)
 and is a strong alternative for complex federation/realm requirements; do not
@@ -124,6 +129,7 @@ scan. Add subsequently discovered applications privately before routing them.
 | App / component | Current source evidence, not asserted runtime | Proposed browser access | Non-browser boundary / transition gate |
 | --- | --- | --- | --- |
 | Homarr | Staged `values/homarr.yaml`: credentials provider, ClusterIP, ingress disabled | Native OIDC; explicit group mapping and reviewed account migration | Keep existing encryption key/data and integration secrets independent of login. Verify pinned version's account-linking behavior before removing credentials. |
+| Target-specific Homarr | Planned separate `homarr-workload` instance under [current phases](application-phases.md), not deployed | Initially approved private authenticated local access; shared OIDC is later-stage | Independent database/PVC/encryption-key reference; do not run the ESO-dependent generic management sequence unchanged. |
 | Argo CD | Staged `values/argocd.yaml`: local admin enabled, anonymous disabled, Dex disabled, TLS on | Native external OIDC plus explicit project/RBAC mappings; no Dex needed merely to use an existing OIDC provider | Dedicated least-privilege automation identity/token where required; do not reuse a human session or broaden cluster scopes. Retire routine admin use only after recovery is tested. |
 | OpenBao | Staged `values/openbao.yaml`: TLS, one Raft replica, ClusterIP UI | Native OIDC for named humans mapped to narrow policies | ESO retains Kubernetes auth and scoped policies; no browser login gate in its machine path. Unseal and disaster recovery must work without IdP. |
 | ESO | Staged namespace-scoped machine integration, no browser portal | No user-facing hostname or SSO portal | Separate Kubernetes service-account identity/audience/policy per approved scope. Keep existing narrow Homarr read policy. |
@@ -134,7 +140,7 @@ scan. Add subsequently discovered applications privately before routing them.
 | Fleet dashboard | Published synthetic read-only implementation; external authenticated ingress required, no live collector/deployment included | Proxy authentication, restricted viewers | Protect inventory/status APIs too; synthetic records do not establish host health. |
 | Live-status dashboard | Published loopback implementation with narrow email-gated tunnel launcher; production gate not verified | Preserve current gate until an equally restrictive reviewed replacement exists | Account-sensitive reads remain constrained to approved viewers and matching source account. Do not generalize access to every fleet member. |
 | Other applications | Privately assess current integration and record evidence before assigning a state | Choose native OIDC or proxy protection only after compatibility and authorization-equivalence tests | Keep contents and viewer identities private; documentation cleanup must not create a public route. |
-| Identity provider | Authentik selected; not installed or version-pinned | Its own native authentication/MFA, private administration | Independent bootstrap/recovery path, not recursive authentication through itself. |
+| Identity provider | Authentik preferred later-stage proposal; not installed or version-pinned | Its own native authentication/MFA, private administration | Independent bootstrap/recovery path, not recursive authentication through itself. |
 
 Native integration references: [Homarr SSO](https://homarr.dev/docs/advanced/single-sign-on/),
 [Argo CD existing OIDC provider](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/#existing-oidc-provider),

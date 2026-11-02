@@ -1,5 +1,11 @@
 # Fleet alignment and enrollment
 
+**Current phase boundary:** see [application phases](application-phases.md). Shared
+Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
+reference sequences below are not immediate rollout instructions. Secure local
+bootstrap, private authenticated access and encrypted secret custody remain
+mandatory before any separately approved deployment.
+
 **Planning only · 2026-11-02.** No host enrollment or runtime changes. Actual
 hostnames, capacity, security observations, addresses and placement decisions
 remain in the private inventory and its current placement matrix. This document

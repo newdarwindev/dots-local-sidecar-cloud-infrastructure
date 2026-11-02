@@ -1,5 +1,11 @@
 # OpenTelemetry implementation design — selected cluster
 
+**Current phase boundary:** see [application phases](application-phases.md). Shared
+Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
+reference sequences below are not immediate rollout instructions. Secure local
+bootstrap, private authenticated access and encrypted secret custody remain
+mandatory before any separately approved deployment.
+
 **Draft only · 2026-11-02.** The owner selected native Codex OTel, the community
 historical importer and official Codex plugin, with Langfuse, Collector and
 S3-compatible storage on the same existing Kubernetes cluster. Exact host identity

@@ -1,5 +1,11 @@
 # Primary infrastructure — staged reference implementation
 
+**Current phase boundary:** see [application phases](../docs/application-phases.md). Shared
+Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
+reference sequences below are not immediate rollout instructions. Secure local
+bootstrap, private authenticated access and encrypted secret custody remain
+mandatory before any separately approved deployment.
+
 **Not deployed by publication.** This is generic ARM64 macOS/Linux-guest scaffolding, not a statement about any actual host. Activation, credentials, networking and synchronization require separate current owner approval. See [APPROVAL.md](APPROVAL.md).
 
 Desired state is this public repository. Actual host inventory, host readiness, private operational decisions and recovery destinations belong outside this public repository. No private host record or usage dataset is included.

@@ -12,6 +12,11 @@ and recovery checks. It is not an installed deployment or a verified GitOps loop
 here. Only reviewed generic manifests belong in this public repository; actual
 host records, private settings, credentials and recovery details remain private.
 
+Current placement/phasing is governed by [application phases](docs/application-phases.md):
+the selected target additionally receives planned Tokscale/PostgreSQL and a separate
+Homarr instance; shared identity, central secrets and domain integration remain
+later-stage proposals. Preserved reference manifests are not an immediate rollout.
+
 ## Goal and assumptions
 
 Build an agent-operable local cloud from owner-controlled macOS, Linux and Windows
@@ -25,6 +30,7 @@ production high-availability claim is made.
 
 | Question | Authoritative document |
 | --- | --- |
+| Current application target and deferred platform phases | [Application phases](docs/application-phases.md) |
 | Topology and component responsibilities | This architecture overview |
 | Host evidence, eligibility and enrollment stages | [Fleet alignment](docs/fleet-alignment.md); actual host records stay private |
 | Management bootstrap order and recovery acceptance | [Primary host rollout](docs/primary-host-rollout.md) |
