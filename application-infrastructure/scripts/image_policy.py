@@ -44,8 +44,31 @@ def container_images(value):
 
 
 def validate_images(documents, lock, collector_source=None):
+    documents = [obj for obj in documents if obj is not None]
+    if any(not isinstance(obj, dict) for obj in documents):
+        raise ValueError('rendered document must be an object')
     allowed = {locked_image(item) for item in lock['images'].values()}
     images = [canonical_image(image) for image in container_images(documents)]
+    # These CRs are not Kubernetes PodSpecs. Explicitly cover their image object,
+    # preserving the nonempty tag so the reviewed candidate's defaulting cannot
+    # replace a hash-only selection with latest. Target operator remains a gate.
+    kinds = {'ClickHouseCluster': 'clickhouse', 'KeeperCluster': 'keeper'}
+    for obj in documents:
+        kind = obj.get('kind')
+        if kind not in kinds:
+            continue
+        if obj.get('apiVersion') != 'clickhouse.com/v1alpha1':
+            raise ValueError('unreviewed ClickHouse operator API version')
+        item = obj.get('spec', {}).get('containerTemplate', {}).get('image', {})
+        if not isinstance(item, dict) or set(item) != {'repository', 'tag'}:
+            raise ValueError('unreviewed structured ClickHouse image fields')
+        repository, tag = item['repository'], item['tag']
+        if not isinstance(repository, str) or not isinstance(tag, str) or not tag:
+            raise ValueError('invalid structured ClickHouse image')
+        selected = canonical_image(repository + ':' + tag)
+        if selected != locked_image(lock['images'][kinds[kind]]):
+            raise ValueError('structured ClickHouse image differs from component lock')
+        images.append(selected)
     if not images:
         raise ValueError('no rendered container images')
     if any(image not in allowed for image in images):

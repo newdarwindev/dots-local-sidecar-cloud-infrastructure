@@ -1,5 +1,11 @@
 # Staged application bundle — executable, not activated
 
+**CI paused by owner:** the latest strict-TLS and structured ClickHouse image
+changes are statically reviewed but **untested**. Both GitHub workflows remain
+disabled for budget. Last fully green revision: `8659b0d` (44 tests, locked chart
+rendering, exact Collector configuration validation and Tokscale AMD64 image
+build/smoke). That result does not validate the newer patch.
+
 **Implemented:** checksum-locked chart fetch/render, explicit-target read-only
 preflight, rendered-resource risk inspection, synthetic metadata/ownership
 harness, dedicated workload Homarr values, and Docker-only CI validation.

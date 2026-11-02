@@ -42,3 +42,15 @@ The same layout unconditionally renders `@vercel/analytics/next` `<Analytics />`
 ## Scope boundary
 
 Complete source/base locks and credential-free CI image qualification can proceed without deploying. These findings do not authorize a TLS-insecure runtime, OAuth registration, token creation, real reporting, persistent jobs, database migration against existing data, or new secrets. Later Auth/Bao rollout and minimal bootstrap remain separate approval scopes. Kali6 remains offline; no target readiness claim follows from source inspection or CI.
+
+## Unvalidated strict-TLS overlay candidate
+
+The current local candidate now patches runtime, advisory lock, migration child
+and drizzle-kit configuration with shared explicit certificate/hostname validation
+and CA-file delivery. The existing bunx/drizzle-kit migration engine and lock/retry orchestration
+are preserved. Its config uses structured credentials: pinned drizzle-kit 0.30.6
+discards separate ssl options when a URL credential is supplied. Tests are written
+but **unrun**, because the owner disabled GitHub workflows for budget and local
+Docker is absent. The upstream findings above remain valid historical evidence;
+the candidate is not a verified cure or permission to activate. Migration schema
+compatibility, full restore rehearsal and target CA custody remain blocked.

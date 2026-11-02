@@ -55,14 +55,14 @@ The staged values now consume these locks:
   helper, so the selected digest covers both. Disabled exporters, tests, volume
   resizing, standalone components and COSI are not activated by these edits.
 
-**Remaining unpinned rendered images:** the ClickHouseCluster and KeeperCluster
-CRs still carry their exact release tags, not immutable references. Their chart
-produces structured `spec.containerTemplate.image.repository/tag` fields for an
-external operator, not a Kubernetes container image string. No target operator
-version or schema is established; do not assume its tag validation accepts
-`tag@digest`, invent a `digest` CR field, or silently substitute a different
-operator. The immutable server/Keeper index digests are recorded in the lock and
-ready for a version-matched operator contract review. Deployment stays blocked.
+**Structured ClickHouse/Keeper candidate pins:** both CR image objects now carry
+explicit nonempty `version@sha256` tags, checked separately against their exact
+component locks. The [candidate operator contract](clickhouse-operator-contract.md)
+records checksum-pinned official operator v0.0.8 schema and source evidence for
+this form, including why hash-only objects are unsafe under its defaulting.
+This does **not** identify or approve the operator on the target. Both custom
+resource kinds remain unsupported deployment blockers. New contract tests are
+unrun because the owner disabled CI for budget and local Docker is unavailable.
 
 No Helm rendering, schema validation or container execution was performed while
 editing these values; the committed Docker workflow must verify final manifests.

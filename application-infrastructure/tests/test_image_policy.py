@@ -18,6 +18,11 @@ class ImagePolicyTests(unittest.TestCase):
         return {'kind': kind, 'metadata': {'name': 'otel-collector'},
                 'spec': {'template': {'spec': {field: [{'image': image}]}}}}
 
+    def test_blank_yaml_document_and_nonobject(self):
+        self.assertEqual(policy.validate_images([None, self.workload(self.image)], self.lock, self.image), [self.image])
+        with self.assertRaises(ValueError):
+            policy.validate_images(["not-a-resource", self.workload(self.image)], self.lock)
+
     def test_exact_image_and_binary_source(self):
         self.assertEqual(policy.validate_images([self.workload(self.image)], self.lock, self.image), [self.image])
 

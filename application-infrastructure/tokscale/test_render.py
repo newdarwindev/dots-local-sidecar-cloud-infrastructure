@@ -31,6 +31,15 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn('hostPath', rendered)
         self.assertNotIn('LoadBalancer', rendered)
 
+    def test_strict_tls_and_ca_projection(self):
+        app = next(i for i in module.render(self.config())['items'] if i['kind'] == 'Deployment')
+        pod = app['spec']['template']['spec']
+        env = {item['name']: item.get('value') for item in pod['containers'][0]['env']}
+        self.assertEqual(env['DATABASE_SSL'], 'verify-full')
+        self.assertEqual(env['DATABASE_CA_FILE'], '/database-ca/ca.crt')
+        self.assertEqual(pod['volumes'][0]['secret']['secretName'], 'tokscale-database-ca')
+        self.assertTrue(pod['containers'][0]['volumeMounts'][0]['readOnly'])
+
     def test_fail_closed_without_inputs(self):
         for key in self.config():
             config = self.config()

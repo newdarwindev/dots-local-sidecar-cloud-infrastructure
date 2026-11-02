@@ -29,3 +29,11 @@ docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
   'set -eu; test "$(id -u)" = 10001; test -f /app/packages/frontend/server.js; test -x /usr/local/bin/docker-entrypoint.sh; bun --version; printf "%s\n" "console.log(process.version)" > /tmp/runtime-smoke.cjs; node /tmp/runtime-smoke.cjs'
 docker image inspect tokscale-ci:review --format '{{.Id}}' > "$WORK/built-image-id.txt"
 printf 'Image build and isolated image smoke check succeeded; no DB/runtime/deployment acceptance.\n'
+# Future explicitly reauthorized CI only: shared TLS contract, public fixtures.
+# Loopback-only PostgreSQL startup mock; no database/migration/server activation.
+docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
+  --add-host agent1:127.0.0.1 --add-host wrongname:127.0.0.1 \
+  -v "$BASE/tls-contract.test.ts:/app/packages/frontend/scripts/tls-contract.test.ts:ro" \
+  -v "$BASE/fixtures/tls-public:/fixtures:ro" \
+  -w /app/packages/frontend --entrypoint bun tokscale-ci:review \
+  test scripts/tls-contract.test.ts

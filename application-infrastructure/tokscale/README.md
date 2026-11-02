@@ -1,5 +1,9 @@
 # Tokscale — executable review artifacts, activation blocked
 
+**Unvalidated candidate update:** strict TLS overlays and their new tests have not
+run. The owner disabled GitHub workflows for budget; local Docker is unavailable.
+The earlier successful build at `8659b0d` does not validate this changed source.
+
 This directory translates the [reviewed upstream source](https://github.com/junhoyeo/tokscale/tree/b26c433d03f23a2255ad9f212512ce83ede83da3)
 into a **zero-replica** Kubernetes review bundle. It is not a running hub or a
 validated production image. No scheduler or reporter enrollment is installed.
@@ -20,7 +24,7 @@ a deterministic file-content digest after the explicitly recorded privacy patch.
   a container-start decision. Downgrading an image does not reverse migrations.
 - The pinned Compose example uses PostgreSQL 16. Its default passwords, plaintext
   DB transport and floating image tags are deliberately **not** carried forward.
-- `DATABASE_URL`, `DATABASE_SSL`, `APP_URL`, GitHub OAuth credentials and a stable
+- `DATABASE_URL`, `DATABASE_SSL=verify-full`, `DATABASE_CA_FILE`, `APP_URL`, GitHub OAuth credentials and a stable
   `AUTH_SECRET` are required independently. Never rely on upstream automatic
   session-secret generation. GitHub OAuth registration is a separate owner action.
 - `POST /api/submit` uses upstream bearer-token authentication. This does **not**
@@ -63,6 +67,7 @@ Existing Secret references (contents must never go into Git/tools/logs):
 | --- | --- |
 | `tokscale-database` | `postgres-password`, `database-url`; dedicated database/user `tokscale`, URI refers to this instance and matching password |
 | `tokscale-auth` | `auth-secret`, `github-client-id`, `github-client-secret`; independent approved custody |
+| `tokscale-database-ca` | `ca.crt`; independently trusted CA for app and migration clients |
 | `tokscale-postgres-tls` | `tls.crt`, `tls.key`; certificate matches private database service DNS |
 
 The PostgreSQL projection uses root-owned, group-readable `0440` material with
@@ -144,3 +149,28 @@ See the [pinned-source TLS/auth/build audit](contract-audit.md) for exact remain
 contract gaps, including `DATABASE_SSL=require` not verifying certificates and
 native scheduler endpoint propagation. These findings are not a successful build
 or runtime test and must be resolved before production use.
+
+## Strict TLS overlay candidate — tests pending
+
+The checksum-bound source overlay replaces upstream's unauthenticated `require`
+mode with a shared `getDatabaseTlsOptions` helper: explicit `verify-full`, an
+absolute CA file, certificate-chain verification and Node hostname verification.
+It rejects IP endpoints, query/fragment overrides and process-level verification
+disabling. The renderer references an existing trusted-CA Secret; it never creates
+that Secret or a key/certificate. All workload replicas remain zero.
+
+Runtime, advisory-lock connection, and the existing `bunx drizzle-kit migrate`
+subprocess share the same strict TLS helper. Upstream migration engine, directory,
+lock and retry orchestration remain unchanged. The drizzle-kit configuration uses
+structured host/port/database/user/password/ssl fields, because pinned 0.30.6
+silently ignores separate ssl options when a `url` credential is supplied. A real
+isolated migration/restore rehearsal is still required; TLS/startup tests do not
+prove migration compatibility or rollback safety.
+
+`tls-contract.test.ts` proposes loopback-only PostgreSQL TLS/startup mocks for
+runtime, migration lock and migration child. Matching CA/DNS must reach a synthetic
+rejection marker; wrong CA, wrong DNS and denied TLS must not reach startup. It
+uses unchanged public Node.js test certificates and a publicly distributed test
+key, not generated credentials. No database, SQL execution, real migration or
+application server is started. The Docker recipe uses `--network=none`. These
+tests are **unrun** until the owner reauthorizes CI; do not reenable workflows.

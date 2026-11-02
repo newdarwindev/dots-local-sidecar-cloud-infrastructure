@@ -31,5 +31,60 @@
       "        <Analytics />\n"
     ]
   },
-  "preparedTreeSha256": "f111474b64671549ef9b88429df7da4934ec0af05590cf4e065e5cfb460d11b1"
+  "preparedTreeSha256": "4e09664df62ba0ae0fc78e19941c99e4c3f47daa410ac946486f0c5b8c866331",
+  "tlsPatches": [
+    {
+      "path": "packages/frontend/src/lib/db/index.ts",
+      "replacements": [
+        {
+          "old": "export function getDatabaseSslMode(): \"require\" | false {\n  const configured = process.env.DATABASE_SSL?.trim().toLowerCase();\n\n  if (configured === \"false\" || configured === \"disable\") {\n    return false;\n  }\n  if (configured === \"true\" || configured === \"require\") {\n    return \"require\";\n  }\n\n  // Preserve the existing managed-production default while allowing local\n  // container deployments to opt out explicitly via DATABASE_SSL=false.\n  return process.env.NODE_ENV === \"production\" ? \"require\" : false;\n}\n\n",
+          "new": ""
+        },
+        {
+          "old": "import * as schema from \"./schema\";",
+          "new": "import * as schema from \"./schema\";\nimport { getDatabaseTlsOptions } from \"./tls\";"
+        },
+        {
+          "old": "ssl: getDatabaseSslMode(),",
+          "new": "ssl: getDatabaseTlsOptions(getConnectionString()),"
+        }
+      ],
+      "originalSha256": "7296c6ff8f9a9d8aea3bf4d9fbc6580ec1986dc8765c87c2f0792243622f581e"
+    },
+    {
+      "path": "packages/frontend/scripts/migrate-core.ts",
+      "replacements": [
+        {
+          "old": "import { getDatabaseSslMode } from \"../src/lib/db\";",
+          "new": "import { getDatabaseTlsOptions } from \"../src/lib/db/tls\";"
+        },
+        {
+          "old": "  const ssl = getDatabaseSslMode();\n  const migrationUrl = new URL(opts.databaseUrl);\n  migrationUrl.searchParams.set(\"sslmode\", ssl === false ? \"disable\" : \"require\");\n  const databaseUrl = migrationUrl.toString();",
+          "new": "  const databaseUrl = opts.databaseUrl;\n  const ssl = getDatabaseTlsOptions(databaseUrl);"
+        }
+      ],
+      "originalSha256": "d728227a9840c8fdd551f31346c42ddfbcddb83c327e3c2ffe5fe452874babbf"
+    },
+    {
+      "path": "packages/frontend/drizzle.config.ts",
+      "originalSha256": "84b063f5fbbe93466de22b4df069f2a60db4becb47909d8ef1a2a58663cc4105",
+      "replacements": [
+        {
+          "old": "import { defineConfig } from \"drizzle-kit\";",
+          "new": "import { defineConfig } from \"drizzle-kit\";\nimport { getDatabaseCredentials } from \"./src/lib/db/tls\";"
+        },
+        {
+          "old": "  dbCredentials: {\n    url: process.env.DATABASE_URL!,\n  },",
+          "new": "  dbCredentials: getDatabaseCredentials(process.env.DATABASE_URL!),"
+        }
+      ]
+    }
+  ],
+  "overlayFiles": [
+    {
+      "source": "overlays/tls.ts",
+      "path": "packages/frontend/src/lib/db/tls.ts",
+      "sha256": "aa5caf4383bcbf1cb2991f1b414db40f5b4c6fec95cc84a225f356e9c3195315"
+    }
+  ]
 }

@@ -56,6 +56,24 @@ def prepare(archive_bytes, destination, lock):
             raise ValueError('privacy patch source mismatch')
         contents = contents.replace(text, '')
     target.write_text(contents)
+    for patch in lock.get('tlsPatches', []):
+        target = destination / patch['path']
+        if hashlib.sha256(target.read_bytes()).hexdigest() != patch['originalSha256']:
+            raise ValueError('TLS patch source checksum mismatch')
+        contents = target.read_text()
+        for replacement in patch['replacements']:
+            if contents.count(replacement['old']) != 1:
+                raise ValueError('TLS patch source mismatch')
+            contents = contents.replace(replacement['old'], replacement['new'])
+        target.write_text(contents)
+    for overlay in lock.get('overlayFiles', []):
+        contents = (ROOT / overlay['source']).read_bytes()
+        if hashlib.sha256(contents).hexdigest() != overlay['sha256']:
+            raise ValueError('TLS overlay checksum mismatch')
+        target = destination / overlay['path']
+        if target.exists():
+            raise ValueError('TLS overlay must not replace an existing file')
+        target.write_bytes(contents)
     if tree_digest(destination) != lock['preparedTreeSha256']:
         raise ValueError('complete prepared source tree mismatch')
 

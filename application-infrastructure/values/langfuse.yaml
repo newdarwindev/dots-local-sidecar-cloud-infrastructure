@@ -75,12 +75,12 @@ clickhouse:
   auth: {username: default, existingSecret: langfuse-clickhouse-auth, existingSecretKey: password}
   cluster:
     replicas: 1
-    image: {repository: clickhouse/clickhouse-server, tag: "26.8.36.3"}
+    image: {repository: clickhouse/clickhouse-server, tag: "26.8.36.3@sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7"}
     storage: {size: 100Gi, className: REQUIRED_PRIVATE_STORAGE_CLASS}
   keeper:
     enabled: true
     replicas: 1
-    image: {repository: clickhouse/clickhouse-keeper, tag: "26.8.36.3"}
+    image: {repository: clickhouse/clickhouse-keeper, tag: "26.8.36.3@sha256:a847f2f30ac6950828d6f2413828adeeee4c9d261cb88f88eb6f1606a5f5a062"}
     storage: {size: 20Gi, className: REQUIRED_PRIVATE_STORAGE_CLASS}
 s3:
   global:

@@ -1,0 +1,6 @@
+{
+  "source": "https://registry.npmjs.org/drizzle-kit/-/drizzle-kit-0.30.6.tgz",
+  "sha256": "de5d5ff183193364ed796683cc9e3fdc1f673671ffcdc5d55e417034a53a57c4",
+  "sha512": "538c168add1fc99b86b8fee2366465790c8ad95f300aebf9eef7f99773271b8cf87f33538d8fd4d7733ca30c90e516afaafab10627d6391691df0214ce537ae2",
+  "evidence": "bin.cjs postgres/pg URL branches discard separate ssl; structured credentials forward ssl. Inspected only, not executed."
+}
