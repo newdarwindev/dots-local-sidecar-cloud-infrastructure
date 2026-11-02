@@ -10,7 +10,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -19,3 +19,7 @@ jobs:
         run: docker build --platform linux/amd64 -f application-infrastructure/validation/Dockerfile -t staged-app-validation .
       - name: Validate synthetic contracts and locked charts only
         run: docker run --rm --cpus=2 --memory=2g --cap-drop=ALL --security-opt=no-new-privileges staged-app-validation
+      - name: Build locked Tokscale image without credentials or activation
+        env:
+          VALIDATION_IMAGE: staged-app-validation
+        run: sh application-infrastructure/tokscale/ci-build.sh

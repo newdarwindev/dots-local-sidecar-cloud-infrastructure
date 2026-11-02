@@ -6,7 +6,8 @@ validated production image. No scheduler or reporter enrollment is installed.
 The derived Dockerfile includes upstream MIT attribution in `LICENSE.upstream`
 (Copyright 2025 Junho Yeo), verified at the pinned revision.
 Source revision and SHA256 hashes of inspected upstream files are recorded in
-`source.lock.json`; these are source-inspection evidence, not a whole-tree digest.
+`source.lock.json`; the complete public source archive is also SHA256-locked. The prepared tree has
+a deterministic file-content digest after the explicitly recorded privacy patch.
 
 ## Verified source contract
 
@@ -72,21 +73,50 @@ permissions to get past errors. `DATABASE_SSL=require` alone is **not evidence o
 CA/hostname verification**: pinned driver behavior, trusted CA delivery and
 negative-certificate tests remain blockers. No TLS-verification claim is made.
 
-## Reproducible build handoff — not executed
+## Source/image locks and credential-free CI build
 
-Obtain and verify the complete upstream tree at the locked commit through the
-approved source route. Inspect the full tree/lockfile and its license. From that
-source root, use this derived Dockerfile, supplying a separately verified
-`oven/bun@sha256:...` as `BUN_IMAGE`. Use `build_plan.py` to reject a floating
-base **before** any Docker invocation; it only prints a command and never runs
-Docker. The Dockerfile also rejects a non-digest base during its base-stage RUN
-check (direct Docker invocation may resolve/pull the base before that check).
-The frontend build does not need a live
-`DATABASE_URL`; never inject live credentials into a Docker build. Record build
-provenance, full-tree integrity, base digest, target architecture, dependency
-license/security checks and output image digest. The reviewed file hashes are
-not enough to attest uninspected files. Do not claim this recipe is reproducible
-until that complete-source/base-image lock and an actual build test succeed.
+`source.lock.json` pins the complete official GitHub source archive SHA256 and a
+prepared-tree SHA256. `prepare_source.py` downloads only that archive, refuses
+checksum/path/link/duplicate-file mismatches, writes a new directory without
+overwriting an old tree, and removes the exact pinned Vercel Analytics import
+and component. This explicit privacy patch is necessary because
+`NEXT_TELEMETRY_DISABLED` does not disable browser Vercel Analytics. It is not a
+claim that every other outbound browser request has been audited or blocked.
+
+`images.lock.json` pins official Docker registry manifest indexes plus AMD64 and
+ARM64 child manifests for **Bun 1.3.14-alpine** and **PostgreSQL 16-alpine**.
+Registry index bytes were SHA256-verified against the response digest. This proves
+manifest availability/platform metadata, not that either image ran successfully.
+PostgreSQL's inspected AMD64 image configuration reports **16.15**. No mutable-tag
+resolution is performed during the prepared build. The image remains unqualified
+for deployment until target-platform runtime/storage/TLS tests pass.
+
+`build_plan.py` requires the exact reviewed Bun index digest and verifies the
+**entire prepared file tree**, including the privacy patch, before printing a
+Docker build command. It never invokes Docker. The Dockerfile additionally
+rejects non-digest Bun references at its base-stage RUN check; a direct Docker
+invocation may resolve/pull a base before that check. Use the CI recipe instead.
+
+From the repository root, a committed CI job calls:
+
+```sh
+VALIDATION_IMAGE=staged-app-validation CI=true sh application-infrastructure/tokscale/ci-build.sh
+```
+
+The named validation image must already be built by the parent workflow and
+contain Python. Source fetching, full-tree checks and all Python tests execute
+inside Docker. The recipe builds only `linux/amd64` on the hosted AMD64 runner,
+checks the non-root image user and required application files using an isolated
+`--network=none` container, and records the local image ID. It does not push an
+image, start a server, run database migrations, connect to a cluster, or supply
+credentials. ARM64 metadata is locked but an ARM64 build/run is not claimed.
+
+The build needs public network access for package installation and `next/font`
+Google font downloads. It is **credential-free, not network-offline**. No live
+`DATABASE_URL`, OAuth credentials, token, secret mounts, private registry login
+or paid service is needed. The build does not establish application availability,
+DB migrations, strict database TLS, viewer authentication or deployment readiness.
+Keep the generated source and image-ID receipts in ignored `.runtime` CI storage.
 
 ## Release blockers and acceptance
 
@@ -96,7 +126,7 @@ capacity and access gates pass. A zero-replica apply still mutates services,
 storage policy and network policy and is not authorized by rendering.
 
 Required evidence: selected-host combined RAM/root/backing-storage solution;
-verified image digests/architecture and build; tested private authenticated reads,
+verified application image build and runtime architecture; tested private authenticated reads,
 wrong-user denial, direct-origin denial and exact machine auth routes; no optional
 browser analytics/third-party egress without review; trusted database TLS with
 wrong-CA/hostname rejection; OAuth/secret custody; migration rehearsal; encrypted
@@ -108,3 +138,8 @@ Rollback stops new traffic/reporting and scales only approved workload changes;
 it does not delete the database/PVC, source histories, attachments or receipts.
 Run `test_render.py` only inside the committed validation container. Tests are
 synthetic and establish render invariants, not application/auth/database health.
+
+See the [pinned-source TLS/auth/build audit](contract-audit.md) for exact remaining
+contract gaps, including `DATABASE_SSL=require` not verifying certificates and
+native scheduler endpoint propagation. These findings are not a successful build
+or runtime test and must be resolved before production use.

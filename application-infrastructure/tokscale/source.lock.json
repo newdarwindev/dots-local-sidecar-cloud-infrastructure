@@ -10,14 +10,26 @@
     "packages/frontend/src/lib/db/index.ts": "7296c6ff8f9a9d8aea3bf4d9fbc6580ec1986dc8765c87c2f0792243622f581e",
     "packages/frontend/src/app/api/submit/route.ts": "c489bf3bf09d538f7267262ec965c09cf7a8793e17206ef09637f262267e6589",
     "packages/frontend/scripts/migrate-docker.ts": "9b2da4ae77203422295378a248622ac715888bb5b2dc756a8d4801cd1a1ce5af",
-    "LICENSE": "24a794f325f7625b5f124945dedb6dcec8188f88e76bf4b99557b52d6cc77be9"
+    "LICENSE": "24a794f325f7625b5f124945dedb6dcec8188f88e76bf4b99557b52d6cc77be9",
+    "packages/frontend/src/app/layout.tsx": "c17f186deaf97dc4615b2876359e9f66c1fecab347d9b5c714a68f06f441050c"
   },
   "unresolved": [
-    "Bun build base digest and target architecture",
     "built application image digest and SBOM",
-    "PostgreSQL 16 image digest and architecture",
     "authenticated browser/read gateway with tested direct-origin denial",
     "database certificate verification and migrations on isolated restore",
     "approved capacity, storage, OAuth and independent secret custody"
-  ]
+  ],
+  "archive": {
+    "url": "https://codeload.github.com/junhoyeo/tokscale/tar.gz/b26c433d03f23a2255ad9f212512ce83ede83da3",
+    "sha256": "0b7591496b81bccfed44d2b740c8619f213eb10dcf11d28e39c1d8536627c2a9",
+    "root": "tokscale-b26c433d03f23a2255ad9f212512ce83ede83da3"
+  },
+  "privacyPatch": {
+    "path": "packages/frontend/src/app/layout.tsx",
+    "removeExactlyOnce": [
+      "import { Analytics } from \"@vercel/analytics/next\";\n",
+      "        <Analytics />\n"
+    ]
+  },
+  "preparedTreeSha256": "f111474b64671549ef9b88429df7da4934ec0af05590cf4e065e5cfb460d11b1"
 }

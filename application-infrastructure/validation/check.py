@@ -2,6 +2,7 @@
 """Container-only synthetic contract and checksum-pinned chart validation."""
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -9,6 +10,8 @@ import tempfile
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'scripts'))
+from image_policy import validate_images
 if not Path('/.dockerenv').exists():
     sys.exit('Validation must run in Docker; do not start a daemon to bypass this guard.')
 
@@ -24,6 +27,10 @@ with tempfile.TemporaryDirectory() as directory:
     run(sys.executable, 'scripts/bundle.py', 'render', '--target', str(ROOT / 'fixtures/target.synthetic.json'), '--output', str(rendered))
     report = json.loads((rendered / 'report.json').read_text())
     documents = [obj for obj in yaml.safe_load_all((rendered / 'manifests.yaml').read_text()) if obj]
+    dockerfile = (ROOT / 'validation/Dockerfile').read_text()
+    sources = re.findall(r'^FROM (\S+) AS collector$', dockerfile, re.MULTILINE)
+    assert len(sources) == 1, 'Expected one digest-pinned Collector binary source'
+    validate_images(documents, json.loads((ROOT / 'images.lock.json').read_text()), sources[0])
     for obj in documents:
         assert obj['kind'] not in {'Ingress', 'CronJob', 'ClusterRole', 'ClusterRoleBinding'}, 'Unexpected exposure, scheduling or cluster permission'
         if obj['kind'] == 'Job':

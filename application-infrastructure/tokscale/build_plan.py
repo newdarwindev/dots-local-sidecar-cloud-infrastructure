@@ -18,17 +18,17 @@ def main():
     source = args.source.resolve()
     if not source.is_dir():
         parser.error('verified source tree directory must already exist')
-    # Partial file checks catch accidental source mismatch; they are expressly NOT
-    # a full source-tree attestation. Full-source provenance remains an activation gate.
+    from prepare_source import tree_digest
     lock = json.loads(Path(__file__).with_name('source.lock.json').read_text())
-    import hashlib
-    for relative, digest in lock['files'].items():
-        path = source / relative
-        if not path.is_file() or path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
-            parser.error('locked inspected-source file mismatch; stop for source review')
+    images = json.loads(Path(__file__).with_name('images.lock.json').read_text())['images']
+    if args.bun_image != 'oven/bun@' + images['bun']['digest']:
+        parser.error('Bun digest does not match the reviewed image lock')
+    if tree_digest(source) != lock['preparedTreeSha256']:
+        parser.error('complete prepared source tree differs from reviewed archive/privacy patch')
     print(json.dumps({'status': 'build-plan-only-not-executed',
                       'sourceRevision': lock['commit'],
-                      'fullSourceAttestationRequired': True,
+                      'fullSourceTreeVerified': True,
+                      'preparedTreeSha256': lock['preparedTreeSha256'],
                       'command': ['docker', 'build', '--platform', args.platform,
                                   '--build-arg', 'BUN_IMAGE=' + args.bun_image,
                                   '-f', str(Path(__file__).with_name('Dockerfile').resolve()),

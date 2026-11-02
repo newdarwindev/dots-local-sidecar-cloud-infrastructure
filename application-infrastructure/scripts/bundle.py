@@ -134,7 +134,16 @@ def run(args):
 
 def inspect_documents(documents, namespace):
     """Reject dangerous rendering; no Secrets/cluster resources/adoption by default."""
+    import importlib.util
+    policy_spec = importlib.util.spec_from_file_location('image_policy', ROOT / 'scripts/image_policy.py')
+    policy = importlib.util.module_from_spec(policy_spec)
+    policy_spec.loader.exec_module(policy)
+    validate_images = policy.validate_images
     problems = []
+    try:
+        validate_images(documents, load(ROOT / 'images.lock.json'))
+    except ValueError as error:
+        problems.append(str(error))
     seen = set()
     for obj in documents:
         if not obj:
