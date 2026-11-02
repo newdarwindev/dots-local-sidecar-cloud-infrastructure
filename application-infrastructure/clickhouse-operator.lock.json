@@ -1,0 +1,43 @@
+{
+  "repository": "https://github.com/ClickHouse/clickhouse-operator",
+  "candidateVersion": "v0.0.8",
+  "commit": "ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd",
+  "scope": "Offline candidate source/schema contract only; target operator identity and runtime admission unverified; no installation authorized.",
+  "files": {
+    "common.go": {
+      "path": "api/v1alpha1/common.go",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/api/v1alpha1/common.go",
+      "sha256": "672108b5236d7cb8db424adabab0bc13417c4c201c89f379a59a8665f97a01e3"
+    },
+    "clickhouseclusters.yaml": {
+      "path": "config/crd/bases/clickhouse.com_clickhouseclusters.yaml",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/config/crd/bases/clickhouse.com_clickhouseclusters.yaml",
+      "sha256": "16165c5328dab0f575ab3e62c831a5d8979719296f99922d65402c7eeb7cec07"
+    },
+    "keeperclusters.yaml": {
+      "path": "config/crd/bases/clickhouse.com_keeperclusters.yaml",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/config/crd/bases/clickhouse.com_keeperclusters.yaml",
+      "sha256": "82f9b9eb6d6b743ad30f130cd765bed1735778cda87ed1f5d683693805902136"
+    },
+    "clickhousecluster_types.go": {
+      "path": "api/v1alpha1/clickhousecluster_types.go",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/api/v1alpha1/clickhousecluster_types.go",
+      "sha256": "feea734e31c27f68a0b3d0b6762ceb83b24870023a76679eefdf497378cd67d1"
+    },
+    "keepercluster_types.go": {
+      "path": "api/v1alpha1/keepercluster_types.go",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/api/v1alpha1/keepercluster_types.go",
+      "sha256": "cc06bbf9f418812815c869aff68bb2d89cf50b81f7533774857484b7d3d52e75"
+    },
+    "defaults.go": {
+      "path": "api/v1alpha1/defaults.go",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/api/v1alpha1/defaults.go",
+      "sha256": "cd07ff84899ddbec43e7afa83b177466cb990eeb95108498e4e8119ec0291b02"
+    },
+    "controllerutil.go": {
+      "path": "internal/controllerutil/common.go",
+      "url": "https://raw.githubusercontent.com/ClickHouse/clickhouse-operator/ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd/internal/controllerutil/common.go",
+      "sha256": "17ecfdd5d08b68e5807c7e27dbccc01a2b855769325d5719b7f44027f3e9a7cc"
+    }
+  }
+}

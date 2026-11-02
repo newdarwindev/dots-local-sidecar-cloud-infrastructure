@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "reviewed": "2026-11-02",
+  "artifacts": {
+    "langfuse": {
+      "version": "2.2.1",
+      "appVersion": "4.70.1",
+      "url": "https://github.com/langfuse/langfuse-k8s/releases/download/langfuse-2.2.1/langfuse-2.2.1.tgz",
+      "sha256": "9ddb410ffe22a2cba3fc95c9e8fa7e0e85e3467fe5d4cd9386f8d5b7c32a12c3",
+      "filename": "langfuse-2.2.1.tgz"
+    },
+    "collector": {
+      "version": "0.178.1",
+      "appVersion": "0.163.2",
+      "url": "https://github.com/open-telemetry/opentelemetry-helm-charts/releases/download/opentelemetry-collector-0.178.1/opentelemetry-collector-0.178.1.tgz",
+      "sha256": "6df4120a2ae29f1bf89536eb4b527424f4522b66946857bce41ecc8fe8e9ef40",
+      "filename": "opentelemetry-collector-0.178.1.tgz"
+    },
+    "homarr": {
+      "version": "8.40.1",
+      "appVersion": "2.10.1",
+      "url": "https://github.com/homarr-labs/charts/releases/download/homarr-8.40.1/homarr-8.40.1.tgz",
+      "sha256": "84ca9fcbc9a4fc059823ec8fbee9afd0427d0d06289672093d90360e16d17a72",
+      "filename": "homarr-8.40.1.tgz"
+    }
+  },
+  "bundledDependencies": {
+    "postgres": "1.6.3",
+    "valkey": "0.9.4",
+    "seaweedfs": "4.23.0"
+  },
+  "imageDigestStatus": "blocked: immutable image manifests and target architecture verification required before deployment",
+  "sources": [
+    "https://langfuse.github.io/langfuse-k8s/index.yaml",
+    "https://open-telemetry.github.io/opentelemetry-helm-charts/index.yaml"
+  ],
+  "evidence": "Langfuse and Collector archive bytes downloaded; SHA256 matched official chart index. Homarr checksum inherited from existing primary-infrastructure lock. Chart archives include pinned dependency charts; no helm dependency update. No images pulled, no binary validation or cluster changes.",
+  "vendorPatches": {
+    "seaweedfs-unused-sftp": {
+      "member": "langfuse/charts/seaweedfs/templates/sftp/sftp-secret.yaml",
+      "originalSha256": "71ed928ca7784ee5fc1110a5ac9357d17c206431cbdba8e6967619f93855650b",
+      "reason": "Upstream condition generates unused SFTP credentials for allInOne even with SFTP disabled; narrow to actual allInOne.sftp.enabled before Helm evaluation."
+    }
+  }
+}

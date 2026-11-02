@@ -76,3 +76,11 @@ The [primary reference runbook](../primary-infrastructure/README.md) remains use
 implementation history/scaffolding, not a competing current deployment mandate.
 The private overlay owns current placement; archived original-context documents
 are preserved unchanged and do not override this phase decision.
+
+## Executable staging bundle
+
+The [application bundle](../application-infrastructure/README.md) adds checksum-
+locked chart rendering, explicit-target read-only preflight, synthetic telemetry
+contracts and Docker CI. It does not activate applications or resolve the private
+capacity/access/recovery gates. Actual deployment remains disabled pending the
+initial owner-approved resource-level change and subsequent reviewed CI enablement.

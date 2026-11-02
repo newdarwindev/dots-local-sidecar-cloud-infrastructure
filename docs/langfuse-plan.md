@@ -97,7 +97,7 @@ bootstrap/recovery custody; (4) provision private storage and dependencies;
 (5) start web/worker and run schema readiness checks; (6) bootstrap only approved
 organization/project/users and narrow ingestion keys; (7) synthetic trace and
 access/restore tests; (8) enroll one explicitly approved source surface; then
-expand by evidence. No executable deployment manifests are staged in this change.
+expand by evidence. The later [staged application bundle](../application-infrastructure/README.md) now provides executable offline chart rendering; actual deployment remains unavailable and these acceptance gates still apply.
 
 ## Access, names and secrets
 
