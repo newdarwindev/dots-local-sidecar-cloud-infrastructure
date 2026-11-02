@@ -6,6 +6,7 @@ replicaCount: 1
 image:
   repository: otel/opentelemetry-collector-contrib
   tag: "0.163.2"
+  digest: "sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849"
 command: {name: otelcol-contrib}
 serviceAccount:
   create: true
