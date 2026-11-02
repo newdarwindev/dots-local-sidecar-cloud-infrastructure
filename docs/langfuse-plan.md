@@ -8,20 +8,24 @@ private overlay. This adds an observability workload, not another secrets or
 identity system. Coverage is measured per authorized session surface, not promised
 for every account or cloud session.
 
-## Recommended shape
+## Selected design
 
 ```mermaid
 flowchart LR
-  C[Approved local Codex surfaces] --> F[Local allowlist / redaction boundary]
-  F -->|private HTTPS, project key| L[Langfuse Web / ingestion]
+  N[Native Codex OTel: operational signals] --> F[Approved local metadata allowlist]
+  F --> O[Selected cluster: OTel Collector gateway]
+  O -->|trace pipeline only| L[Same cluster: Langfuse Web]
+  O -->|separate logs / metrics pipelines| M[Approved signal stores: selection pending]
+  C[Official Codex plugin: approved future rich sessions] --> L
+  B[Community importer: bounded historical sessions] --> L
   U[Authorized viewers] --> I[Private ingress + native OIDC]
   I --> L
-  L --> P[(PostgreSQL)]
-  L --> S[(S3-compatible object storage)]
-  L --> R[(Redis / Valkey)]
+  L --> P[(Same cluster: PostgreSQL)]
+  L --> S[(Same cluster: S3-compatible storage)]
+  L --> R[(Same cluster: Redis / Valkey)]
   R --> W[Langfuse Worker]
   S --> W
-  W --> H[(ClickHouse)]
+  W --> H[(Same cluster: ClickHouse)]
   L --> H
 ```
 
@@ -31,11 +35,27 @@ Redis/Valkey queues/cache, and object storage ingestion payloads/media/exports.
 An external LLM is not needed merely to collect traces. Leave paid inference,
 playground/evaluation integrations and in-app agents off unless separately approved.
 
-Use one logical private observability hub, initially a non-HA pilot. Prefer the
-vendor Helm chart only after an existing Linux cluster passes readiness checks;
-otherwise a separately budgeted Linux VM with vendor Compose is a simpler bounded
-pilot. Neither choice automatically adopts a host or replaces an existing cluster.
-Do not insert this data stack into the small management guest by default.
+The owner selected **one existing hosted Kubernetes cluster** for Langfuse,
+OpenTelemetry Collector and S3-compatible storage together. Its exact identity is
+recorded privately. This supersedes the earlier tentative host/VM alternatives;
+it does not establish cluster readiness or authorize installation. Treat the
+co-located stack as one failure domain, not HA. The small management guest is not
+the target. Use the vendor Helm chart after inventory/readiness validation.
+
+All three integration paths are selected: native OTel for operational telemetry,
+community importer for bounded history, official plugin for future rich-session
+tracing. These are complementary roles, **not three independent copies of usage**.
+The [OpenTelemetry implementation design](opentelemetry-implementation-plan.md)
+owns Collector pipelines, schema gates and rollout; the coverage/privacy and
+producer-ownership rules below apply to all paths.
+
+For same-cluster S3-compatible storage, use the current vendor chart's bundled
+**SeaweedFS as the draft implementation choice**, subject to exact release/image,
+S3 compatibility, storage and restore validation. This is not an installed vendor
+selection or permission to replace existing storage. Keep event, media and export
+buckets/private prefixes separately scoped. An independent off-cluster backup
+location remains mandatory and unselected; a second bucket on this same cluster
+is not disaster recovery.
 
 ## Version, capacity and installation gates
 
@@ -85,7 +105,7 @@ Keep worker health and all database, queue, object-store and operator endpoints
 private. Permit only version-verified internal component ports, never blanket
 host networking/public database ports. TLS verification stays enabled.
 
-Use Authentik through [native OIDC](https://langfuse.com/self-hosting/security/authentication-and-sso):
+Use the selected Authentik IdP through [native OIDC](https://langfuse.com/self-hosting/security/authentication-and-sso):
 prefer the dedicated Authentik provider when the pinned release supports it.
 Otherwise use the documented custom provider only after a separate compatibility
 review (`AUTH_CUSTOM_*`, exact `/api/auth/callback/custom` redirect). Verify the
@@ -120,14 +140,14 @@ For OSS propose `TELEMETRY_ENABLED=false` on both application containers; curren
 OSS opt-out from commercial license telemetry. Review remaining update/browser
 requests and egress rather than equating that switch with zero network activity.
 
-## Codex integration choices
+## Selected Codex integration paths
 
 | Path | What it can establish | Constraints / decision |
 | --- | --- | --- |
-| [Official Codex plugin](https://langfuse.com/integrations/developer-tools/codex), [source](https://github.com/langfuse/codex-observability-plugin) | Stop-hook transcript reconstruction, per-turn traces and session grouping, generations/tools/subagents/tokens | Preferred rich-trace pilot **only after explicit content approval**. Docs require Codex >=0.143, Node >=22/npm, hooks enabled, Langfuse >=3.95.0. Review pinned hook code/hash. Its broad content capture is not metadata-only; do not enable it fleet-wide under a telemetry assumption. |
-| Native Codex OTel via reviewed filtering/transform | Live operational spans and allowlisted metadata, depending on emitted events | Preferred metadata-only research/pilot path. Logs, traces and metrics are separate exporters. Langfuse accepts OTLP HTTP traces, not arbitrary log/metric payloads or gRPC. Validate mapping/usage fields on synthetic sessions; no assertion that it creates full conversational replay. |
-| SDK/app-server instrumentation | Sessions/jobs launched by an explicitly instrumented client | Useful controlled-job boundary, not capture of unrelated desktop/CLI/cloud sessions. Use the SDK for local-thread automation and app server for custom clients; do not revive removed `codex mcp-server` recipes. |
-| [Community historical importer](https://github.com/kirilligum/codex-langfuse-tracer) | Potential bounded local rollout import | Not vendor supported; schema/version/privacy/security review and synthetic tests first. Never start its watcher or scan all accounts by default. Prefer a reviewed adapter with strict field allowlist for metadata-only import. |
+| [Official Codex plugin](https://langfuse.com/integrations/developer-tools/codex), [source](https://github.com/langfuse/codex-observability-plugin) | Stop-hook transcript reconstruction, per-turn traces and session grouping, generations/tools/subagents/tokens | **Selected for future rich-session tracing**, activated only after explicit content approval. Docs require Codex >=0.143, Node >=22/npm, hooks enabled, Langfuse >=3.95.0. Review pinned hook code/hash. Its broad content capture is not metadata-only; do not enable it fleet-wide under a telemetry assumption. |
+| Native Codex OTel via reviewed filtering/transform | Live operational spans and allowlisted metadata, depending on emitted events | **Selected operational telemetry path through the cluster Collector**. Logs, traces and metrics are separate exporters. Langfuse accepts OTLP HTTP traces, not arbitrary log/metric payloads or gRPC. Validate mapping/usage fields on synthetic sessions; no assertion that it creates full conversational replay. |
+| SDK/app-server instrumentation (not selected for this rollout) | Sessions/jobs launched by an explicitly instrumented client | Useful controlled-job boundary, not capture of unrelated desktop/CLI/cloud sessions. Use the SDK for local-thread automation and app server for custom clients; do not revive removed `codex mcp-server` recipes. |
+| [Community historical importer](https://github.com/kirilligum/codex-langfuse-tracer) | Potential bounded local rollout import | **Selected for bounded historical imports**; not vendor supported; schema/version/privacy/security review and synthetic tests first. Never start its watcher or scan all accounts by default. Prefer a reviewed adapter with strict field allowlist for metadata-only import. |
 
 References: [Codex configuration](https://learn.chatgpt.com/docs/config-file/config-reference),
 [OTel implementation](https://github.com/openai/codex/blob/main/codex-rs/otel/README.md),
@@ -175,6 +195,33 @@ A bounded backfill records time range/session allowlist, counts, rejected record
 and a resumable checkpoint. Replaying the same fixture twice must not change totals.
 Plugin-side dedup is not proof of cross-importer or cross-host deduplication.
 Choose one canonical producer per session, or reconcile before importing overlaps.
+
+### Canonical ownership and historical/live cutover
+
+Before enabling any source, write an immutable private enrollment record containing
+source namespace, session IDs, producer version and a UTC cutover timestamp `T`.
+Partition by **session ownership**, not file modification time: importer owns
+explicitly allowed sessions completed before `T`; plugin owns sessions started
+after successful hook enrollment/restart at or after `T`. Sessions spanning `T`
+are held for explicit assignment to one producer after completion, not split or
+uploaded by both. A resume retains its original ownership unless a reviewed
+migration reconciles prior trace/event IDs first. No whole-history watcher runs.
+
+The plugin is canonical for token-bearing rich traces in its assigned sessions;
+the importer is canonical only for its assigned historical sessions. Native OTel
+is operational evidence: route it to a **separate Langfuse project** for diagnostic
+traces after approved transformation, and to separate log/metric backends. Exclude
+native OTel token observations from canonical usage/cost dashboards when plugin
+or importer ownership exists. No cross-project summing is permitted. If native
+usage is the only evidence, label it noncanonical until reconciliation explicitly
+assigns ownership; do not fill gaps by silently counting a second exporter.
+
+Because producer-native IDs may differ, dedup keys are canonical source/session/
+turn/event IDs maintained in a private ownership ledger, not merely each tool's
+local sidecar. Import dry-run must reject an already-owned session. Retry/checkpoint
+updates follow confirmed delivery; uncertain sends reconcile server IDs before
+resend. A synthetic overlap fixture across all three paths must yield exactly
+one canonical usage record per source turn, with diagnostics still inspectable.
 
 Langfuse token/cost estimates are **not ChatGPT subscription quota accounting**.
 Keep Tokscale's native reporting schedule and accounting workflow separate; join

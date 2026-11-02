@@ -30,7 +30,7 @@ production high-availability claim is made.
 | Management bootstrap order and recovery acceptance | [Primary host rollout](docs/primary-host-rollout.md) |
 | Exact pinned implementation and guarded actions | [Implementation runbook](primary-infrastructure/README.md) |
 | Planned human identity, application access and domains | [Authentication and domains](docs/auth-domain-plan.md) |
-| Codex sessions and private Langfuse observability | [Langfuse installation and coverage plan](docs/langfuse-plan.md) |
+| Codex sessions and private Langfuse observability | [Selected Langfuse design](docs/langfuse-plan.md); [OpenTelemetry implementation plan](docs/opentelemetry-implementation-plan.md) |
 | Cloud, provider and agent trust boundaries | [Boundaries](docs/boundaries-and-cloud.md) |
 
 The overview expresses intent; the implementation runbook describes only what
@@ -63,8 +63,9 @@ flowchart LR
   AC --> C
   W -->|scoped secret reads| B[OpenBao on management]
   C -->|scoped secret reads| B
-  F[Authorized Codex sources: opt-in + local filtering] -->|private HTTPS| L[Proposed Langfuse observability workload]
-  L --> D[Private durable data stores: separate resource budget]
+  F[Selected Codex paths: OTel + plugin + bounded importer] -->|private authenticated routes| L[Selected cluster: Collector + Langfuse]
+  L --> D[Same cluster: private S3 and durable data stores]
+  D --> BK[Independent off-cluster backup: pending]
   S -->|approved typed request| G
 ```
 
