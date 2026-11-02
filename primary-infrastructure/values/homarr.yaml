@@ -1,0 +1,28 @@
+fullnameOverride: homarr
+replicaCount: 1
+image:
+  tag: v2.10.1
+service:
+  type: ClusterIP
+  port: 7575
+ingress:
+  enabled: false
+rbac:
+  enabled: false
+podAnnotations:
+  backup.dots/state: homarr-database-and-separate-encryption-key
+env:
+  TZ: Etc/UTC
+  AUTH_PROVIDERS: credentials
+persistence:
+  homarrDatabase:
+    enabled: true
+    storageClassName: local-path
+    size: 1Gi
+envSecrets:
+  dbEncryption:
+    existingSecret: homarr-db-encryption
+    key: db-encryption-key
+resources:
+  requests: {cpu: 50m, memory: 256Mi}
+  limits: {cpu: 500m, memory: 512Mi}

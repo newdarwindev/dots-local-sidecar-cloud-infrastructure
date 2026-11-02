@@ -1,0 +1,21 @@
+name: Primary infrastructure validation
+on:
+  push:
+    paths: ['primary-infrastructure/**', '.github/workflows/primary-infrastructure.yml']
+  pull_request:
+    paths: ['primary-infrastructure/**', '.github/workflows/primary-infrastructure.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Build validation container
+        run: docker build --platform linux/amd64 -f primary-infrastructure/validation/Dockerfile -t primary-infra-validation .
+      - name: Validate pinned charts and isolation contracts inside Docker
+        run: docker run --rm --cpus=2 --memory=1g --cap-drop=ALL --security-opt=no-new-privileges primary-infra-validation

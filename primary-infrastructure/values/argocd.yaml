@@ -1,0 +1,48 @@
+fullnameOverride: argocd
+createClusterRoles: false
+configs:
+  cm:
+    application.resourceTrackingMethod: annotation
+    admin.enabled: true
+    users.anonymous.enabled: false
+    resource.exclusions: |
+      - apiGroups: ["*"]
+        kinds: [Secret]
+        clusters: ["*"]
+  params:
+    server.insecure: false
+  clusterCredentials:
+    primary:
+      server: https://kubernetes.default.svc
+      namespaces: homarr,openbao
+      clusterResources: false
+      config: {}
+controller:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: 500m, memory: 512Mi}
+repoServer:
+  replicas: 1
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 256Mi}
+server:
+  replicas: 1
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  resources:
+    requests: {cpu: 50m, memory: 64Mi}
+    limits: {cpu: 250m, memory: 128Mi}
+redis:
+  resources:
+    requests: {cpu: 25m, memory: 32Mi}
+    limits: {cpu: 100m, memory: 96Mi}
+dex:
+  enabled: false
+applicationSet:
+  enabled: false
+notifications:
+  enabled: false

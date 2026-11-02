@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: primary
+  namespace: argocd
+spec:
+  description: Namespaced primary services; no cloud or demo resources
+  sourceRepos:
+    - https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure.git
+    - https://homarr-labs.github.io/charts/
+    - https://openbao.github.io/openbao-helm
+  destinations:
+    - namespace: homarr
+      server: https://kubernetes.default.svc
+    - namespace: openbao
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+    - {group: "", kind: Service}
+    - {group: "", kind: ServiceAccount}
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: PersistentVolumeClaim}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: policy, kind: PodDisruptionBudget}
+  orphanedResources:
+    warn: true

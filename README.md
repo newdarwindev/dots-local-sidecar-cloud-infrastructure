@@ -1,10 +1,16 @@
 # DRAFT: dots-local-sidecar-cloud-infrastructure
 
-Architecture proposal only · 2026-10-31 · No cluster, credential service, cloud resources, or agent controller has been deployed by this repository.
+Architecture and staged implementation · 2026-11-02 · No cluster, credential service, cloud resources, or agent controller has been deployed by this repository.
 
 The [primary macOS host rollout](docs/primary-host-rollout.md) records the staged
-bootstrap, private desired-state boundary, Homarr integration, approval scopes
+bootstrap, public/private desired-state boundary, Homarr integration, approval scopes
 and recovery checks. It is not an installed deployment or a verified GitOps loop.
+
+[Primary infrastructure implementation](primary-infrastructure/README.md),
+[action-time approval template](primary-infrastructure/APPROVAL.md) and
+[Docker-only validation](.github/workflows/primary-infrastructure.yml) are staged
+here. Only reviewed generic manifests belong in this public repository; actual
+host records, private settings, credentials and recovery details remain private.
 
 ## Goal and assumptions
 
@@ -25,7 +31,7 @@ Build an agent-operable local cloud from eight owner-controlled notebooks (macOS
 
 ```mermaid
 flowchart LR
-  O[Owner review] --> G[Public architecture / future private desired-state Git]
+  O[Owner review] --> G[Reviewed public manifests / separate private operational records]
   A[Dot agents] --> S[Local sidecar API: identity, policy, plan, audit]
   S --> O
   G --> AC[Argo CD on management cluster]
@@ -43,7 +49,7 @@ The management cluster owns reconciliation, inventory, audit, and secrets. Workl
 
 ## Agent operations contract
 
-A request includes actor identity, target cluster/namespace, resource kind, desired change, reason, expiry, idempotency key, estimated effect, and rollback plan. The gateway authenticates the agent, validates a typed schema, checks policy and quotas, generates a diff/plan, and records an immutable audit reference. Read-only inventory and status may be delegated. New cluster enrollment, new provider identity, secret policy, privileged workload, public ingress, destructive action, cloud spend, and production promotion require owner approval of the exact plan. On approval, a narrow bot writes a pull request to the **future private desired-state repository**; branch protection and review precede Argo CD sync. The gateway cannot mint its own permissions. Break-glass access is time-limited, logged, and held by the owner outside agent runtime.
+A request includes actor identity, target cluster/namespace, resource kind, desired change, reason, expiry, idempotency key, estimated effect, and rollback plan. The gateway authenticates the agent, validates a typed schema, checks policy and quotas, generates a diff/plan, and records an immutable audit reference. Read-only inventory and status may be delegated. New cluster enrollment, new provider identity, secret policy, privileged workload, public ingress, destructive action, cloud spend, and production promotion require owner approval of the exact plan. On approval, a narrow bot writes a pull request to the **approved desired-state repository** (this public repository for reviewed generic manifests; private settings and operational records stay outside it); branch protection and review precede Argo CD sync. The gateway cannot mint its own permissions. Break-glass access is time-limited, logged, and held by the owner outside agent runtime.
 
 ## Planned integration sequence
 

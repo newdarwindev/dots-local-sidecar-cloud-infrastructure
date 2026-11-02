@@ -2,7 +2,9 @@
 
 Status: staged plan, 2026-11-01. No cluster, Homarr, OpenBao, or continuous
 deployment is installed or verified by this change. This public repository holds
-architecture; live host inventory and desired state belong in private storage.
+architecture and [staged generic implementation](../primary-infrastructure/README.md).
+Live host inventory, sensitive settings and operational decisions stay private;
+reviewed generic desired state is stored here. Publication does not activate it.
 
 ## Preserve the existing architecture
 
@@ -26,10 +28,11 @@ issue supplies executable deployment manifests.
    Reserve resources for ongoing jobs; do not reboot or change sleep settings as
    an incidental installation step. Agree an availability window before claiming
    this is a continuously available primary host.
-2. Prepare private desired state: exact repository and branch, image/chart
+2. Prepare reviewed desired state: exact repository and branch, image/chart
    versions and digests, ARM64 support, VM storage, non-overlapping CIDRs and
    backup destination. Review rendered resources before applying them. This
-   public architecture repository must not become Argo CD's deployment source.
+   public repository is the source for reviewed generic manifests only; private
+   settings and host/recovery records must remain outside it.
 3. Obtain action-time approval for cluster credentials, Linux guest networking,
    controller permissions, persistent repository access and local UI endpoints.
    Keep an explicit inventory of each generated identity and its revocation path.
@@ -43,8 +46,8 @@ issue supplies executable deployment manifests.
    recovery process; never emit root/unseal material into agent logs. Establish
    encrypted off-host recovery before storing real credentials. Bootstrap and
    recovery must work without ESO.
-6. Install pinned Argo CD. Scope an AppProject to the approved private repository,
-   destination and required resource kinds. Bootstrap with manual synchronization.
+6. Install pinned Argo CD. Scope an AppProject to the approved repository, destination and resource kinds;
+   set each Application’s desired-state targetRevision to the approved branch. Bootstrap with manual synchronization.
    Configure annotation resource tracking before Crossplane integration. A
    repository read identity must not have write/admin access. Do not install a
    broad self-hosted CI runner to obtain deployment access.
@@ -70,7 +73,7 @@ issue supplies executable deployment manifests.
 Before real state, define an encrypted off-host backup destination and perform an
 isolated restore drill. Cover etcd plus matching K3s token; OpenBao storage and
 separate recovery material; Homarr database, encryption key and configuration;
-and private desired state. A Git checkout alone cannot restore application data.
+and any private configuration required in addition to the public manifests. A Git checkout alone cannot restore application data.
 Measure backup age, recovery duration and actual data loss before setting RPO/RTO.
 
 For a failed rollout, disable Argo CD reconciliation first, close explicit port

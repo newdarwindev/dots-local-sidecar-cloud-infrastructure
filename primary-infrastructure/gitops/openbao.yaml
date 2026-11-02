@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: primary-openbao
+  namespace: argocd
+spec:
+  project: primary
+  sources:
+    - repoURL: https://openbao.github.io/openbao-helm
+      chart: openbao
+      targetRevision: 0.30.6
+      helm:
+        releaseName: openbao
+        skipTests: true
+        valueFiles:
+          - $values/primary-infrastructure/values/openbao.yaml
+    - repoURL: https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openbao
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - Prune=false

@@ -1,0 +1,16 @@
+cluster-init: true
+node-name: dots-primary
+write-kubeconfig-mode: "0600"
+secrets-encryption: true
+cluster-cidr: 10.72.0.0/16
+service-cidr: 10.73.0.0/16
+cluster-dns: 10.73.0.10
+disable:
+  - traefik
+  - servicelb
+  - metrics-server
+etcd-disable-snapshots: true
+kubelet-arg:
+  - system-reserved=cpu=200m,memory=384Mi
+  - kube-reserved=cpu=200m,memory=384Mi
+  - eviction-hard=memory.available<200Mi,nodefs.available<10%

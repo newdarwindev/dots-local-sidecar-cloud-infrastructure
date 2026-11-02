@@ -1,0 +1,63 @@
+# Apply only after OpenBao init, audit and scoped policy configuration.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: homarr-vault-reader
+  namespace: homarr
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: primary-openbao-token-review
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: openbao
+    namespace: openbao
+---
+apiVersion: external-secrets.io/v1
+kind: SecretStore
+metadata:
+  name: primary-openbao
+  namespace: homarr
+spec:
+  provider:
+    vault:
+      server: https://openbao.openbao.svc:8200
+      path: primary
+      version: v2
+      caProvider:
+        type: ConfigMap
+        name: openbao-ca
+        key: ca.crt
+      auth:
+        kubernetes:
+          mountPath: primary-kubernetes
+          role: homarr-db-read
+          serviceAccountRef:
+            name: homarr-vault-reader
+            audiences: [openbao]
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: homarr-db-encryption
+  namespace: homarr
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: primary-openbao
+    kind: SecretStore
+  target:
+    name: homarr-db-encryption
+    creationPolicy: Orphan
+    deletionPolicy: Retain
+  data:
+    - secretKey: db-encryption-key
+      remoteRef:
+        key: homarr/database
+        property: encryption-key
