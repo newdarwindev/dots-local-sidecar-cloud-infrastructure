@@ -26,6 +26,6 @@ docker build --platform linux/amd64 --build-arg "BUN_IMAGE=$BUN_IMAGE" \
 # Image-only smoke check: do not run the migration entrypoint or start a server.
 docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
   --entrypoint /bin/sh tokscale-ci:review -c \
-  'test "$(id -u)" = 10001; test -f /app/packages/frontend/server.js; test -x /usr/local/bin/docker-entrypoint.sh; bun --version; node --version'
+  'set -eu; test "$(id -u)" = 10001; test -f /app/packages/frontend/server.js; test -x /usr/local/bin/docker-entrypoint.sh; bun --version; node --version'
 docker image inspect tokscale-ci:review --format '{{.Id}}' > "$WORK/built-image-id.txt"
 printf 'Image build and isolated image smoke check succeeded; no DB/runtime/deployment acceptance.\n'
