@@ -10,8 +10,7 @@ mandatory before any separately approved deployment.
 historical importer and official Codex plugin, with Langfuse, Collector and
 S3-compatible storage on the same existing Kubernetes cluster. Exact host identity
 and verification gates stay in the private placement record. This document is an
-implementation design: **no runnable manifests, collectors, hooks, exporters,
-credentials or schedules are installed or enabled**. See the
+implementation design. The later [staged application bundle](../application-infrastructure/README.md) adds offline chart values and synthetic contracts, not production acceptance: **no collectors, hooks, exporters, credentials or schedules are installed or enabled**. See the
 [Langfuse plan](langfuse-plan.md) for content consent, canonical usage ownership,
 historical/live cutover, preservation and resource gates.
 

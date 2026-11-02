@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/junhoyeo/tokscale",
+  "commit": "b26c433d03f23a2255ad9f212512ce83ede83da3",
+  "reviewed": "2026-11-02",
+  "files": {
+    "Dockerfile": "6cb5daa1542bd9e2a4c158eaf8c49ac26ac831114db2e402ea7da097306592f3",
+    "docker-compose.yml": "ca46fe80536f41c1abbc6f1e947408cd21091b8c76258c1b6dbebf04c9d47956",
+    "docker-entrypoint.sh": "74595339b67cacbc852e825c5288670c2eb5c3238f8914e41a7a0c055099a60e",
+    "packages/frontend/.env.example": "05b92e8f454cccc13a0f91ad49eaa9524fa5bbe3798ca38afd0f52b5847bc6bd",
+    "packages/frontend/src/lib/db/index.ts": "7296c6ff8f9a9d8aea3bf4d9fbc6580ec1986dc8765c87c2f0792243622f581e",
+    "packages/frontend/src/app/api/submit/route.ts": "c489bf3bf09d538f7267262ec965c09cf7a8793e17206ef09637f262267e6589",
+    "packages/frontend/scripts/migrate-docker.ts": "9b2da4ae77203422295378a248622ac715888bb5b2dc756a8d4801cd1a1ce5af",
+    "LICENSE": "24a794f325f7625b5f124945dedb6dcec8188f88e76bf4b99557b52d6cc77be9"
+  },
+  "unresolved": [
+    "Bun build base digest and target architecture",
+    "built application image digest and SBOM",
+    "PostgreSQL 16 image digest and architecture",
+    "authenticated browser/read gateway with tested direct-origin denial",
+    "database certificate verification and migrations on isolated restore",
+    "approved capacity, storage, OAuth and independent secret custody"
+  ]
+}

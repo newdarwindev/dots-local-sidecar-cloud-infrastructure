@@ -1,0 +1,27 @@
+# Independent workload instance, not homarr-management. Rendering overrides storageClass.
+fullnameOverride: homarr-workload
+replicaCount: 1
+image:
+  tag: v2.10.1
+service:
+  type: ClusterIP
+  port: 7575
+ingress:
+  enabled: false
+rbac:
+  enabled: false
+env:
+  TZ: Etc/UTC
+  AUTH_PROVIDERS: credentials
+persistence:
+  homarrDatabase:
+    enabled: true
+    storageClassName: MUST_SUPPLY_APPROVED_STORAGE_CLASS
+    size: 1Gi
+envSecrets:
+  dbEncryption:
+    existingSecret: homarr-workload-encryption
+    key: db-encryption-key
+resources:
+  requests: {cpu: 50m, memory: 256Mi}
+  limits: {cpu: 500m, memory: 512Mi}

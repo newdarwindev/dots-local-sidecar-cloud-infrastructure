@@ -1,0 +1,110 @@
+# Offline render baseline only. Explicit private storage/capacity/TLS overrides
+# and immutable image manifests are required before any deployment.
+fullnameOverride: langfuse
+langfuse:
+  image:
+    tag: "4.70.1"
+    pullPolicy: IfNotPresent
+  salt:
+    secretKeyRef: {name: langfuse-bootstrap, key: salt}
+  encryptionKey:
+    secretKeyRef: {name: langfuse-bootstrap, key: encryption-key}
+  nextauth:
+    url: https://langfuse.apps.example.invalid
+    secret:
+      secretKeyRef: {name: langfuse-bootstrap, key: nextauth-secret}
+  features:
+    telemetryEnabled: false
+    signUpDisabled: true
+    experimentalFeaturesEnabled: false
+  serviceAccount:
+    automountServiceAccountToken: false
+  ingress: {enabled: false}
+  logging: {level: warn, format: json}
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 2Gi}
+  aiFeatures:
+    inAppAgent: {enabled: false}
+  web:
+    service: {type: ClusterIP, port: 3000}
+postgresql:
+  deploy: true
+  image: {repository: postgres, tag: "18"}
+  auth:
+    username: langfuse
+    database: langfuse
+    existingSecret: langfuse-postgresql-auth
+    secretKeys: {userPasswordKey: USERDB_PASSWORD, adminPasswordKey: POSTGRES_PASSWORD}
+  settings: {existingSecret: langfuse-postgresql-auth}
+  userDatabase: {existingSecret: langfuse-postgresql-auth}
+  storage:
+    requestedSize: 20Gi
+    className: REQUIRED_PRIVATE_STORAGE_CLASS
+    persistentVolumeClaimRetentionPolicy: {whenDeleted: Retain, whenScaled: Retain}
+  resources:
+    requests: {cpu: 500m, memory: 1Gi}
+    limits: {cpu: "2", memory: 2Gi}
+redis:
+  deploy: true
+  auth:
+    enabled: true
+    username: default
+    existingSecret: langfuse-redis-auth
+    existingSecretPasswordKey: default
+    usersExistingSecret: langfuse-redis-auth
+  image: {registry: docker.io, repository: valkey/valkey, tag: "8.0"}
+  dataStorage:
+    enabled: true
+    requestedSize: 8Gi
+    className: REQUIRED_PRIVATE_STORAGE_CLASS
+    keepPvc: true
+  resources:
+    requests: {cpu: 250m, memory: 512Mi}
+    limits: {cpu: "1", memory: 1Gi}
+clickhouse:
+  deploy: true
+  # Keep prerequisite checking enabled: offline runner supplies the CR API;
+  # live preflight must verify actual separately approved operator/CRDs.
+  crdCheck: true
+  auth: {username: default, existingSecret: langfuse-clickhouse-auth, existingSecretKey: password}
+  cluster:
+    replicas: 1
+    image: {repository: clickhouse/clickhouse-server, tag: "26.8.36.3"}
+    storage: {size: 100Gi, className: REQUIRED_PRIVATE_STORAGE_CLASS}
+  keeper:
+    enabled: true
+    replicas: 1
+    image: {repository: clickhouse/clickhouse-keeper, tag: "26.8.36.3"}
+    storage: {size: 20Gi, className: REQUIRED_PRIVATE_STORAGE_CLASS}
+s3:
+  global:
+    seaweedfs:
+      enableSecurity: false # staging only; avoids chart-generated JWT signing keys
+  master: {enabled: false}
+  volume: {enabled: false}
+  filer: {enabled: false} # prevents subchart-generated database password
+  s3: {enabled: false}
+  deploy: true
+  image: {repository: chrislusf/seaweedfs, tag: "4.23"}
+  auth:
+    existingSecret: langfuse-s3-auth
+    rootUserSecretKey: accessKey
+    rootPasswordSecretKey: secretKey
+  bucket: langfuse-events
+  eventUpload: {bucket: langfuse-events, prefix: events/}
+  batchExport: {enabled: false}
+  mediaUpload: {enabled: false}
+  allInOne:
+    enabled: true
+    s3:
+      enabled: true
+      enableAuth: true
+      existingConfigSecret: langfuse-s3-auth
+      createBuckets:
+        - name: langfuse-events
+    data: {type: persistentVolumeClaim, size: 50Gi, storageClass: REQUIRED_PRIVATE_STORAGE_CLASS}
+    service: {type: ClusterIP}
+# No inline credentials. Chart renders an EMPTY keep-annotated app Secret even
+# when every key is supplied externally; policy validation must reject nonempty
+# Secret data/stringData, rather than assuming no Secret objects at all.

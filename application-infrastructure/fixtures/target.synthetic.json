@@ -1,0 +1,23 @@
+{
+  "synthetic": true,
+  "context": "synthetic-not-a-cluster",
+  "namespace": "dots-applications",
+  "namespaceUid": "00000000-0000-0000-0000-000000000000",
+  "storageClass": "synthetic-not-storage",
+  "kubernetesVersion": "1.32.0",
+  "capacityVerified": false,
+  "storageBackingVerified": false,
+  "encryptedSecretsVerified": false,
+  "offClusterRestoreVerified": false,
+  "privateAccessVerified": false,
+  "dependencyArchitectureVerified": false,
+  "operatorPrerequisitesVerified": false,
+  "tokscaleContractVerified": false,
+  "resourceBudgetVerified": false,
+  "secretReferencesVerified": false,
+  "imageDigestsVerified": false,
+  "rootStorageHeadroomVerified": false,
+  "ramHeadroomVerified": false,
+  "observedAt": null,
+  "approvedResourcesSha256": null
+}
