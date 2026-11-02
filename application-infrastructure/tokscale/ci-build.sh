@@ -8,14 +8,14 @@ BASE="$PWD/application-infrastructure/tokscale"
 mkdir -p "$PWD/application-infrastructure/.runtime"
 WORK=$(mktemp -d "$PWD/application-infrastructure/.runtime/tokscale-build.XXXXXX")
 # Source preparation and all Python validation execute inside Docker, never on host.
-docker run --rm --cap-drop=ALL --security-opt=no-new-privileges \
+docker run --rm --user "$(id -u):$(id -g)" --cap-drop=ALL --security-opt=no-new-privileges \
   -v "$PWD:/work" -w /work --entrypoint python "$VALIDATION_IMAGE" \
   application-infrastructure/tokscale/prepare_source.py \
   --output "/work/${WORK#"$PWD/"}/source"
-BUN_IMAGE=$(docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
+BUN_IMAGE=$(docker run --rm --network=none --user "$(id -u):$(id -g)" --cap-drop=ALL --security-opt=no-new-privileges \
   -v "$PWD:/work:ro" -w /work --entrypoint python "$VALIDATION_IMAGE" -c \
   'import json; x=json.load(open("application-infrastructure/tokscale/images.lock.json"))["images"]["bun"]; print("oven/bun@"+x["digest"])')
-docker run --rm --network=none --cap-drop=ALL --security-opt=no-new-privileges \
+docker run --rm --network=none --user "$(id -u):$(id -g)" --cap-drop=ALL --security-opt=no-new-privileges \
   -v "$PWD:/work:ro" -w /work --entrypoint python "$VALIDATION_IMAGE" \
   application-infrastructure/tokscale/build_plan.py --bun-image "$BUN_IMAGE" \
   --source "/work/${WORK#"$PWD/"}/source" --platform linux/amd64

@@ -75,7 +75,9 @@ def main():
             parser.error('source archive exceeds bound')
     try:
         prepare(payload, args.output, lock)
-    except (ValueError, OSError, tarfile.TarError):
+    except ValueError as error:
+        parser.exit(2, 'Blocked: ' + str(error) + '; do not build.\n')
+    except (OSError, tarfile.TarError):
         parser.exit(2, 'Blocked: source preparation failed; retain output for inspection, do not build.\n')
     print(json.dumps({'status': 'prepared-not-built', 'commit': lock['commit'],
                       'sourceArchiveSha256': lock['archive']['sha256'],
