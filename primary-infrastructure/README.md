@@ -4,6 +4,10 @@
 
 Desired state is this public repository. Actual host inventory, host readiness, private operational decisions and recovery destinations belong outside this public repository. No private host record or usage dataset is included.
 
+For cross-host eligibility use [fleet alignment](../docs/fleet-alignment.md).
+Future shared identity and application naming are specified in the
+[auth/domain plan](../docs/auth-domain-plan.md); neither changes these staged values.
+
 ## Pinned implementation
 
 | Component | Pin | Purpose |

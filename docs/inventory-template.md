@@ -12,3 +12,14 @@ Fill in a private system. Do not commit real hostnames, addresses, serial number
 | 6 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | 7 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
 | 8 | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+## Evidence and placement record
+
+For every real private host record include collection timestamp, source (direct
+inspection or supplied output), visibility limits, proposed role, blocking gates
+and last verified deployment state. Use [fleet alignment](fleet-alignment.md) for
+state definitions. Template slots are examples, not an expected fleet size.
+
+Keep application records separately: owner, repository, installed/staged/demo/unknown
+state, evidence time, placement alias, data class, access class and recovery owner.
+Use the [auth/domain registry contract](auth-domain-plan.md) before assigning names.

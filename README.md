@@ -14,7 +14,27 @@ host records, private settings, credentials and recovery details remain private.
 
 ## Goal and assumptions
 
-Build an agent-operable local cloud from eight owner-controlled notebooks (macOS, Linux, and Windows; one with an unspecified GPU), with optional AWS, Google Cloud, and Azure capacity. The inventory, CPU architectures, GPU model, RAM, networking, power behavior, and cloud accounts are **unknown**. A notebook may sleep or leave the network; this is a lab or pilot architecture until availability and recovery are measured. No production high-availability claim is made.
+Build an agent-operable local cloud from owner-controlled macOS, Linux and Windows
+computers, with optional separately approved cloud capacity. The private inventory,
+not a fixed fleet count or this public template, determines discovered hosts and
+observed capabilities. Discovery is not enrollment or readiness. Notebook sleep,
+shared disks and untested recovery keep this a lab/pilot until measured; no
+production high-availability claim is made.
+
+## Documentation map
+
+| Question | Authoritative document |
+| --- | --- |
+| Topology and component responsibilities | This architecture overview |
+| Host evidence, eligibility and enrollment stages | [Fleet alignment](docs/fleet-alignment.md); actual host records stay private |
+| Management bootstrap order and recovery acceptance | [Primary host rollout](docs/primary-host-rollout.md) |
+| Exact pinned implementation and guarded actions | [Implementation runbook](primary-infrastructure/README.md) |
+| Planned human identity, application access and domains | [Authentication and domains](docs/auth-domain-plan.md) |
+| Cloud, provider and agent trust boundaries | [Boundaries](docs/boundaries-and-cloud.md) |
+
+The overview expresses intent; the implementation runbook describes only what
+is staged. Planned components absent from manifests are not installed features.
+Archived approval records do not authorize a new activation.
 
 ## Decisions
 
@@ -51,35 +71,26 @@ The management cluster owns reconciliation, inventory, audit, and secrets. Workl
 
 A request includes actor identity, target cluster/namespace, resource kind, desired change, reason, expiry, idempotency key, estimated effect, and rollback plan. The gateway authenticates the agent, validates a typed schema, checks policy and quotas, generates a diff/plan, and records an immutable audit reference. Read-only inventory and status may be delegated. New cluster enrollment, new provider identity, secret policy, privileged workload, public ingress, destructive action, cloud spend, and production promotion require owner approval of the exact plan. On approval, a narrow bot writes a pull request to the **approved desired-state repository** (this public repository for reviewed generic manifests; private settings and operational records stay outside it); branch protection and review precede Argo CD sync. The gateway cannot mint its own permissions. Break-glass access is time-limited, logged, and held by the owner outside agent runtime.
 
-## Planned integration sequence
+## Rollout and operations
 
-1. Inventory all eight machines using [the blank template](docs/inventory-template.md). Verify power, disk, CPU architecture, virtualization, network reachability, GPU details, and whether one Linux control-plane host can remain available.
-2. Establish distinct physical placement for the two clusters if failure isolation is required, then a private management network, stable host naming, OS patching, disk encryption, time sync, firewall rules, and SSH/device identity. Choose local and cloud CIDRs that do not overlap.
-3. Bootstrap the Linux management cluster manually with a pinned K3s version and explicit embedded etcd initialization (`--cluster-init`); a default single-server K3s install otherwise uses SQLite. Keep the single-server etcd topology non-HA. Store encrypted etcd snapshots **and the matching K3s server token** off-host under owner control; test restore before onboarding another machine. These are architecture instructions, not an installation command.
-4. Initialize and unseal OpenBao under an owner-held recovery procedure. Configure separate identities/policies for management, local workload, and each cloud cluster. The bootstrap credential remains offline and is revoked or rotated after service identities are established.
-5. Install Argo CD from a reviewed release and bootstrap one tightly scoped root Application. Configure Argo CD annotation-based resource tracking for Crossplane-managed objects to avoid ownership conflicts. Install Crossplane and only needed providers on management, then ESO on management and separately in every enrolled destination cluster, each with a validated OpenBao integration and cluster-specific scoped identity. Pin versions and restrict Argo CD projects and destinations. Avoid a controller dependency cycle: OpenBao recovery and the root GitOps path must work without ESO.
-6. Enroll the local workload cluster with least-privilege credentials. Add Linux workers/VMs one at a time and prove architecture-compatible images, node sleep handling, and drain/rejoin behavior. Gate GPU onboarding separately.
-7. Introduce composition/XRD APIs for a small set of owner-approved platform services. The agent requests a claim; Crossplane performs the authorized reconciliation; Argo CD manages the claim source and controller configuration. Test deletion policy and orphan detection.
-8. Add cloud providers one at a time only after account/IAM, budgets, networking, image architecture, data residency, egress, and teardown plans are approved. Prefer workload identity/federation over stored long-lived cloud keys where supported. Verify policy and billing alerts before any resource creation.
+Use the [fleet enrollment gates](docs/fleet-alignment.md) before choosing placement.
+Follow the [primary rollout](docs/primary-host-rollout.md) for management bootstrap,
+backup/restore, Homarr acceptance and rollback, and the
+[implementation runbook](primary-infrastructure/README.md) for exact guarded actions.
+These are one sequence, not parallel competing installation instructions.
 
-## Operations and recovery
+Only after management recovery works, enroll a separately approved workload
+cluster. Crossplane composition APIs and cloud providers remain later work under
+[the cloud boundaries](docs/boundaries-and-cloud.md): review provider identity,
+quotas, deletion behavior, data residency, egress and teardown before activation.
+Do not stretch etcd/storage across the internet or infer HA from co-hosted guests.
 
-Collect Kubernetes events, controller health, reconciliation errors, resource use, power/sleep state, and agent audit records. Use a lightweight metrics/logging stack sized to actual hardware; decide retention after measuring capacity. Back up etcd snapshots, OpenBao storage and recovery metadata, Git repositories, and persistent workload data separately, encrypted and off-host. Practice restoring management first, then secrets, GitOps, and workload state. A notebook outage can make its local storage unavailable; placement and replica policy must reflect measured reliability. Set explicit recovery objectives after testing, not before.
-
-## Acceptance gates
-
-- [ ] Inventory and placement constraints reviewed; stable management host identified.
-- [ ] Network and trust boundaries tested; no overlapping CIDRs or public control-plane endpoint by default.
-- [ ] Management restore and OpenBao recovery tested from off-host backups.
-- [ ] Argo CD sync scoped to approved repositories, projects, namespaces, and clusters.
-- [ ] ESO rotation and revocation tested in each destination cluster; no plaintext secret in Git, logs, or agent context.
-- [ ] Crossplane composition and deletion behavior tested in a disposable target.
-- [ ] Agent request, owner-reviewed plan, audit record, denial, and rollback demonstrated end to end.
-- [ ] Node sleep/rejoin, architecture compatibility, and backup recovery tested.
-- [ ] Each cloud extension has reviewed IAM, cost ceiling, egress path, teardown, and data classification.
+Use the [auth/domain plan](docs/auth-domain-plan.md) for application access design;
+current loopback access and local credentials remain unchanged until separately
+approved, tested migration. No IdP, domain registration or DNS changes occur here.
 
 ## Open decisions and risks
 
-Machine details and GPU compatibility are unknown. The management host might be unavailable, making automated reconciliation unavailable. Running OpenBao on the same small management cluster creates a bootstrap and recovery concentration risk. ESO support for OpenBao should be validated against pinned versions. Crossplane provider breadth and cloud identities need per-provider review. Mixed CPU architectures and notebook sleep can break image scheduling and storage. Cloud egress and spend require hard limits. This draft creates no infrastructure and contains no account credentials.
+Actual capabilities and remaining unknowns are recorded privately; GPU scheduling compatibility still requires workload-level validation. The management host might be unavailable, making automated reconciliation unavailable. Running OpenBao on the same small management cluster creates a bootstrap and recovery concentration risk. ESO support for OpenBao should be validated against pinned versions. Crossplane provider breadth and cloud identities need per-provider review. Mixed CPU architectures and notebook sleep can break image scheduling and storage. Cloud egress and spend require hard limits. This draft creates no infrastructure and contains no account credentials.
 
 See [trust boundaries and cloud plan](docs/boundaries-and-cloud.md) and [primary sources](docs/sources.md).
