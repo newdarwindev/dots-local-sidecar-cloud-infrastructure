@@ -1,0 +1,703 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dots:future-cluster:1",
+  "title": "Hypothetical future-cluster design inputs; never deployment consent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "mode",
+    "target",
+    "capabilities",
+    "operators",
+    "capacity",
+    "tokscale",
+    "recovery",
+    "authorization"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "mode": {
+      "const": "hypothetical-compatible-cluster"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "contextRef",
+        "namespace",
+        "namespaceUid",
+        "kubernetesVersion",
+        "storageClass",
+        "platform"
+      ],
+      "properties": {
+        "contextRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "namespace": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+        },
+        "namespaceUid": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "kubernetesVersion": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "storageClass": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+        },
+        "platform": {
+          "enum": [
+            "linux/amd64",
+            "linux/arm64"
+          ]
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cniIngressAndEgressEnforced",
+        "privateDnsResolution",
+        "privateAuthenticatedBrowserGateway",
+        "directOriginDenied",
+        "mtlsCollectorIngress",
+        "verifiedDatabaseTls",
+        "encryptedRwoCsi",
+        "retainedPvcDeletionPolicy",
+        "independentEncryptedRecovery",
+        "restoreRehearsal",
+        "secretCustodyIndependent",
+        "namespaceRbacLeastPrivilege",
+        "operatorPrerequisitesInstalled",
+        "targetImagesAndArchitectureQualified",
+        "placementAndHeadroomMeasured"
+      ],
+      "properties": {
+        "cniIngressAndEgressEnforced": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "privateDnsResolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "privateAuthenticatedBrowserGateway": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "directOriginDenied": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "mtlsCollectorIngress": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "verifiedDatabaseTls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "encryptedRwoCsi": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "retainedPvcDeletionPolicy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "independentEncryptedRecovery": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "restoreRehearsal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "secretCustodyIndependent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "namespaceRbacLeastPrivilege": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "operatorPrerequisitesInstalled": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "targetImagesAndArchitectureQualified": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        },
+        "placementAndHeadroomMeasured": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status",
+            "evidenceRef"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "assumed-unverified",
+                "evidence-supplied",
+                "unavailable"
+              ]
+            },
+            "evidenceRef": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            }
+          },
+          "description": "Evidence supplied is a claim, not verification. No claim enables deployment."
+        }
+      }
+    },
+    "operators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clickhouse"
+      ],
+      "properties": {
+        "clickhouse": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidateVersion",
+            "candidateCommit",
+            "observedVersion",
+            "observedCommit",
+            "servedApis"
+          ],
+          "properties": {
+            "candidateVersion": {
+              "const": "v0.0.8"
+            },
+            "candidateCommit": {
+              "const": "ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd"
+            },
+            "observedVersion": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1
+            },
+            "observedCommit": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            "servedApis": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "clickhouse.com/v1alpha1/ClickHouseCluster",
+                  "clickhouse.com/v1alpha1/KeeperCluster"
+                ]
+              },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    },
+    "capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "availableCpuMillicores",
+        "availableMemoryMiB",
+        "rootFreeGiB",
+        "storageFreeGiB",
+        "operatorCpuMillicores",
+        "operatorMemoryMiB",
+        "designHeadroomPercent"
+      ],
+      "properties": {
+        "availableCpuMillicores": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "availableMemoryMiB": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "rootFreeGiB": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "storageFreeGiB": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "operatorCpuMillicores": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "operatorMemoryMiB": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "designHeadroomPercent": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 90
+        }
+      }
+    },
+    "tokscale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "appImage",
+        "postgresImage",
+        "privateOrigin",
+        "gatewayPodLabel",
+        "databaseSize"
+      ],
+      "properties": {
+        "appImage": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9./_:-]*@sha256:[0-9a-f]{64}$"
+        },
+        "postgresImage": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9./_:-]*@sha256:[0-9a-f]{64}$"
+        },
+        "privateOrigin": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^https://[a-z0-9.-]+(?::[0-9]{1,5})?$"
+        },
+        "gatewayPodLabel": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
+        },
+        "databaseSize": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1,
+          "pattern": "^[1-9][0-9]*(Gi|Ti)$"
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "encryptedDestinationRef",
+        "custodianRef",
+        "restoreEvidenceRef",
+        "retentionPolicyRef"
+      ],
+      "properties": {
+        "encryptedDestinationRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "custodianRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "restoreEvidenceRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
+        "retentionPolicyRef": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "deploymentApproved",
+        "ciReenableApproved"
+      ],
+      "properties": {
+        "deploymentApproved": {
+          "const": false
+        },
+        "ciReenableApproved": {
+          "const": false
+        }
+      }
+    }
+  }
+}

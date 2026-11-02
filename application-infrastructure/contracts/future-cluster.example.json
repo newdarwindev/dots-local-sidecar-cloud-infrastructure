@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "mode": "hypothetical-compatible-cluster",
+  "target": {
+    "contextRef": null,
+    "namespace": "dots-applications",
+    "namespaceUid": null,
+    "kubernetesVersion": null,
+    "storageClass": null,
+    "platform": "linux/amd64"
+  },
+  "capabilities": {
+    "cniIngressAndEgressEnforced": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "privateDnsResolution": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "privateAuthenticatedBrowserGateway": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "directOriginDenied": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "mtlsCollectorIngress": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "verifiedDatabaseTls": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "encryptedRwoCsi": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "retainedPvcDeletionPolicy": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "independentEncryptedRecovery": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "restoreRehearsal": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "secretCustodyIndependent": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "namespaceRbacLeastPrivilege": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "operatorPrerequisitesInstalled": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "targetImagesAndArchitectureQualified": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    },
+    "placementAndHeadroomMeasured": {
+      "status": "assumed-unverified",
+      "evidenceRef": null
+    }
+  },
+  "operators": {
+    "clickhouse": {
+      "candidateVersion": "v0.0.8",
+      "candidateCommit": "ebcb5b6c7b2031e88671b4281f2b8ae60f6f71fd",
+      "observedVersion": null,
+      "observedCommit": null,
+      "servedApis": []
+    }
+  },
+  "capacity": {
+    "availableCpuMillicores": null,
+    "availableMemoryMiB": null,
+    "rootFreeGiB": null,
+    "storageFreeGiB": null,
+    "operatorCpuMillicores": null,
+    "operatorMemoryMiB": null,
+    "designHeadroomPercent": 25
+  },
+  "tokscale": {
+    "appImage": null,
+    "postgresImage": null,
+    "privateOrigin": null,
+    "gatewayPodLabel": null,
+    "databaseSize": null
+  },
+  "recovery": {
+    "encryptedDestinationRef": null,
+    "custodianRef": null,
+    "restoreEvidenceRef": null,
+    "retentionPolicyRef": null
+  },
+  "authorization": {
+    "deploymentApproved": false,
+    "ciReenableApproved": false
+  }
+}
