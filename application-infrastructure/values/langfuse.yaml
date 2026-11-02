@@ -105,9 +105,10 @@ s3:
       enabled: true
       enableAuth: true
       existingConfigSecret: langfuse-s3-auth
-      # Upstream hook cannot disable default-SA token mount. Keep it disabled;
-      # approved bucket provisioning and denial tests are a separate activation gate.
-      createBuckets: []
+      # Vendor validation requires this hook. Offline renderer hardens its
+      # service account/token mount; actual bucket creation needs approval.
+      createBuckets:
+        - name: langfuse-events
     data: {type: persistentVolumeClaim, size: 50Gi, storageClass: REQUIRED_PRIVATE_STORAGE_CLASS}
     service: {type: ClusterIP}
 # No inline credentials. Chart renders an EMPTY keep-annotated app Secret even

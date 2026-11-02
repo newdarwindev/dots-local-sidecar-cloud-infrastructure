@@ -132,6 +132,18 @@ def inspect_documents(documents, namespace):
                 problems.append('image digest unresolved')
     return sorted(set(problems))
 
+def harden_hooks(documents):
+    """Explicit deterministic patch for the locked SeaweedFS bucket hook only."""
+    for obj in documents:
+        if not obj or obj.get('kind') != 'Job':
+            continue
+        if obj.get('metadata', {}).get('name') != 'langfuse-bucket-hook':
+            raise Blocked('Unreviewed chart Job; refusing render')
+        pod = obj['spec']['template']['spec']
+        pod['serviceAccountName'] = 'langfuse-seaweedfs'
+        pod['automountServiceAccountToken'] = False
+    return documents
+
 def private_output(path):
     output = Path(path).resolve()
     if output == ROOT or ROOT in output.parents:
@@ -160,7 +172,8 @@ def render(value, output):
             cmd += ['--set-string', 'persistence.homarrDatabase.storageClassName=' + value['storageClass']]
         rendered.append(run(cmd).decode())
     payload = '\n---\n'.join(rendered)
-    docs = list(yaml.safe_load_all(payload))
+    docs = harden_hooks(list(yaml.safe_load_all(payload)))
+    payload = yaml.safe_dump_all(docs, sort_keys=False)
     issues = inspect_documents(docs, value['namespace'])
     output.mkdir(parents=True, mode=0o700)
     os.chmod(output, 0o700)

@@ -13,6 +13,14 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 
 class BundleTests(unittest.TestCase):
+    def test_locked_bucket_hook_is_hardened(self):
+        job = {'kind':'Job','metadata':{'name':'langfuse-bucket-hook'},'spec':{'template':{'spec':{}}}}
+        pod = bundle.harden_hooks([job])[0]['spec']['template']['spec']
+        self.assertIs(pod['automountServiceAccountToken'], False)
+        self.assertEqual(pod['serviceAccountName'], 'langfuse-seaweedfs')
+        with self.assertRaises(bundle.Blocked):
+            bundle.harden_hooks([{'kind':'Job','metadata':{'name':'unreviewed'}}])
+
     def test_default_never_executes(self):
         with patch.object(sys, 'argv', ['bundle.py']), patch.object(bundle.subprocess, 'run', side_effect=AssertionError('external execution')):
             bundle.main()

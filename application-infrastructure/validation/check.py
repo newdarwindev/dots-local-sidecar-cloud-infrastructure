@@ -26,6 +26,11 @@ with tempfile.TemporaryDirectory() as directory:
     documents = [obj for obj in yaml.safe_load_all((rendered / 'manifests.yaml').read_text()) if obj]
     for obj in documents:
         assert obj['kind'] not in {'Ingress', 'CronJob', 'ClusterRole', 'ClusterRoleBinding'}, 'Unexpected exposure, scheduling or cluster permission'
+        if obj['kind'] == 'Job':
+            assert obj['metadata']['name'] == 'langfuse-bucket-hook'
+            pod = obj['spec']['template']['spec']
+            assert pod['automountServiceAccountToken'] is False
+            assert pod['serviceAccountName'] == 'langfuse-seaweedfs'
         if obj['kind'] == 'Secret':
             assert not obj.get('data') and not obj.get('stringData'), 'Chart rendered credential material'
         if obj['kind'] == 'Service':
