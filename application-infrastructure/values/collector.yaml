@@ -104,7 +104,9 @@ alternateConfig:
 # Blocking privacy acceptance: gateway deliberately strips ALL arbitrary
 # attributes and rejects span events/links rather than trusting names. Source
 # adapter must emit an envelope with no schema URLs; Collector OTTL does not
-# expose schema URLs through resource/scope paths. Until exact-binary canary
+# expose schema URLs through resource/scope paths. native_otlp.py now supplies
+# an OFFLINE SYNTHETIC request-rebuilding prototype, not a connected source or
+# validated production filter. Until exact-binary canary
 # tests verify the whole exported envelope, synthetic traffic only. This file
 # is not a claim of validated real-content filtering. Volatile bounded queue
 # can lose diagnostics on outage/termination; no completeness guarantee.

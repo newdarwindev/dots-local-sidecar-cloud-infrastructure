@@ -106,6 +106,49 @@ class TelemetryTests(unittest.TestCase):
         with self.assertRaises(t.ContractError):
             state.ingest(event("plugin"))
 
+    def test_historical_event_must_be_inside_enrolled_interval(self):
+        records = [enrollment("importer", started="2026-11-01T22:00:00Z", ended="2026-11-01T23:00:00Z")]
+        for observed in ("2026-11-01T21:59:59Z", "2026-11-01T23:00:01Z", "2026-11-02T01:00:01Z"):
+            state = ledger(records)
+            raw = event("importer")
+            raw["time"] = observed
+            with self.subTest(observed=observed), self.assertRaises(t.ContractError):
+                state.ingest(raw)
+            self.assertEqual(state.report()["canonical_count"], 0)
+        for observed in ("2026-11-01T22:00:00Z", "2026-11-01T23:00:00Z"):
+            raw = event("importer")
+            raw["time"] = observed
+            self.assertEqual(ledger(records).ingest(raw), "accepted")
+
+    def test_plugin_enrollment_start_and_close_are_enforced(self):
+        state = ledger([enrollment(ended="2026-11-02T01:01:00Z")])
+        for observed in ("2026-11-01T23:59:59Z", "2026-11-02T00:59:59Z", "2026-11-02T01:01:01Z"):
+            raw = event()
+            raw["time"] = observed
+            with self.subTest(observed=observed), self.assertRaises(t.ContractError):
+                state.ingest(raw)
+            self.assertEqual(state.report()["canonical_count"], 0)
+        raw = event()
+        raw["time"] = "2026-11-02T01:00:00Z"
+        self.assertEqual(state.ingest(raw), "accepted")
+        raw = event()
+        raw.update(time="2026-11-02T01:01:00Z", event_id="2" * 32, status="cancelled")
+        self.assertEqual(state.ingest(raw), "accepted")
+        # Resume after a closed interval cannot silently extend enrollment.
+        raw.update(time="2026-11-02T01:01:01Z", event_id="3" * 32)
+        with self.assertRaises(t.ContractError):
+            state.ingest(raw)
+        self.assertEqual(state.report()["canonical_count"], 2)
+
+    def test_multiple_generations_in_turn_are_not_inferred_totals(self):
+        state = ledger()
+        state.ingest(event())
+        second = event()
+        second.update(event_id="2" * 32, span_id="3" * 32)
+        state.ingest(second)
+        self.assertEqual(state.report()["canonical_count"], 2)
+        self.assertNotIn("total_tokens", state.report())
+
     def test_duplicate_enrollment_rejected(self):
         with self.assertRaises(t.ContractError):
             ledger([enrollment(), enrollment()])

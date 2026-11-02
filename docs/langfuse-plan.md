@@ -171,6 +171,20 @@ transport success alone is not semantic compatibility. For a version supporting
 Langfuse v4 real-time ingestion, verify its ingestion-version header and visibility
 latency rather than interpreting a delayed UI row as permission to resend blindly.
 
+**Fail-closed plugin activation prerequisite:** the [official plugin's configuration
+documentation](https://github.com/langfuse/codex-observability-plugin#langfuse-credentials)
+(checked 2026-11-02) describes a hosted-EU fallback when `base_url` is omitted,
+email-derived `user_id`, and enabled skill tags by default. For this self-hosted
+design, require an explicit approved HTTPS base URL with no cloud fallback,
+an approved pseudonymous user ID, and bounded reviewed tags/metadata before any
+hook activation. Disable skill tags unless specifically reviewed. Resolve the
+effective configuration, not merely one file: defaults, global file, project file,
+then environment; `LANGFUSE_CODEX_*` overrides matching `LANGFUSE_*`. An absent or
+conflicting destination/identity must block the future activation procedure.
+Review the pinned hook and prove those resolved values using synthetic data
+without exposing credentials. This is a prerequisite, not an implemented runtime
+guard or evidence of a current leak. No plugin config is created/enabled here.
+
 ## Coverage and privacy contract
 
 | Surface | New sessions | Historical sessions | Required evidence before claiming coverage |
@@ -226,8 +240,14 @@ Because producer-native IDs may differ, dedup keys are canonical source/session/
 turn/event IDs maintained in a private ownership ledger, not merely each tool's
 local sidecar. Import dry-run must reject an already-owned session. Retry/checkpoint
 updates follow confirmed delivery; uncertain sends reconcile server IDs before
-resend. A synthetic overlap fixture across all three paths must yield exactly
-one canonical usage record per source turn, with diagnostics still inspectable.
+resend. A synthetic overlap fixture across all three paths must count each
+canonical generation at most once, with diagnostics still inspectable. One turn
+may contain several genuine model generations and non-token tool/child spans:
+do not confuse one canonical owner with one event per turn. Define generation
+identity and delta/cumulative reconciliation before calculating any turn total;
+the offline harness intentionally computes no usage totals. Its event-time bounds
+now reject events before enrollment start or after a closed interval, including
+historical events after cutover. Resuming a closed interval requires reconciliation.
 
 Langfuse token/cost estimates are **not ChatGPT subscription quota accounting**.
 Keep Tokscale's native reporting schedule and accounting workflow separate; join
