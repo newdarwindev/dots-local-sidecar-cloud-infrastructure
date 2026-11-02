@@ -47,6 +47,11 @@ placement unless separately reviewed; a demo scheduler is not fleet infrastructu
    Kubernetes. A usage hub/database needs its own durable resource allocation;
    management VM capacity is not implicitly spare workload capacity.
 
+7. **Session observability:** follow the [Langfuse plan](langfuse-plan.md). Treat
+   hub storage/resource allocation separately from native reporters, and enroll
+   each authorized CLI/desktop/exec surface only after a privacy and coverage test.
+   Unavailable or denied histories remain gaps, not automatic backfill targets.
+
 ## Enrollment and expansion gates
 
 - Refresh dated inventory; preserve prior observations and distinguish direct

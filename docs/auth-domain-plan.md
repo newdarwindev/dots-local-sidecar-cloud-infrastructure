@@ -81,6 +81,7 @@ scan. Add subsequently discovered applications privately before routing them.
 | OpenBao | Staged `values/openbao.yaml`: TLS, one Raft replica, ClusterIP UI | Native OIDC for named humans mapped to narrow policies | ESO retains Kubernetes auth and scoped policies; no browser login gate in its machine path. Unseal and disaster recovery must work without IdP. |
 | ESO | Staged namespace-scoped machine integration, no browser portal | No user-facing hostname or SSO portal | Separate Kubernetes service-account identity/audience/policy per approved scope. Keep existing narrow Homarr read policy. |
 | Tokscale hub | Installation draft only; upstream frontend/database and authenticated upload | Proxy-protected browser/read surface; generalized native OIDC integration is not verified at reviewed revision | Preserve upstream hub login/token issuance. Exact authenticated submission route must work without an interactive redirect; do not exempt all `/api/*`. Review token scope/revocation before promising per-device isolation. |
+| Langfuse | [Installation/coverage draft](langfuse-plan.md), no runtime or collector enabled | Native OIDC with Authentik: prefer its dedicated provider if supported by the pinned release, otherwise separately review custom OIDC; verify membership/enforcement and licensing | Project-key ingestion remains non-interactive, TLS-verified and private. Metadata-only default; rich transcript plugin requires explicit opt-in. No broad API bypass. |
 | Fleet dashboard | Published synthetic read-only implementation; external authenticated ingress required, no live collector/deployment included | Proxy authentication, restricted viewers | Protect inventory/status APIs too; synthetic records do not establish host health. |
 | Live-status dashboard | Published loopback implementation with narrow email-gated tunnel launcher; production gate not verified | Preserve current gate until an equally restrictive reviewed replacement exists | Account-sensitive reads remain constrained to approved viewers and matching source account. Do not generalize access to every fleet member. |
 | Other applications | Privately assess current integration and record evidence before assigning a state | Choose native OIDC or proxy protection only after compatibility and authorization-equivalence tests | Keep contents and viewer identities private; documentation cleanup must not create a public route. |
@@ -106,7 +107,7 @@ Use service-oriented names independent of the current computer: for example
 `auth.apps.example.invalid`, `homarr.apps.example.invalid`,
 `argocd.apps.example.invalid`, `openbao.apps.example.invalid`,
 `usage.apps.example.invalid`, `fleet.apps.example.invalid` and
-`status.apps.example.invalid`. These are inert examples, not owned domains or
+`status.apps.example.invalid` and `langfuse.apps.example.invalid`. These are inert examples, not owned domains or
 certificate requests. Give an app one canonical HTTPS origin; avoid path-prefix
 hosting unless that specific app supports it. Keep Kubernetes internal service
 DNS separate from browser-facing names and OIDC issuers.
