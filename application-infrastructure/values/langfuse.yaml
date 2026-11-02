@@ -87,7 +87,8 @@ s3:
   master: {enabled: false}
   volume: {enabled: false}
   filer: {enabled: false} # prevents subchart-generated database password
-  s3: {enabled: false}
+  s3: {enabled: false, enableAuth: true, existingConfigSecret: langfuse-s3-auth}
+  sftp: {enabled: false}
   deploy: true
   image: {repository: chrislusf/seaweedfs, tag: "4.23"}
   auth:
@@ -99,6 +100,7 @@ s3:
   batchExport: {enabled: false}
   mediaUpload: {enabled: false}
   allInOne:
+    sftp: {enabled: false}
     serviceAccountName: langfuse-seaweedfs
     enabled: true
     s3:

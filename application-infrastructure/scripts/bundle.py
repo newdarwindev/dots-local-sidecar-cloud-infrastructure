@@ -3,6 +3,9 @@
 import argparse
 import datetime as dt
 import hashlib
+import gzip
+import io
+import tarfile
 import json
 import os
 from pathlib import Path
@@ -87,6 +90,41 @@ def artifact(name, fetch=False):
         raise Blocked('Cached artifact checksum mismatch: ' + name)
     return dest
 
+def patch_sftp_template(data, expected_sha):
+    if hashlib.sha256(data).hexdigest() != expected_sha:
+        raise Blocked('Vendor SFTP template changed; stop for independent review')
+    old = b'{{- if or .Values.sftp.enabled .Values.allInOne.enabled }}'
+    new = b'{{- if or .Values.sftp.enabled .Values.allInOne.sftp.enabled }}'
+    if not data.startswith(old) or data.count(old) != 1:
+        raise Blocked('Vendor SFTP patch precondition mismatch')
+    return data.replace(old, new, 1)
+
+def prepared_artifact(name):
+    original = artifact(name)
+    if name != 'langfuse':
+        return original
+    patch = load(ROOT / 'artifacts.lock.json')['vendorPatches']['seaweedfs-unused-sftp']
+    # Rewrite only the reviewed single template BEFORE any Helm execution. No
+    # extraction, installation, source history or generated credentials involved.
+    output = io.BytesIO()
+    patched = 0
+    with tarfile.open(original, 'r:gz') as source, gzip.GzipFile(fileobj=output, mode='wb', mtime=0) as compressed:
+        with tarfile.open(fileobj=compressed, mode='w') as dest:
+            for member in source:
+                if member.name.startswith('/') or '..' in Path(member.name).parts or not (member.isfile() or member.isdir()):
+                    raise Blocked('Unsafe vendor archive member')
+                data = source.extractfile(member).read() if member.isfile() else None
+                if member.name == patch['member']:
+                    data = patch_sftp_template(data, patch['originalSha256'])
+                    member.size = len(data)
+                    patched += 1
+                dest.addfile(member, io.BytesIO(data) if data is not None else None)
+    if patched != 1:
+        raise Blocked('Expected exactly one vendor SFTP template')
+    destination = ROOT / '.runtime' / 'artifacts' / 'langfuse-reviewed-patch.tgz'
+    destination.write_bytes(output.getvalue())
+    return destination
+
 def run(args):
     # Never echo raw stderr: cluster/auth plugins can put private data there.
     result = subprocess.run(args, capture_output=True, timeout=120)
@@ -162,7 +200,7 @@ def render(value, output):
         raise Blocked('Output already exists; preserve it and choose a fresh directory')
     rendered = []
     for key, (release, values) in COMPONENTS.items():
-        cmd = ['helm', 'template', release, str(artifact(key)), '--namespace', value['namespace'],
+        cmd = ['helm', 'template', release, str(prepared_artifact(key)), '--namespace', value['namespace'],
                '--kube-version', value['kubernetesVersion'], '--include-crds', '--skip-tests',
                '-f', str(ROOT / 'values' / (values + '.yaml'))]
         if key == 'langfuse':

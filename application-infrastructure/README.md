@@ -137,3 +137,15 @@ Vendor Helm render outputs retain their chart workload replica defaults; they ar
 not a safe no-op to apply manually. Rendering also describes PVCs/permissions and
 network-relevant resources. No output is authorized for `kubectl apply` or Helm
 installation, regardless of a successful staging check.
+
+
+### Reviewed vendor-template correction
+
+The locked SeaweedFS chart emits an unused SFTP Secret whenever all-in-one mode
+is enabled, even when SFTP is disabled. The runner verifies the original archive
+SHA256 and the exact SFTP template SHA256, then narrows that single condition to
+`allInOne.sftp.enabled` **before Helm evaluates any template**. Both SFTP flags
+remain explicitly false. A changed/missing template fails closed. The original
+archive is preserved; only a local deterministic derivative is used. CI rejects
+any nonempty rendered Secret. This is a reviewed local vendor correction, not a
+claim that the upstream chart has fixed it. No real service credential is supplied.

@@ -13,6 +13,14 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 
 class BundleTests(unittest.TestCase):
+    def test_vendor_patch_is_checksum_bound_and_pre_render(self):
+        source = b'{{- if or .Values.sftp.enabled .Values.allInOne.enabled }}\nSYNTHETIC\n{{- end }}'
+        digest = bundle.hashlib.sha256(source).hexdigest()
+        result = bundle.patch_sftp_template(source, digest)
+        self.assertIn(b'.Values.allInOne.sftp.enabled', result)
+        with self.assertRaises(bundle.Blocked): bundle.patch_sftp_template(source + b'changed', digest)
+        with self.assertRaises(bundle.Blocked): bundle.patch_sftp_template(b'other', bundle.hashlib.sha256(b'other').hexdigest())
+
     def test_locked_bucket_hook_is_hardened(self):
         job = {'kind':'Job','metadata':{'name':'langfuse-bucket-hook'},'spec':{'template':{'spec':{}}}}
         pod = bundle.harden_hooks([job])[0]['spec']['template']['spec']
