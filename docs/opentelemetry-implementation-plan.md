@@ -21,7 +21,10 @@ unrequested privileged per-host DaemonSet. Use the reviewed upstream Collector
 Helm chart/distribution after pinning its version, digest and included components.
 A host-side allowlist adapter is required wherever native emissions contain fields
 outside the approved schema; it is design work, not a claimed built-in privacy
-flag. Rich plugin and historical importer content follow their own explicit gates.
+flag. The [offline native OTLP boundary prototype](../application-infrastructure/runbooks/native-otlp-boundary.md)
+now supplies concrete synthetic input/output serialization, including removal of
+resource/scope schema URLs; it remains untested and has no source-local receiver
+or transport. Rich plugin and historical importer content follow their own explicit gates.
 Do not assume either producer can route through the Collector without testing its
 actual exporter and authentication support; their supported Langfuse ingestion
 path may remain direct.
@@ -84,7 +87,9 @@ is not copy-paste executable configuration or a successful compatibility test.
    native OTel is not full replay and plugin failure-open is not an audit guarantee.
 5. Assign canonical producer/cutover in the private ledger. Test one approved
    plugin session and one bounded historical fixture; replay/import overlap twice
-   and assert one canonical token total per source turn. Diagnostic project totals
+   and assert each canonical generation contributes at most once under a reviewed
+   turn-level accounting policy (a turn can contain multiple generations). No
+   totals are inferred by the current offline harness. Diagnostic project totals
    stay separate; preserve unavailable usage as unknown.
 6. Add logs and metrics only after backend/security/retention choices are approved
    and their independent pipelines pass fixtures. Expand hosts/surfaces only with

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "producer": "native",
+  "signal": "traces",
+  "request": {
+    "unreviewedField": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+    "resourceSpans": [
+      {
+        "schemaUrl": "https://SYNTHETIC-OTLP-CANARY-NOT-A-SECRET.example.invalid/resource",
+        "resource": {
+          "attributes": [
+            {"key": "host.name", "value": {"stringValue": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"}},
+            {"key": "service.name", "value": {"stringValue": "synthetic.codex.fixture"}}
+          ]
+        },
+        "scopeSpans": [
+          {
+            "schemaUrl": "https://SYNTHETIC-OTLP-CANARY-NOT-A-SECRET.example.invalid/scope",
+            "scope": {
+              "name": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+              "version": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+              "attributes": [{"key": "private", "value": {"stringValue": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"}}]
+            },
+            "spans": [
+              {
+                "traceId": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                "spanId": "1111111111111111",
+                "name": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+                "traceState": "private=SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+                "flags": 1,
+                "kind": 1,
+                "startTimeUnixNano": "1793577600000000000",
+                "endTimeUnixNano": "1793577600200000000",
+                "status": {"code": 1, "message": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"},
+                "attributes": [
+                  {"key": "gen_ai.usage.input_tokens", "value": {"intValue": "100"}},
+                  {"key": "input", "value": {"kvlistValue": {"values": [{"key": "prompt", "value": {"stringValue": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"}}]}}}
+                ],
+                "events": [{"name": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET", "timeUnixNano": "1793577600100000000"}],
+                "unreviewedField": {"private": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"}
+              },
+              {
+                "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "spanId": "2222222222222222",
+                "parentSpanId": "1111111111111111",
+                "name": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET",
+                "kind": 3,
+                "startTimeUnixNano": "1793577600100000000",
+                "endTimeUnixNano": "1793577600180000000",
+                "status": {"code": 2, "message": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"},
+                "links": [{"traceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "spanId": "3333333333333333", "traceState": "SYNTHETIC-OTLP-CANARY-NOT-A-SECRET"}],
+                "droppedAttributesCount": 99,
+                "droppedEventsCount": 99,
+                "droppedLinksCount": 99
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

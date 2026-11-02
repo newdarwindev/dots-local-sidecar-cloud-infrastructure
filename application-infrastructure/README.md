@@ -8,7 +8,9 @@ build/smoke). That result does not validate the newer patch.
 
 **Implemented:** checksum-locked chart fetch/render, explicit-target read-only
 preflight, rendered-resource risk inspection, synthetic metadata/ownership
-harness, dedicated workload Homarr values, and Docker-only CI validation.
+harness, offline native OTLP JSON boundary prototype, dedicated workload Homarr
+values, and Docker-only CI validation. The new boundary and ownership-interval
+tests are also **unrun** while Docker is unavailable and CI remains paused.
 **Not deployment-ready:** actual apply is intentionally unavailable. Publication,
 passing CI, an approval file, or a selected host does not authorize deployment.
 No service, credentials, source collector, schedule or access route is enabled.
@@ -106,7 +108,11 @@ importer owns explicitly assigned completed pre-cutover sessions; plugin owns
 assigned post-enrollment sessions; spanning sessions are held. Replays are
 idempotent in the **in-memory synthetic harness**, conflicts are rejected, and
 native diagnostic usage is removed. Missing usage remains unknown; cumulative
-snapshots are not silently summed.
+snapshots are not silently summed. Canonical event timestamps must fall inside
+the owner's enrolled start/end interval (inclusive endpoints); a resumed session
+after its recorded end needs explicit reconciliation, not silent interval growth.
+Several distinct generations/spans can occur in one turn. The harness does not
+infer a token total from them or establish producer-native identity mapping.
 
 This is **not** a production source adapter, real OTLP semantic mapping, durable
 ownership/delivery ledger, content classifier or cross-host enrollment system.
@@ -115,6 +121,18 @@ use newly created fixtures; never supply histories to this harness. A real
 adapter must pass full-envelope canary/lineage tests and delivery reconciliation
 before any source activation. Plugin rich content and importer history remain
 separately disabled; native diagnostics never become canonical token accounting.
+
+### Native OTLP JSON boundary (new, untested)
+
+[`native_otlp.py`](native_otlp.py) now reconstructs a concrete OTLP trace request
+from an explicit **synthetic/native/traces-only** fixture. It preserves validated
+32-hex trace IDs / 16-hex span IDs and nanosecond intervals, strips full resource,
+scope and span content (including schema URLs), rejects cycles and conflicting
+within-batch replays, and labels its review envelope diagnostic/noncanonical.
+No source histories, endpoint, credential, network transmission or service exists
+in this path. See [the input/output fixtures and future connection contract](runbooks/native-otlp-boundary.md).
+This closes the offline serialization gap, **not** source integration, Collector
+runtime canary acceptance, durable delivery, project isolation or activation.
 
 ## Initial deployment, subsequent CI and rollback
 

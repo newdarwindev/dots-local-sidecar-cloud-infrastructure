@@ -92,6 +92,7 @@ class SyntheticLedger:
     def __init__(self, cutover, enrollments):
         self.cutover = timestamp(cutover)
         self.owners = {}
+        self.intervals = {}
         self.canonical = {}
         self.diagnostics = {}
         if type(enrollments) is not list or len(enrollments) > 10000:
@@ -112,6 +113,7 @@ class SyntheticLedger:
             if producer == "plugin" and start < self.cutover:
                 raise ContractError("pre-cutover session requires explicit reconciliation")
             self.owners[key] = producer
+            self.intervals[key] = (start, end)
 
     def ingest(self, raw):
         event = sanitize(raw)
@@ -127,6 +129,10 @@ class SyntheticLedger:
         else:
             if self.owners.get(session) != event["producer"]:
                 raise ContractError("session not owned by this producer")
+            start, end = self.intervals[session]
+            observed = timestamp(event["time"])
+            if observed < start or (end is not None and observed > end):
+                raise ContractError("event outside enrolled session interval")
             event["canonical"] = True
             event["project_role"] = "canonical"
             target = self.canonical
