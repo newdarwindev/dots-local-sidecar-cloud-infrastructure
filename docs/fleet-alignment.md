@@ -1,78 +1,31 @@
-# Fleet alignment and enrollment
+# Private target evidence and enrollment
 
-**Current phase boundary:** see [application phases](application-phases.md). Shared
-Authentik/OIDC, OpenBao/ESO and domain integration are later-stage proposals;
-reference sequences below are not immediate rollout instructions. Secure local
-bootstrap, private authenticated access and encrypted secret custody remain
-mandatory before any separately approved deployment.
+Use [application setup](../application-infrastructure/README.md) for the current
+selected workload. Actual host names, access, measurements and placement stay in
+the private inventory/overlay; the [blank template](inventory-template.md) is not
+an expected fleet size or authorization to discover/enroll additional machines.
 
-**Planning only · 2026-11-02.** No host enrollment or runtime changes. Actual
-hostnames, capacity, security observations, addresses and placement decisions
-remain in the private inventory and its current placement matrix. This document
-is the generic contract, not a second copy of that inventory.
+Record each component with dated source, collection method, visibility limits and
+blocking gates: **discovered → observed → candidate → approved → staged → verified
+deployed → recovery verified**. “Reported active” is a dated claim, not verified
+health. A CLI, connection, repository, manifest or green CI is not a running app.
+Preserve conflicting/prior evidence and distinguish owner reports from inspection.
 
-## Evidence, not assumptions
+- Existing Kubernetes ownership/workloads are preserved, not replaced to match a
+  template. No broader access, host substitution, demo placement or implicit jobs.
+- Linux-only K3s uses verified Linux hosts/guests; macOS/ordinary Windows notebooks
+  are not native K3s nodes. Check runtime, image architecture, networking, resources
+  and awake/restart availability; preserve immutable OS bases and concurrent work.
+- Count physical storage once, including shared filesystems/thin pools/snapshots;
+  assess actual data/metadata/root headroom. GPUs need separate driver/passthrough/
+  plugin proof, not inference from the device name. Sleeping laptops are unavailable.
+- Management/workload credentials stay separate. Co-located guests share hardware
+  failure; cloud extension is [separately scoped](boundaries-and-cloud.md), not HA
+  or automatic failover. Do not migrate secrets/data because a host is asleep.
+- Usage reporters need no Kubernetes; hub databases need their own allocation.
+  Preserve stable IDs, native cadence and duplicate-history controls. Each telemetry
+  source follows [content/coverage gates](../application-infrastructure/runbooks/telemetry.md).
 
-| State | Minimum evidence | Does not imply |
-| --- | --- | --- |
-| Discovered | Stable private identity and dated source | Access, ownership of workloads, or permission to modify |
-| Observed | Dated measurements with collection method and visibility limits | Current capacity or deployment health |
-| Candidate | Proposed role with resource and dependency budget | Approved placement or unattended availability |
-| Approved | Exact current scope, host, versions and rollback reviewed | Execution or success |
-| Staged | Reviewed configuration and validation results | Installed runtime |
-| Reported active | Service state from a named dated source | Ready Kubernetes nodes or healthy application |
-| Verified deployed | Target-specific health, access and acceptance observations | Future availability or recovery coverage |
-| Recovery verified | Isolated restore with measured loss/time | HA or unrestricted failover |
-
-Keep these labels per component; a host can have an existing reported service
-while the new management stack remains staged. Record conflicting or newer
-observations as dated updates, never silently replace their provenance. An
-installed CLI, available connection, mounted directory, repository or passing CI
-is not proof of a running application. Demo repositories stay outside platform
-placement unless separately reviewed; a demo scheduler is not fleet infrastructure.
-
-## Placement contract
-
-1. **Management:** one reliable Linux server or Linux guest, separate credentials
-   from workload clusters. The staged macOS guest is an initial reference, not an
-   automatic match to a similarly named computer. Establish identity, resource
-   reservations, awake window, restart access and off-host recovery first.
-2. **Existing Linux Kubernetes:** inspect health, ownership and workloads before
-   considering enrollment. Never replace an existing cluster to match a template.
-   Do not infer cluster membership or control-plane role from an active service.
-3. **macOS / Windows:** use a verified Linux guest/runtime; native desktop OSs are
-   not K3s nodes. Check architecture-specific images, VM memory/disk reservations,
-   guest networking and restart behavior. Client installations are insufficient.
-4. **Immutable Linux:** preserve the OS base; evaluate supported user-space or
-   guest options before assigning infrastructure roles.
-5. **Storage:** count physical backing capacity once. Shared APFS/Btrfs free space,
-   thin volumes and loop devices are not independent capacity. Confirm thin-pool
-   data/metadata headroom and snapshot growth before persistent workloads.
-6. **Usage reporting:** prefer native supported reporters with stable device IDs,
-   authorized data roots and duplicate-history controls. A reporter does not need
-   Kubernetes. A usage hub/database needs its own durable resource allocation;
-   management VM capacity is not implicitly spare workload capacity.
-
-7. **Session observability:** follow the [Langfuse plan](langfuse-plan.md). Treat
-   hub storage/resource allocation separately from native reporters, and enroll
-   each authorized CLI/desktop/exec surface only after a privacy and coverage test.
-   Unavailable or denied histories remain gaps, not automatic backfill targets.
-
-## Enrollment and expansion gates
-
-- Refresh dated inventory; preserve prior observations and distinguish direct
-  inspection from owner-supplied output. Never enroll unobserved machines by name.
-- Verify runtime access, architecture, workload headroom, storage ownership and
-  power/network availability without changing existing jobs or services.
-- Select private placement and data classification; review the
-  [auth/domain plan](auth-domain-plan.md) and required service identities.
-- Obtain bounded activation approval, then follow the
-  [primary bootstrap and recovery sequence](primary-host-rollout.md). Do not
-  widen controller roles, firewall exposure or secret paths to make a test pass.
-- Require per-application access/denial tests, backup/restore and restart evidence.
-  Only then consider workload enrollment, automation or additional cloud targets.
-
-A sleeping laptop is unavailable, not a reason to silently replicate secrets or
-move private state to another machine. Preserve all original Tether, decision and
-chat histories through every archive, migration or rollback. Record unmet gates
-and unknowns rather than presenting staged manifests as a fleet deployment.
+Only exact-current activation approval plus target-specific health, denial,
+restart and isolated restore evidence establishes a deployment. Preserve all
+original Tether/chat/decision/session histories and receipts through rollback.

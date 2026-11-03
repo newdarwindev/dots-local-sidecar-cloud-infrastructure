@@ -2,12 +2,12 @@
 
 Source-inspection evidence only; no live database, OAuth, token issuance, ingestion, scheduler installation or deployment was performed. Source revision: [`junhoyeo/tokscale` at `b26c433d03f23a2255ad9f212512ce83ede83da3`](https://github.com/junhoyeo/tokscale/tree/b26c433d03f23a2255ad9f212512ce83ede83da3). No runtime tests were executed by this audit (repository requires Docker and local Docker is absent). A successful image build is not evidence that the following activation blockers are resolved.
 
-## Database TLS: verified blocker, not just missing evidence
+## Upstream database TLS finding; overlay acceptance still pending
 
 - `packages/frontend/src/lib/db/index.ts:getDatabaseSslMode` returns only `false` or `"require"`; production defaults to `"require"`. Even unrecognized values such as `verify-full` fall back to `require` in production.
 - `bun.lock` pins `postgres@3.4.7`. The [driver's tagged connection source](https://github.com/porsager/postgres/blob/v3.4.7/src/connection.js#L269-L279) explicitly maps `require`, `allow` and `prefer` to `rejectUnauthorized:false`. This encrypts transport but does **not** authenticate the certificate chain/hostname. Retrieved driver source SHA256: `0847375f271c373745b4c2af1bbb5dc2da5ee6f69937cc52516b5b6a667af7a4`.
 - `packages/frontend/scripts/migrate-core.ts` uses that same weak mode for its advisory-lock connection, then **overwrites** the URL's `sslmode` with `require` for its `bunx drizzle-kit migrate` subprocess. `drizzle.config.ts` supplies only that URL. Setting a `verify-full` query parameter in the original secret does not cure this path.
-- Required fix scope: runtime connection, migration lock connection **and** migration subprocess must share strict certificate/hostname validation and trusted CA delivery. Tests must prove trusted matching DNS succeeds, wrong CA and wrong hostname fail, and no cleartext fallback exists for all paths. Do not loosen verification to make a build/runtime check pass. Renderer `DATABASE_SSL=require` is currently only a known-inadequate staging setting, not a deployment-approved TLS configuration.
+- Required fix scope: runtime connection, migration lock connection **and** migration subprocess must share strict certificate/hostname validation and trusted CA delivery. Tests must prove trusted matching DNS succeeds, wrong CA and wrong hostname fail, and no cleartext fallback exists for all paths. Do not loosen verification to make a build/runtime check pass. The earlier `DATABASE_SSL=require` renderer setting was known-inadequate; the current strict-TLS overlay below changes it but remains unvalidated.
 
 ## Private browser/read gate and narrow machine routes
 
@@ -41,7 +41,7 @@ The same layout unconditionally renders `@vercel/analytics/next` `<Analytics />`
 
 ## Scope boundary
 
-Complete source/base locks and credential-free CI image qualification can proceed without deploying. These findings do not authorize a TLS-insecure runtime, OAuth registration, token creation, real reporting, persistent jobs, database migration against existing data, or new secrets. Later Auth/Bao rollout and minimal bootstrap remain separate approval scopes. Kali6 remains offline; no target readiness claim follows from source inspection or CI.
+Complete source/base locks and credential-free CI image qualification can proceed without deploying. These findings do not authorize a TLS-insecure runtime, OAuth registration, token creation, real reporting, persistent jobs, database migration against existing data, or new secrets. Later Auth/Bao rollout and minimal bootstrap remain separate approval scopes. Live target inspection remains deferred; no target readiness claim follows from source inspection or CI.
 
 ## Unvalidated strict-TLS overlay candidate
 

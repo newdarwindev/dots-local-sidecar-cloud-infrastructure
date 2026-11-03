@@ -111,7 +111,9 @@ restore are validated, call it a local bootstrap, not a production primary.
 
 ## Validation and rollback
 
-[Committed workflow](../.github/workflows/primary-infrastructure.yml) builds and
+[Docker validation guide](../validation/README.md) owns `sh validation/run.sh`
+and the pinned lint/schema toolchain. Checks remain UNRUN while Docker is absent
+and workflows are owner-paused. [Committed workflow](../.github/workflows/primary-infrastructure.yml) builds and
 runs validation in Docker on a hosted runner; it needs only read access to this
 repo and public release downloads. No kubeconfig, SSH key or deployment credential
 is passed to CI. Tests render and lint all four checksum-pinned charts and check

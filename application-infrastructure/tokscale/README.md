@@ -1,176 +1,111 @@
-# Tokscale — executable review artifacts, activation blocked
+# Tokscale setup reference — activation blocked
 
-**Unvalidated candidate update:** strict TLS overlays and their new tests have not
-run. The owner disabled GitHub workflows for budget; local Docker is unavailable.
-The earlier successful build at `8659b0d` does not validate this changed source.
+Use [application setup](../README.md) for target, validation, approval and recovery.
+This directory supplies a **zero-replica review bundle**, not a running hub or a
+published production image. No reporter/scheduler is installed. Strict-TLS overlays
+and current tests are **UNRUN**: Docker is absent and CI is owner-paused. Earlier
+successful AMD64 build `8659b0d` does not validate the changed source.
 
-This directory translates the [reviewed upstream source](https://github.com/junhoyeo/tokscale/tree/b26c433d03f23a2255ad9f212512ce83ede83da3)
-into a **zero-replica** Kubernetes review bundle. It is not a running hub or a
-validated production image. No scheduler or reporter enrollment is installed.
-The derived Dockerfile includes upstream MIT attribution in `LICENSE.upstream`
-(Copyright 2025 Junho Yeo), verified at the pinned revision.
-Source revision and SHA256 hashes of inspected upstream files are recorded in
-`source.lock.json`; the complete public source archive is also SHA256-locked. The prepared tree has
-a deterministic file-content digest after the explicitly recorded privacy patch.
+## Pinned source and behavior
 
-## Verified source contract
+[Upstream revision `b26c433d`](https://github.com/junhoyeo/tokscale/tree/b26c433d03f23a2255ad9f212512ce83ede83da3)
+is SHA256-locked in `source.lock.json`, including the complete archive and prepared
+file tree. The derived image retains upstream MIT attribution in `LICENSE.upstream`.
+It uses locked Bun, frozen dependencies, Next.js standalone output, non-root
+UID/GID `10001` and port 3000. PostgreSQL ownership is independent of Langfuse.
 
-- Upstream `Dockerfile` installs the Bun workspace with `--frozen-lockfile`, builds
-  Next.js standalone output, runs non-root, and starts on port 3000. The derived
-  recipe here replaces the floating Bun base with a **required digest input** and
-  makes its non-root UID/GID explicit (`10001`). Hosted CI builds the image without publishing it; see the exact revision’s run outcome.
-- `docker-entrypoint.sh` runs Drizzle migrations **before every server start**.
-  Scaling/restarting the hub therefore needs migration/backup approval, not only
-  a container-start decision. Downgrading an image does not reverse migrations.
-- The pinned Compose example uses PostgreSQL 16. Its default passwords, plaintext
-  DB transport and floating image tags are deliberately **not** carried forward.
-- `DATABASE_URL`, `DATABASE_SSL=verify-full`, `DATABASE_CA_FILE`, `APP_URL`, GitHub OAuth credentials and a stable
-  `AUTH_SECRET` are required independently. Never rely on upstream automatic
-  session-secret generation. GitHub OAuth registration is a separate owner action.
-- `POST /api/submit` uses upstream bearer-token authentication. This does **not**
-  protect public profile, leaderboard or other read routes. An authenticated
-  private browser/read gate and narrowly reviewed machine submission route remain
-  necessary. Do not exempt all `/api/*` or replace machine auth with a browser
-  redirect. Token issuance/revocation and redirects need end-to-end testing.
+**Migrations run before every server start.** Restarts/scaling need migration and
+backup review; image downgrade does not reverse schema changes. The strict-TLS
+candidate preserves upstream Drizzle engine/directory and lock/retry orchestration.
+Runtime, advisory lock and migration child share explicit `verify-full`, trusted
+CA and hostname checks; URL query/fragment overrides, IP endpoints and verification
+disabling are rejected. Drizzle uses structured credentials because the pinned
+version ignores separate SSL options with URL credentials. This is an unvalidated
+candidate, not evidence TLS/migration/recovery works.
 
-## Offline rendering
+## Configuration and rendering
 
-`render.py` accepts a private JSON configuration path and emits a Kubernetes List
-(JSON is valid Kubernetes input). Required keys: `namespace`, `storageClass`,
-`appImage`, `postgresImage`, `origin`, `gatewayPodLabel`, `databaseSize`.
-Both images must include `@sha256:` plus 64 lowercase hex characters; no default
-registry, floating tag, actual endpoint, storage class or capacity is guessed.
-Use an explicit HTTPS origin without a path. The PostgreSQL storage request must
-be an explicit Gi/Ti budget. Inputs and rendered manifests stay outside Git.
+`render.py` accepts explicit JSON keys: `namespace`, `storageClass`, `appImage`,
+`postgresImage`, `origin`, `gatewayPodLabel`, `databaseSize`. Images require
+`@sha256:` plus 64 lowercase hex characters; origin is HTTPS with no path; database
+size is explicit Gi/Ti. Never guess an image/endpoint/storage class/capacity or use
+floating tags. Keep inputs/output outside Git. This is the renderer's CLI interface,
+not a host run recipe; the current Docker runner accepts synthetic fixtures only,
+and private-input container wiring still needs review:
 
 ```sh
-python application-infrastructure/tokscale/render.py /private/review-input.json > /private/tokscale-review.json
+python3 application-infrastructure/tokscale/render.py \
+  /private/review-input.json > /private/tokscale-review.json
 ```
 
-Rendering changes no cluster state. Output includes dedicated app and PostgreSQL
-services, a zero-replica Deployment and StatefulSet, retained PVC template, TLS
-secret references and NetworkPolicies. No Namespace/Secret/Ingress/CRD/Job is
-created. Both workloads have service-account token mounting disabled. Database
-credentials/ownership are independent of Langfuse. Resource requests/limits are
-**review starting points, not demonstrated capacity or production reservations**.
+Output contains app/PostgreSQL Services, zero-replica Deployment/StatefulSet,
+retained PVC template, TLS references and NetworkPolicies. No Namespace, Secret,
+Ingress, CRD or Job is created. Service-account token mounts are off. Requests are
+review starting points, not measured reservations. Even zero-replica apply changes
+storage/network policy and requires approval; rendering authorizes no apply.
 
-Only same-namespace pods bearing the explicitly supplied gateway label can reach
-the app under the proposed policies. Only the app can reach this PostgreSQL.
-This is **not application authentication**: namespace/pod-label mutation authority
-must be reviewed and CNI policy enforcement tested. DNS and external OAuth egress
-are intentionally absent; separately review exact cluster DNS and outbound routes.
-NetworkPolicy installation itself requires approval. No gateway is deployed here.
-
-Existing Secret references (contents must never go into Git/tools/logs):
-
-| Secret | Keys / role |
+| Existing Secret | Required keys |
 | --- | --- |
-| `tokscale-database` | `postgres-password`, `database-url`; dedicated database/user `tokscale`, URI refers to this instance and matching password |
-| `tokscale-auth` | `auth-secret`, `github-client-id`, `github-client-secret`; independent approved custody |
-| `tokscale-database-ca` | `ca.crt`; independently trusted CA for app and migration clients |
-| `tokscale-postgres-tls` | `tls.crt`, `tls.key`; certificate matches private database service DNS |
+| `tokscale-database` | `postgres-password`, `database-url`; dedicated `tokscale` DB/user and matching instance/password |
+| `tokscale-auth` | `auth-secret`, `github-client-id`, `github-client-secret` |
+| `tokscale-database-ca` | `ca.crt` independently trusted by app and migration clients |
+| `tokscale-postgres-tls` | `tls.crt`, `tls.key`; matches private database service DNS |
 
-The PostgreSQL projection uses root-owned, group-readable `0440` material with
-GID 999. Verify this UID/GID against the **selected PostgreSQL image digest**,
-mounted key permissions, PVC ownership, certificate validity and PostgreSQL
-startup in an isolated container/cluster test before activation. Do not loosen
-permissions to get past errors. `DATABASE_SSL=require` alone is **not evidence of
-CA/hostname verification**: pinned driver behavior, trusted CA delivery and
-negative-certificate tests remain blockers. No TLS-verification claim is made.
+`DATABASE_URL`, `DATABASE_SSL=verify-full`, `DATABASE_CA_FILE`, explicit `APP_URL`,
+GitHub OAuth and stable `AUTH_SECRET` are required; no automatic session-secret
+fallback. OAuth registration/certificates/Secret creation need separate scope.
+PostgreSQL TLS projection is root-owned `0440`, group 999: verify selected-image
+UID/GID, key/PVC permissions and actual startup without loosening permissions.
+Public `.pem.fixture` certificates/keys are test material, never deployment keys.
 
-## Source/image locks and credential-free CI build
+## Access and reporters
 
-`source.lock.json` pins the complete official GitHub source archive SHA256 and a
-prepared-tree SHA256. `prepare_source.py` downloads only that archive, refuses
-checksum/path/link/duplicate-file mismatches, writes a new directory without
-overwriting an old tree, and removes the exact pinned Vercel Analytics import
-and component. This explicit privacy patch is necessary because
-`NEXT_TELEMETRY_DISABLED` does not disable browser Vercel Analytics. It is not a
-claim that every other outbound browser request has been audited or blocked.
+Protect all browser/read routes with private authenticated access and deny direct
+origins. The gateway pod label/CNI NetworkPolicy is **not authentication**; review
+namespace/label mutation authority. DNS/OAuth egress is absent until exact routes
+are approved. Native `POST /api/submit` bearer auth remains a narrow machine path,
+not a blanket `/api/*` exemption or browser redirect. See the
+[exact route and upstream contract audit](contract-audit.md).
 
-`images.lock.json` pins official Docker registry manifest indexes plus AMD64 and
-ARM64 child manifests for **Bun 1.3.14-alpine** and **PostgreSQL 16-alpine**.
-Registry index bytes were SHA256-verified against the response digest. This proves
-manifest availability/platform metadata, not that either image ran successfully.
-PostgreSQL's inspected AMD64 image configuration reports **16.15**. No mutable-tag
-resolution is performed during the prepared build. The image remains unqualified
-for deployment until target-platform runtime/storage/TLS tests pass.
+Test wrong-user/anonymous reads, direct-origin denial, missing/expired/revoked
+machine tokens, method/path normalization and private OAuth callbacks. Upstream
+tokens are user-scoped, not per-device identities. Server login does not grant
+all account data or enroll reporters.
 
-`build_plan.py` requires the exact reviewed Bun index digest and verifies the
-**entire prepared file tree**, including the privacy patch, before printing a
-Docker build command. It never invokes Docker. The Dockerfile additionally
-rejects non-digest Bun references at its base-stage RUN check; a direct Docker
-invocation may resolve/pull a base before that check. Use the CI recipe instead.
+At separately approved enrollment, require the private `TOKSCALE_API_URL` in the
+**actual reporter/scheduler context**, not just the interactive shell. `APP_URL`
+configures the frontend separately. Missing endpoints may fall back to the public
+hub upstream. Preserve stable device IDs, aggregate-only authorized roots and
+native default cadence (autosubmit disabled by default; enable interval `24h`).
+No six-hour collector, watcher or persistent job is introduced.
 
-From the repository root, a committed CI job calls:
+## Credential-free image build
 
-```sh
-VALIDATION_IMAGE=staged-app-validation CI=true sh application-infrastructure/tokscale/ci-build.sh
-```
+`prepare_source.py` checks the archive, safe members and entire prepared tree,
+refuses overwrite and removes the exact Vercel Analytics import/component.
+`NEXT_TELEMETRY_DISABLED` alone does not disable browser analytics. Further browser
+third-party egress still needs runtime review.
 
-The named validation image must already be built by the parent workflow and
-contain Python. Source fetching, full-tree checks and all Python tests execute
-inside Docker. The recipe builds only `linux/amd64` on the hosted AMD64 runner,
-checks the non-root image user, required application files and the Bun-provided
-`node` script wrapper using an isolated
-`--network=none` container, and records the local image ID. It does not push an
-image, start a server, run database migrations, connect to a cluster, or supply
-credentials. ARM64 metadata is locked but an ARM64 build/run is not claimed.
+`images.lock.json` pins Bun 1.3.14-alpine and PostgreSQL 16-alpine indexes plus
+AMD64/ARM64 manifests; inspected PostgreSQL AMD64 reports 16.15. Manifest existence
+is not runtime qualification. `build_plan.py` verifies exact Bun digest/full tree
+and prints, never executes, a build command. The paused
+[application workflow](../../.github/workflows/application-infrastructure.yml)
+owns `ci-build.sh`, sets `VALIDATION_IMAGE=infrastructure-validation:local`, and
+supplies the genuine CI context. Do not force `CI=true` locally or invoke Docker
+directly to bypass that guard; direct builds can pull before the build-time check.
 
-The build needs public network access for package installation and `next/font`
-Google font downloads. It is **credential-free, not network-offline**. No live
-`DATABASE_URL`, OAuth credentials, token, secret mounts, private registry login
-or paid service is needed. The build does not establish application availability,
-DB migrations, strict database TLS, viewer authentication or deployment readiness.
-Keep the generated source and image-ID receipts in ignored `.runtime` CI storage.
+Source/Python checks run inside Docker. CI builds AMD64 only, checks non-root user,
+required files and Bun's node wrapper under `--network=none`, and records a local
+image ID. It does not push, start the server, migrate, access a cluster or use live
+DB/OAuth credentials. ARM64 build/run is unqualified. Public package/font downloads
+are needed during build: credential-free does not mean offline. Receipts remain
+in ignored `.runtime`, never evidence of application health.
 
-## Release blockers and acceptance
-
-No deployment/apply command is included. Do not scale these artifacts or apply
-NetworkPolicies/PVC templates until the parent bundle's exact-current approval,
-capacity and access gates pass. A zero-replica apply still mutates services,
-storage policy and network policy and is not authorized by rendering.
-
-Required evidence: selected-host combined RAM/root/backing-storage solution;
-verified application image build and runtime architecture; tested private authenticated reads,
-wrong-user denial, direct-origin denial and exact machine auth routes; no optional
-browser analytics/third-party egress without review; trusted database TLS with
-wrong-CA/hostname rejection; OAuth/secret custody; migration rehearsal; encrypted
-off-cluster PostgreSQL restore with authorization/data reconciliation. Establish
-upstream native reporter cadence and an **explicit private hub endpoint** at
-separate enrollment; never fall back to a public hub or add a six-hour scheduler.
-
-Rollback stops new traffic/reporting and scales only approved workload changes;
-it does not delete the database/PVC, source histories, attachments or receipts.
-Run `test_render.py` only inside the committed validation container. Tests are
-synthetic and establish render invariants, not application/auth/database health.
-
-See the [pinned-source TLS/auth/build audit](contract-audit.md) for exact remaining
-contract gaps, including `DATABASE_SSL=require` not verifying certificates and
-native scheduler endpoint propagation. These findings are not a successful build
-or runtime test and must be resolved before production use.
-
-## Strict TLS overlay candidate — tests pending
-
-The checksum-bound source overlay replaces upstream's unauthenticated `require`
-mode with a shared `getDatabaseTlsOptions` helper: explicit `verify-full`, an
-absolute CA file, certificate-chain verification and Node hostname verification.
-It rejects IP endpoints, query/fragment overrides and process-level verification
-disabling. The renderer references an existing trusted-CA Secret; it never creates
-that Secret or a key/certificate. All workload replicas remain zero.
-
-Runtime, advisory-lock connection, and the existing `bunx drizzle-kit migrate`
-subprocess share the same strict TLS helper. Upstream migration engine, directory,
-lock and retry orchestration remain unchanged. The drizzle-kit configuration uses
-structured host/port/database/user/password/ssl fields, because pinned 0.30.6
-silently ignores separate ssl options when a `url` credential is supplied. A real
-isolated migration/restore rehearsal is still required; TLS/startup tests do not
-prove migration compatibility or rollback safety.
-
-`tls-contract.test.ts` proposes loopback-only PostgreSQL TLS/startup mocks for
-runtime, migration lock and migration child. Matching CA/DNS must reach a synthetic
-rejection marker; wrong CA, wrong DNS and denied TLS must not reach startup. It
-uses unchanged public Node.js test certificates and a publicly distributed test
-key, not generated credentials. No database, SQL execution, real migration or
-application server is started. The Docker recipe uses `--network=none`. These
-tests are **unrun** until the owner reauthorizes CI; do not reenable workflows.
+`tls-contract.test.ts` uses isolated PostgreSQL TLS/startup mocks with public Node
+fixtures, not a real DB/migration/server. Correct CA/DNS must reach a synthetic
+marker; wrong CA/DNS or refused TLS must fail for runtime, lock and migration child.
+These tests are authored **not run**. Activation additionally requires real isolated
+migration/interruption/retry and encrypted off-cluster restore with authorization/
+data reconciliation, exact-platform runtime and private browser/machine tests.
+Rollback preserves databases/PVCs, keys, source histories, attachments and receipts.
