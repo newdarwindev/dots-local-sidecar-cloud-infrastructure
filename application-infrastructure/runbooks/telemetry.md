@@ -59,18 +59,18 @@ observability, not a compliance/audit guarantee.
 
 [`plugin_setup.py`](../scripts/plugin_setup.py) provides a disabled, credential-free
 review renderer/checker matched to the [pinned resolver](../contracts/codex-plugin.lock.json).
-Its actual CLI interfaces are:
+Prepare explicit nonsecret inputs outside the repository using the shapes in
+[render](../fixtures/plugin-render.synthetic.json) and
+[check](../fixtures/plugin-check.synthetic.json). Once authorized Docker execution
+resumes, use the [bounded setup route](../../validation/README.md#offline-setup-review):
 
 ```sh
-python3 application-infrastructure/scripts/plugin_setup.py render \
-  --config application-infrastructure/fixtures/plugin-render.synthetic.json
-python3 application-infrastructure/scripts/plugin_setup.py check \
-  --config application-infrastructure/fixtures/plugin-check.synthetic.json
+sh validation/run.sh setup plugin-render /private/plugin-render.json
+sh validation/run.sh setup plugin-check /private/plugin-check.json
 ```
 
-Run checks only through the authorized Docker path; these are interface examples,
-not host execution instructions or arguments to `validation/run.sh`. The workflow
-discovers [synthetic tests](../tests/test_plugin_setup.py); they remain **UNRUN**.
+No files are mounted or installed; output is private stdout for review only.
+The runner and [synthetic tests](../tests/test_plugin_setup.py) remain **UNRUN**.
 `render` prints vendor-format disabled config without keys. `check` models only
 explicitly supplied credential-free global/project/env layers, never ambient
 files/environment/auth. Both reject unknown fields, activation, hosted fallback,

@@ -25,6 +25,47 @@ No host mounts, daemon socket, credentials, kubeconfig, live preflight, install,
 deployment or service startup. Commands fail fast; use `lint` independently of
 networked schema checks. ARM hosts need an already configured amd64 builder.
 
+## Offline setup review
+
+After execution is authorized and Docker is already available:
+
+```sh
+sh validation/run.sh setup cluster-assess /private/future-cluster.json
+sh validation/run.sh setup cluster-packet /private/future-cluster.json
+sh validation/run.sh setup plugin-render /private/plugin-render.json
+sh validation/run.sh setup plugin-check /private/plugin-check.json
+```
+
+These are the **only** setup actions. Prepare an owner-reviewed nonsecret JSON
+file using [cluster](../application-infrastructure/README.md#2-configure-privately)
+or [plugin](../application-infrastructure/runbooks/telemetry.md#plugin-configuration-before-any-later-enrollment)
+instructions: absolute path, outside this checkout, regular/non-symlink, 1–65536
+bytes, preferably mode 0600. Known auth/history directories are rejected, but this
+is **not a secret detector**: never supply credentials, account config or histories.
+Use a caller-controlled file in a private caller-controlled directory; do not
+modify it until snapshotting finishes. Hostile concurrent filesystem changes are
+outside this route's guarantee. The host shell checks path/type/size, pins a read-only file
+descriptor and snapshots at most 65537 bytes (rejecting anything over 64 KiB)
+before building; no host Python runs.
+
+The runner permits only a selected local Unix Docker endpoint, uses an empty
+transient CLI config (no proxy/env/credential inheritance), builds before input
+delivery, and pins the returned image ID. Runtime has no network, capabilities,
+host mounts, socket or daemon logging; it is non-root, read-only and resource
+bounded with ephemeral `/tmp`. This is not a claim of a rootless Docker daemon.
+The input reaches Docker before schema checks; prepare and protect it accordingly.
+Only the review runtime is offline; image building may download public dependencies.
+
+Stdout is one **private review JSON** document; fixed stage errors go to stderr.
+Only a mode-0600 input snapshot in a mode-0700 temporary directory is written on
+the host and removed on normal exit; no durable output is created. Any separately chosen
+capture must stay private and out of Git/CI uploads. `cluster-packet` returns named
+`documents`, not a directory; each
+receipt digest covers the document serialized with JSON indent 2 plus a newline
+(in returned key order). Plugin output remains disabled. No arbitrary command,
+chart fetch/render, preflight, deployment, config installation or source enrollment
+is exposed. Setup and its synthetic regression tests remain **UNRUN** here.
+
 ## Coverage
 
 | Files | Checks |
