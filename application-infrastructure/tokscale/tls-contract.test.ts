@@ -76,7 +76,7 @@ async function mockDatabase(refuseTls = false) {
 }
 
 const paths = {
-  async runtime(url: string) {
+  async runtime(_url: string) {
     (globalThis as any)._db = undefined;
     const db = getDb();
     try { await db.execute(sql`select 1`); }

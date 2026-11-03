@@ -1,5 +1,4 @@
 """Synthetic only; run in the committed Docker validation workflow."""
-import copy
 import importlib.util
 import json
 from pathlib import Path

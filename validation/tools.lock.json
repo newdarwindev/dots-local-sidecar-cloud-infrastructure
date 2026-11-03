@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "reviewed": "2026-11-03",
+  "platform": "linux/amd64",
+  "baseImage": {
+    "reference": "python:3.14.0-slim-bookworm@sha256:d13fa0424035d290decef3d575cea23d1b7d5952cdf429df8f5542c71e961576",
+    "tag": "3.14.0-slim-bookworm",
+    "digest": "sha256:d13fa0424035d290decef3d575cea23d1b7d5952cdf429df8f5542c71e961576",
+    "platformDigest": "sha256:9bbb8720ae0a24a6ca8dd678bfdf57818fe70caf54c52a53ec01d8db43405056",
+    "evidence": "Official registry index response bytes hashed; digest matched Docker-Content-Digest. Linux amd64 descriptor verified; no image pulled or executed."
+  },
+  "binaries": {
+    "hadolint": {
+      "version": "2.14.0",
+      "url": "https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64",
+      "sha256": "6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47",
+      "format": "binary",
+      "member": null,
+      "checksumSource": "https://api.github.com/repos/hadolint/hadolint/releases/tags/v2.14.0"
+    },
+    "shellcheck": {
+      "version": "0.11.0",
+      "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+      "sha256": "8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198",
+      "format": "tar.xz",
+      "member": "shellcheck-v0.11.0/shellcheck",
+      "checksumSource": "https://api.github.com/repos/koalaman/shellcheck/releases/tags/v0.11.0"
+    },
+    "actionlint": {
+      "version": "1.7.12",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+      "sha256": "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8",
+      "format": "tar.gz",
+      "member": "actionlint",
+      "checksumSource": "https://api.github.com/repos/rhysd/actionlint/releases/tags/v1.7.12"
+    },
+    "kubeconform": {
+      "version": "0.8.0",
+      "url": "https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz",
+      "sha256": "9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883",
+      "format": "tar.gz",
+      "member": "kubeconform",
+      "checksumSource": "https://api.github.com/repos/yannh/kubeconform/releases/tags/v0.8.0"
+    },
+    "biome": {
+      "version": "2.6.4",
+      "url": "https://github.com/biomejs/biome/releases/download/%40biomejs/biome%402.6.4/biome-linux-x64",
+      "sha256": "eb9afd5af3c04bd242be6db39fb812a025b42469af8c6a621535036dbd9b0c63",
+      "format": "binary",
+      "member": null,
+      "checksumSource": "https://api.github.com/repos/biomejs/biome/releases/tags/%40biomejs%2Fbiome%402.6.4"
+    }
+  },
+  "kubernetesSchemas": {
+    "version": "1.37.1",
+    "revision": "e0c72a1bc5f409d1685c0e1323460c8a98cd7459",
+    "urlTemplate": "https://raw.githubusercontent.com/yannh/kubernetes-json-schema/e0c72a1bc5f409d1685c0e1323460c8a98cd7459/{{.NormalizedKubernetesVersion}}-standalone{{.StrictSuffix}}/{{.ResourceKind}}{{.KindSuffix}}.json",
+    "evidence": "Official repository contains v1.37.1-standalone-strict at this immutable revision; deployment-apps-v1.json fetched through GitHub contents API. Missing versions/kinds must fail, never fall back or skip."
+  },
+  "pythonPackages": {
+    "ruff": {
+      "version": "0.17.3",
+      "filename": "ruff-0.17.3-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/f0/20/fecedea2209f574ab92033b344e01a7f0c2dc76c6d6d19a14c9f8141173f/ruff-0.17.3-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl",
+      "sha256": "7fa4b0f931cdbcb8a52044f370a3eb429fb42eb88807b0e800fcaa98dd42b24e",
+      "checksumSource": "https://pypi.org/pypi/ruff/0.17.3/json",
+      "requiresDist": []
+    },
+    "yamllint": {
+      "version": "1.38.0",
+      "filename": "yamllint-1.38.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/05/92/aed08e68de6e6a3d7c2328ce7388072cd6affc26e2917197430b646aed02/yamllint-1.38.0-py3-none-any.whl",
+      "sha256": "fc394a5b3be980a4062607b8fdddc0843f4fa394152b6da21722f5d59013c220",
+      "checksumSource": "https://pypi.org/pypi/yamllint/1.38.0/json",
+      "requiresDist": [
+        "pathspec>=1.0.0",
+        "pyyaml",
+        "doc8; extra == \"dev\"",
+        "flake8; extra == \"dev\"",
+        "flake8-import-order; extra == \"dev\"",
+        "rstcheck[sphinx]; extra == \"dev\"",
+        "ruff; extra == \"dev\"",
+        "sphinx; extra == \"dev\""
+      ]
+    },
+    "PyYAML": {
+      "version": "6.0.3",
+      "filename": "pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/88/f9/16491d7ed2a919954993e48aa941b200f38040928474c9e85ea9e64222c3/pyyaml-6.0.3-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "c458b6d084f9b935061bc36216e8a69a7e293a2f1e68bf956dcd9e6cbcd143f5",
+      "checksumSource": "https://pypi.org/pypi/PyYAML/6.0.3/json",
+      "requiresDist": []
+    },
+    "markdown-it-py": {
+      "version": "4.2.0",
+      "filename": "markdown_it_py-4.2.0-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/b3/81/4da04ced5a082363ecfa159c010d200ecbd959ae410c10c0264a38cac0f5/markdown_it_py-4.2.0-py3-none-any.whl",
+      "sha256": "9f7ebbcd14fe59494226453aed97c1070d83f8d24b6fc3a3bcf9a38092641c4a",
+      "checksumSource": "https://pypi.org/pypi/markdown-it-py/4.2.0/json",
+      "requiresDist": [
+        "mdurl~=0.1",
+        "psutil; extra == \"benchmarking\"",
+        "pytest; extra == \"benchmarking\"",
+        "pytest-benchmark; extra == \"benchmarking\"",
+        "commonmark~=0.9; extra == \"compare\"",
+        "markdown~=3.4; extra == \"compare\"",
+        "mistletoe~=1.0; extra == \"compare\"",
+        "mistune~=3.0; extra == \"compare\"",
+        "panflute~=2.3; extra == \"compare\"",
+        "markdown-it-pyrs; extra == \"compare\"",
+        "linkify-it-py<3,>=1; extra == \"linkify\"",
+        "mdit-py-plugins>=0.5.0; extra == \"plugins\"",
+        "gprof2dot; extra == \"profiling\"",
+        "mdit-py-plugins>=0.5.0; extra == \"rtd\"",
+        "myst-parser; extra == \"rtd\"",
+        "pyyaml; extra == \"rtd\"",
+        "sphinx; extra == \"rtd\"",
+        "sphinx-copybutton; extra == \"rtd\"",
+        "sphinx-design; extra == \"rtd\"",
+        "sphinx-book-theme~=1.0; extra == \"rtd\"",
+        "jupyter_sphinx; extra == \"rtd\"",
+        "ipykernel; extra == \"rtd\"",
+        "coverage; extra == \"testing\"",
+        "pytest; extra == \"testing\"",
+        "pytest-cov; extra == \"testing\"",
+        "pytest-regressions; extra == \"testing\"",
+        "pytest-timeout; extra == \"testing\"",
+        "requests; extra == \"testing\""
+      ]
+    },
+    "python-hcl2": {
+      "version": "8.1.4",
+      "filename": "python_hcl2-8.1.4-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/5a/c7/9b8918ab4954ecad677b03f36f9121d5467a4285f41507fdc6789a33dc3c/python_hcl2-8.1.4-py3-none-any.whl",
+      "sha256": "75738bd95717d692a683495babf4d00063f1b211e2eca04b156c6d79b9a0feae",
+      "checksumSource": "https://pypi.org/pypi/python-hcl2/8.1.4/json",
+      "requiresDist": [
+        "lark<2.0,>=1.1.5",
+        "regex>=2024.4.16"
+      ]
+    },
+    "pathspec": {
+      "version": "1.1.1",
+      "filename": "pathspec-1.1.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/f1/d9/7fb5aa316bc299258e68c73ba3bddbc499654a07f151cba08f6153988714/pathspec-1.1.1-py3-none-any.whl",
+      "sha256": "a00ce642f577bf7f473932318056212bc4f8bfdf53128c78bbd5af0b9b20b189",
+      "checksumSource": "https://pypi.org/pypi/pathspec/1.1.1/json",
+      "requiresDist": [
+        "hyperscan>=0.7; extra == \"hyperscan\"",
+        "typing-extensions>=4; extra == \"optional\"",
+        "google-re2>=1.1; extra == \"re2\""
+      ]
+    },
+    "mdurl": {
+      "version": "0.1.2",
+      "filename": "mdurl-0.1.2-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl",
+      "sha256": "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8",
+      "checksumSource": "https://pypi.org/pypi/mdurl/0.1.2/json",
+      "requiresDist": []
+    },
+    "lark": {
+      "version": "1.3.1",
+      "filename": "lark-1.3.1-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/82/3d/14ce75ef66813643812f3093ab17e46d3a206942ce7376d31ec2d36229e7/lark-1.3.1-py3-none-any.whl",
+      "sha256": "c629b661023a014c37da873b4ff58a817398d12635d3bbb2c5a03be7fe5d1e12",
+      "checksumSource": "https://pypi.org/pypi/lark/1.3.1/json",
+      "requiresDist": [
+        "regex; extra == \"regex\"",
+        "js2py; extra == \"nearley\"",
+        "atomicwrites; extra == \"atomic-cache\"",
+        "interegular<0.4.0,>=0.3.1; extra == \"interegular\""
+      ]
+    },
+    "regex": {
+      "version": "2026.9.29",
+      "filename": "regex-2026.9.29-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "url": "https://files.pythonhosted.org/packages/a9/4d/041d9458a645fee4fce4d642a89d27271a3cfcd91095104f6dde44da70bf/regex-2026.9.29-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl",
+      "sha256": "2f7f7aa47b229f2b39a2ae2596d2ad5625d77b5eb9856fac2dab3eb506cdd0a0",
+      "checksumSource": "https://pypi.org/pypi/regex/2026.9.29/json",
+      "requiresDist": []
+    }
+  },
+  "provenance": "Binary digests from official GitHub release asset digest metadata; Python wheel hashes and direct dependency metadata from official version-specific PyPI JSON. Artifact execution is not part of provenance review. All five binary release downloads were also hashed and matched; exact archive members inspected as regular files without extraction or execution.",
+  "pythonWheelEvidence": "All nine selected wheel downloads hashed and matched official PyPI SHA256 metadata; no packages installed or executed."
+}

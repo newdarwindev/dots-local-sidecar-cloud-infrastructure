@@ -1,7 +1,6 @@
 """Synthetic source integrity tests; execute in Docker validation only."""
 import hashlib
 import io
-import json
 from pathlib import Path
 import tempfile
 import tarfile
