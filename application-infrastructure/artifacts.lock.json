@@ -40,6 +40,13 @@
       "member": "langfuse/charts/seaweedfs/templates/sftp/sftp-secret.yaml",
       "originalSha256": "71ed928ca7784ee5fc1110a5ac9357d17c206431cbdba8e6967619f93855650b",
       "reason": "Upstream condition generates unused SFTP credentials for allInOne even with SFTP disabled; narrow to actual allInOne.sftp.enabled before Helm evaluation."
+    },
+    "langfuse-disabled-media": {
+      "member": "langfuse/templates/_helpers.tpl",
+      "originalSha256": "74ed76ce2554050cd8a215d4e351e672dbea869030af260602d9c9e858de672c",
+      "reason": "Chart 2.2.1 ignores mediaUpload.enabled while emitting media bucket and credentials. Gate only the media environment block on that flag; event ingestion stays enabled.",
+      "source": "https://github.com/langfuse/langfuse-k8s/blob/langfuse-2.2.1/charts/langfuse/templates/_helpers.tpl",
+      "removalCondition": "Remove when a newly checksum-reviewed upstream chart omits all media environment variables with mediaUpload.enabled=false and the rendered regression passes."
     }
   }
 }
