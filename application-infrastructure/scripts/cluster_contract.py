@@ -6,7 +6,6 @@ import json
 import os
 from pathlib import Path
 import re
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / 'contracts/future-cluster.schema.json'

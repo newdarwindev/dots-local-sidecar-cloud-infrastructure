@@ -1,0 +1,12 @@
+# Deliberately structural: preserve existing flow mappings, long pinned URLs,
+# compact values files and Helm/Collector multiline strings without reformatting.
+rules:
+  key-duplicates: enable
+  trailing-spaces: enable
+  new-line-at-end-of-file: enable
+  float-values:
+    forbid-nan: true
+    forbid-inf: true
+  truthy:
+    allowed-values: ['true', 'false']
+    check-keys: false  # GitHub's `on` key must not be interpreted as YAML 1.1 bool.

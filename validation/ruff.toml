@@ -1,0 +1,4 @@
+target-version = "py314"
+# Correctness and invalid syntax, not wholesale formatting of historical scripts.
+[lint]
+select = ["E9", "F", "PLE"]

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Explicitly gated bootstrap. Never collects or generates service credentials."""
-import argparse, datetime, hashlib, json, os, pathlib, platform, shutil, subprocess, sys, tarfile, urllib.request
+import argparse, datetime, hashlib, json, os, pathlib, platform, subprocess, sys, tarfile, urllib.request
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 STATE = pathlib.Path.home() / 'Library/Application Support/dots-primary-infrastructure'
 LOCK = json.loads((ROOT / 'artifacts.lock.json').read_text())
@@ -99,7 +99,7 @@ def main():
         run([LIMA,'start','--name=primary','--tty=false',ROOT/'lima/primary.yaml']); return
     if args.action == 'bootstrap':
         # Refuse upgrades and replacements. A failed partial bootstrap needs inspection.
-        check=guest('test','!','-e','/usr/local/bin/k3s')
+        guest('test','!','-e','/usr/local/bin/k3s')
         binary=artifact('k3s')
         guest('sudo','mkdir','-p','/etc/rancher/k3s')
         put(binary,'/usr/local/bin/k3s'); guest('sudo','chmod','0755','/usr/local/bin/k3s')

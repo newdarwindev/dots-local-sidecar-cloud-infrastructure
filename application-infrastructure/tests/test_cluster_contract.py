@@ -1,5 +1,4 @@
 """Future authorized Docker validation only; current revision tests are UNRUN."""
-import copy
 import importlib.util
 import json
 from pathlib import Path

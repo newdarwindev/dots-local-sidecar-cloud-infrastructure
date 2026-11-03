@@ -5,7 +5,9 @@ ARG BUN_IMAGE
 # ── 1. base ────────────────────────────────────────────────────────────────────
 FROM ${BUN_IMAGE} AS base
 ARG BUN_IMAGE
-RUN printf '%s\n' "$BUN_IMAGE" | grep -Eq '^oven/bun@sha256:[0-9a-f]{64}$'
+RUN printf '%s\n' "$BUN_IMAGE" > /tmp/bun-image \
+    && grep -Eq '^oven/bun@sha256:[0-9a-f]{64}$' /tmp/bun-image \
+    && rm /tmp/bun-image
 WORKDIR /repo
 
 # ── 2. deps — install all workspace dependencies ───────────────────────────────

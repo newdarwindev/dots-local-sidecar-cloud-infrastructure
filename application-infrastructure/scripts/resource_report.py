@@ -5,7 +5,6 @@ from decimal import Decimal, InvalidOperation, ROUND_CEILING
 import json
 from pathlib import Path
 import re
-import sys
 
 
 def quantity(value, cpu=False):
