@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Reviewed configuration semantics only; not an installed plugin or activation permission",
+  "source": {
+    "url": "https://raw.githubusercontent.com/langfuse/codex-observability-plugin/e1d02be28e6bacbfe350a1bc1ccf861e54edee17/plugins/tracing/src/config.ts",
+    "commit": "e1d02be28e6bacbfe350a1bc1ccf861e54edee17",
+    "sha256": "748ade8eccffa7dd4bc82c317153890227eb5573072da8c9ee8376455c629b61"
+  },
+  "profile": "Strict disabled configuration subset; no credentials, arbitrary tags, metadata, environment labels or trace seeds",
+  "runtimeCompatibilityVerified": false
+}

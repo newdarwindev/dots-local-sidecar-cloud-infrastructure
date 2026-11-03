@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "target": {
+    "base_url": "https://langfuse.example.invalid",
+    "user_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "max_history_chars": 20000
+  },
+  "layers": {
+    "global": {},
+    "project": {
+      "enabled": false,
+      "base_url": "https://langfuse.example.invalid",
+      "user_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "skill_tags": false,
+      "max_history_chars": 20000,
+      "debug": false,
+      "fail_on_error": false,
+      "tags": [],
+      "metadata": {}
+    },
+    "env": {}
+  }
+}
