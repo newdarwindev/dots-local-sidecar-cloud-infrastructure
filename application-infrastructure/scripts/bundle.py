@@ -106,28 +106,46 @@ def patch_sftp_template(data, expected_sha):
         raise Blocked('Vendor SFTP patch precondition mismatch')
     return data.replace(old, new, 1)
 
+def patch_media_template(data, expected_sha):
+    if hashlib.sha256(data).hexdigest() != expected_sha:
+        raise Blocked('Vendor media template changed; stop for independent review')
+    start = b'- name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET\n'
+    end = b'{{- if hasKey .Values.s3 "concurrency" }}\n'
+    if data.count(start) != 1 or data.count(end) != 1 or data.index(start) >= data.index(end):
+        raise Blocked('Vendor media patch precondition mismatch')
+    # Chart 2.2.1 otherwise emits media bucket/credentials even with enabled=false.
+    # Gate only that block; event upload and batch export keep their own semantics.
+    return data.replace(start, b'{{- if .Values.s3.mediaUpload.enabled }}\n' + start, 1).replace(
+        end, b'{{- end }}\n' + end, 1)
+
 def prepared_artifact(name):
     original = artifact(name)
     if name != 'langfuse':
         return original
-    patch = load(ROOT / 'artifacts.lock.json')['vendorPatches']['seaweedfs-unused-sftp']
-    # Rewrite only the reviewed single template BEFORE any Helm execution. No
+    patches = load(ROOT / 'artifacts.lock.json')['vendorPatches']
+    sftp = patches['seaweedfs-unused-sftp']
+    media = patches['langfuse-disabled-media']
+    # Rewrite only the two checksum-reviewed templates BEFORE Helm execution. No
     # extraction, installation, source history or generated credentials involved.
     output = io.BytesIO()
-    patched = 0
+    patched = {'sftp': 0, 'media': 0}
     with tarfile.open(original, 'r:gz') as source, gzip.GzipFile(fileobj=output, mode='wb', mtime=0) as compressed:
         with tarfile.open(fileobj=compressed, mode='w') as dest:
             for member in source:
                 if member.name.startswith('/') or '..' in Path(member.name).parts or not (member.isfile() or member.isdir()):
                     raise Blocked('Unsafe vendor archive member')
                 data = source.extractfile(member).read() if member.isfile() else None
-                if member.name == patch['member']:
-                    data = patch_sftp_template(data, patch['originalSha256'])
+                if member.name == sftp['member']:
+                    data = patch_sftp_template(data, sftp['originalSha256'])
                     member.size = len(data)
-                    patched += 1
+                    patched['sftp'] += 1
+                elif member.name == media['member']:
+                    data = patch_media_template(data, media['originalSha256'])
+                    member.size = len(data)
+                    patched['media'] += 1
                 dest.addfile(member, io.BytesIO(data) if data is not None else None)
-    if patched != 1:
-        raise Blocked('Expected exactly one vendor SFTP template')
+    if patched != {'sftp': 1, 'media': 1}:
+        raise Blocked('Expected exactly one of each reviewed vendor template')
     destination = ROOT / '.runtime' / 'artifacts' / 'langfuse-reviewed-patch.tgz'
     destination.write_bytes(output.getvalue())
     return destination
@@ -247,6 +265,22 @@ def preserve_storage_class(documents, string_documents, storage):
         claim['storageClassName'] = storage
     return documents
 
+def preserve_namespace(documents, string_documents, namespace):
+    # A valid DNS namespace may also be a YAML scalar (true, null, 0123, a date).
+    # Preserve only explicit top-level metadata.namespace with matching raw text.
+    if len(documents) != len(string_documents):
+        raise Blocked('Rendered document inventory changed during namespace review')
+    for obj, raw in zip(documents, string_documents):
+        if not obj:
+            continue
+        metadata = raw.get('metadata', {})
+        if 'namespace' not in metadata:
+            continue
+        if metadata['namespace'] != namespace:
+            raise Blocked('Rendered namespace differs from selected namespace')
+        obj['metadata']['namespace'] = namespace
+    return documents
+
 def render(value, output):
     import yaml
     output = private_output(output)
@@ -264,8 +298,9 @@ def render(value, output):
         cmd += storage_class_args(key, value)
         rendered.append(run(cmd).decode())
     payload = '\n---\n'.join(rendered)
-    docs = preserve_storage_class(list(yaml.safe_load_all(payload)),
-                                  list(yaml.load_all(payload, Loader=yaml.BaseLoader)), value['storageClass'])
+    string_docs = list(yaml.load_all(payload, Loader=yaml.BaseLoader))
+    docs = preserve_storage_class(list(yaml.safe_load_all(payload)), string_docs, value['storageClass'])
+    docs = preserve_namespace(docs, string_docs, value['namespace'])
     docs = harden_hooks(docs)
     payload = yaml.safe_dump_all(docs, sort_keys=False)
     issues = inspect_documents(docs, value['namespace'])

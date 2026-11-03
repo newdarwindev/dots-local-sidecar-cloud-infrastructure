@@ -41,6 +41,17 @@ with tempfile.TemporaryDirectory() as directory:
     # SeaweedFS and Homarr. Catch missing/defaulted fields, not just CLI flags.
     assert len(claims) == 6, 'Locked bundle persistence inventory changed; review storage wiring'
     assert all(claim.get('storageClassName') == target['storageClass'] for claim in claims), 'Selected StorageClass did not reach every rendered claim'
+    langfuse_deployments = [obj for obj in documents if obj['kind'] == 'Deployment'
+                           and obj['metadata']['name'] in {'langfuse-web', 'langfuse-worker'}]
+    assert len(langfuse_deployments) == 2, 'Expected Langfuse web and worker Deployments'
+    for deployment in langfuse_deployments:
+        containers = deployment['spec']['template']['spec']['containers']
+        environments = [item for container in containers for item in container.get('env', [])]
+        assert not any(item['name'].startswith('LANGFUSE_S3_MEDIA_') for item in environments), 'Disabled media configuration was emitted'
+        assert any(item['name'] == 'LANGFUSE_S3_EVENT_UPLOAD_BUCKET' and item.get('value') == 'langfuse-events'
+                   for item in environments), 'Media correction changed required event ingestion'
+        assert any(item['name'] == 'LANGFUSE_S3_BATCH_EXPORT_ENABLED' and item.get('value') == 'false'
+                   for item in environments), 'Batch export must remain disabled'
     dockerfile = (ROOT / 'validation/Dockerfile').read_text()
     sources = re.findall(r'^FROM (\S+) AS collector$', dockerfile, re.MULTILINE)
     assert len(sources) == 1, 'Expected one digest-pinned Collector binary source'
@@ -73,4 +84,12 @@ with tempfile.TemporaryDirectory() as directory:
     assert collector['receivers']['otlp']['protocols']['http']['tls']['client_ca_file']
     assert report['resourceCount'] > 5
     assert report['deploymentBlockers'], 'Synthetic fixture must never be deployment-ready'
+    scalar_target = dict(target, namespace='true')
+    scalar_input = Path(directory) / 'scalar-target.json'
+    scalar_input.write_text(json.dumps(scalar_target))
+    scalar_output = Path(directory) / 'scalar-rendered'
+    run(sys.executable, 'scripts/bundle.py', 'render', '--target', str(scalar_input), '--output', str(scalar_output))
+    scalar_documents = [obj for obj in yaml.safe_load_all((scalar_output / 'manifests.yaml').read_text()) if obj]
+    explicit_namespaces = [obj['metadata']['namespace'] for obj in scalar_documents if 'namespace' in obj['metadata']]
+    assert explicit_namespaces and all(namespace == 'true' for namespace in explicit_namespaces), 'Rendered namespace scalar text changed'
 print('PASS: offline synthetic contracts and pinned chart rendering; deployment remains blocked.')

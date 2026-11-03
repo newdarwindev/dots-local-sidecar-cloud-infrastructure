@@ -103,6 +103,7 @@ s3:
   bucket: langfuse-events
   eventUpload: {bucket: langfuse-events, prefix: events/}
   batchExport: {enabled: false}
+  # The checksum-bound chart correction omits media env; upstream 2.2.1 ignores this flag.
   mediaUpload: {enabled: false}
   allInOne:
     sftp: {enabled: false}

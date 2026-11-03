@@ -83,6 +83,45 @@ class BundleTests(unittest.TestCase):
             with self.subTest(count=count, selected=selected), self.assertRaises(bundle.Blocked):
                 bundle.preserve_storage_class(documents, documents, 'review-storage')
 
+    def test_rendered_namespace_scalar_text_is_preserved_without_broad_coercion(self):
+        import yaml
+        for namespace in ('true', 'null', '0123', '2026-11-03', 'review-namespace'):
+            payload = ('kind: ConfigMap\nmetadata:\n  name: reviewed\n  namespace: ' + namespace +
+                       '\ndata:\n  unrelated: true\n---\nkind: Service\nmetadata:\n  name: implicit\n')
+            result = bundle.preserve_namespace(list(yaml.safe_load_all(payload)),
+                list(yaml.load_all(payload, Loader=yaml.BaseLoader)), namespace)
+            roundtrip = list(yaml.safe_load_all(yaml.safe_dump_all(result)))
+            with self.subTest(namespace=namespace):
+                self.assertEqual(roundtrip[0]['metadata']['namespace'], namespace)
+                self.assertIs(roundtrip[0]['data']['unrelated'], True)
+                self.assertNotIn('namespace', roundtrip[1]['metadata'])
+
+    def test_namespace_mismatch_is_not_repaired(self):
+        docs = [{'kind': 'ConfigMap', 'metadata': {'namespace': 'other'}}]
+        with self.assertRaises(bundle.Blocked):
+            bundle.preserve_namespace(docs, docs, 'selected')
+        with self.assertRaises(bundle.Blocked):
+            bundle.preserve_namespace(docs, [], 'selected')
+
+    def test_vendor_media_patch_only_gates_media_environment(self):
+        source = (b'EVENT_UPLOAD_UNCHANGED\n- name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET\n'
+                  b'  value: synthetic-bucket\n- name: LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID\n'
+                  b'  valueFrom: synthetic-reference\n{{- if hasKey .Values.s3 "concurrency" }}\n'
+                  b'CONCURRENCY_UNCHANGED\n{{- end }}\n')
+        digest = bundle.hashlib.sha256(source).hexdigest()
+        result = bundle.patch_media_template(source, digest)
+        expected = source.replace(b'- name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET\n',
+            b'{{- if .Values.s3.mediaUpload.enabled }}\n- name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET\n')
+        expected = expected.replace(b'{{- if hasKey .Values.s3 "concurrency" }}\n',
+            b'{{- end }}\n{{- if hasKey .Values.s3 "concurrency" }}\n')
+        self.assertEqual(result, expected)
+        with self.assertRaises(bundle.Blocked):
+            bundle.patch_media_template(source + b'changed', digest)
+        for bad in (b'other', source + source,
+                    b'{{- if hasKey .Values.s3 "concurrency" }}\n- name: LANGFUSE_S3_MEDIA_UPLOAD_BUCKET\n'):
+            with self.assertRaises(bundle.Blocked):
+                bundle.patch_media_template(bad, bundle.hashlib.sha256(bad).hexdigest())
+
     def test_vendor_patch_is_checksum_bound_and_pre_render(self):
         source = b'{{- if or .Values.sftp.enabled .Values.allInOne.enabled }}\nSYNTHETIC\n{{- end }}'
         digest = bundle.hashlib.sha256(source).hexdigest()
