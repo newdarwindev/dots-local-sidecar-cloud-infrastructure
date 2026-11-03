@@ -1,187 +1,209 @@
-# Staged application bundle — executable, not activated
+# Application setup — staged, not activated
 
-**CI paused by owner:** the latest strict-TLS and structured ClickHouse image
-changes are statically reviewed but **untested**. Both GitHub workflows remain
-disabled for budget. Last fully green revision: `8659b0d` (44 tests, locked chart
-rendering, exact Collector configuration validation and Tokscale AMD64 image
-build/smoke). That result does not validate the newer patch.
+This is the **single current operator path**. It stages Langfuse + PostgreSQL,
+ClickHouse/Keeper, Valkey and SeaweedFS; a trace-only OTel Collector; Tokscale +
+its own PostgreSQL; and an independent `homarr-workload` instance. Shared
+Authentik, OpenBao/ESO and domains are [deferred](../docs/auth-domain-plan.md).
 
-**Implemented:** checksum-locked chart fetch/render, explicit-target read-only
-preflight, rendered-resource risk inspection, synthetic metadata/ownership
-harness, offline native OTLP JSON boundary prototype, dedicated workload Homarr
-values, and Docker-only CI validation. The new boundary and ownership-interval
-tests are also **unrun** while Docker is unavailable and CI remains paused.
-**Not deployment-ready:** actual apply is intentionally unavailable. Publication,
-passing CI, an approval file, or a selected host does not authorize deployment.
-No service, credentials, source collector, schedule or access route is enabled.
+**Status:** rendering, synthetic telemetry contracts and review tooling exist;
+deployment/source enrollment do not. Current changes are **UNRUN** because local
+Docker is absent and GitHub workflows are owner-paused. Earlier green revision
+`8659b0d` covered 44 tests, chart rendering, Collector config and an AMD64 Tokscale
+build/smoke only—not subsequent TLS, image, cluster-contract or telemetry changes.
 
-This implements the [application phase boundary](../docs/application-phases.md),
-not the older primary-management bootstrap. Authentik, OpenBao/ESO, shared domains
-and ingress remain later-stage. Exact host identities, measured capacity,
-connection details and custody stay in the private overlay.
+## 1. Prerequisites
 
-## Safe commands
+- Use only the owner-selected target. A hypothetical compatible cluster permits
+  design, not a readiness claim. Live inspection is deferred; do not substitute a
+  different host, widen access or change storage/power/workloads to make it fit.
+- Before activation, verify Kubernetes/node architecture, namespace identity,
+  actual ClickHouse operator/CRDs and prerequisites, CNI ingress **and egress**
+  enforcement, private DNS, trusted TLS, authenticated UI/read access and denied
+  direct-origin access. NetworkPolicy alone is not authentication.
+  Expose only approved web/ingestion interfaces; worker, database, queue, S3 and
+  operator endpoints stay private. Allowlist exact egress; never permit all to
+  make tests pass. Langfuse telemetry opt-out is not proof of zero external traffic.
+- Measure one combined budget: existing workloads, operators, all replicas/init
+  containers/Jobs, upgrade surge, databases, retained PVCs, queues/logs and growth.
+  Verify physical backing/encryption, thin-pool/root/RAM headroom, RWO semantics
+  and retention. Shared disks count once; requests and the report's 25% planning
+  headroom are not proof of fit. Browser/Temporal/lease/gateway workloads need
+  their own manifests and acceptance evidence; they are not included implicitly.
+- Establish private authenticated administration, least-privilege machine access,
+  encrypted secret custody independent of this cluster/IdP, and an independently
+  encrypted recovery destination with a tested restore. No default passwords,
+  anonymous APIs, public usage data or disabled TLS verification.
+- Validation must run in Docker through the committed workflows. Do not install
+  or start a daemon, use another host/compiler, or enable CI to bypass the pause.
+  Use newly invented fixtures only; `synthetic: true` does not sanitize real data.
 
-From the repository root:
+## 2. Configure privately
+
+Copy the [essential-input template](contracts/future-cluster.example.json) to a
+mode-0600 file **outside the repository**, checked against its
+[schema](contracts/future-cluster.schema.json). Keep actual context/namespace UID,
+host capacity, private endpoints, evidence and recovery references private. Never
+put secret values, histories, account identities or credentials in the packet.
+
+| Input | Required for |
+| --- | --- |
+| Kubernetes version, StorageClass; namespace defaults to `dots-applications` | Bundle review rendering; neither value proves a live resource exists |
+| Immutable app/PostgreSQL image references, private HTTPS origin, gateway label, explicit DB size | Tokscale rendering; see [exact contract](tokscale/README.md) |
+| Target identity, dated capability/operator/capacity and recovery evidence | Later activation review; claims are not verified by the packet tool |
+
+The CLI interfaces below assess inputs and create a fresh mode-0700 review packet;
+they do not fetch/render/contact a cluster. **They are interface examples, not
+commands accepted by `validation/run.sh`.** The current runner validates synthetic
+fixtures only: it does not mount `/private` or expose arbitrary command execution.
+Private-input container wiring remains future reviewed setup; do not run these on
+the host to bypass that missing route or the current execution pause.
 
 ```sh
-# Default: pure local plan, no network/cluster commands.
-python3 application-infrastructure/scripts/bundle.py
-# Hash all reviewed bundle inputs (excluding runtime/rendered/cache).
-python3 application-infrastructure/scripts/bundle.py revision
-# Explicit public chart download only; verifies SHA256, installs nothing.
-python3 application-infrastructure/scripts/bundle.py fetch
-# Offline Helm render with a clearly synthetic target, no cluster connection.
-python3 application-infrastructure/scripts/bundle.py render \
-  --target application-infrastructure/fixtures/target.synthetic.json \
-  --output /tmp/staged-render-UNIQUE
+# CLI interface examples, relative to the repository root; not a host run recipe.
+python3 application-infrastructure/scripts/cluster_contract.py assess \
+  --config /private/future-cluster.json
+python3 application-infrastructure/scripts/cluster_contract.py packet \
+  --config /private/future-cluster.json --output /private/new-review-packet
 ```
 
-Rendering requires Helm from the existing checksum-locked primary-infrastructure
-validation image and PyYAML. Do not install/start Docker or another runtime merely
-to bypass unavailable validation. The committed
-[workflow](../.github/workflows/application-infrastructure.yml) runs validation
-inside Docker on a hosted runner with **read-only repository permission and no
-deployment credentials**. It checks both contracts and chart rendering; passing
-means staging works, not that images ran or production readiness was established.
-Local unit tests and chart checks must use this Docker workflow too.
+The packet contains synthetic `render-target.json`, `assessment.json`, a hash
+receipt and, when complete, `tokscale-render-input.json`. It retains nonexistent
+context/UID and false readiness gates regardless of supplied evidence claims.
+No pullable Tokscale app image is published by this work; a prior local CI image
+ID is not a registry reference. Publishing an image needs separate authorization.
 
-Render output is written once to a fresh mode-0700 directory. `report.json` binds
-bundle revision, complete target JSON digest and manifest digest. Every unresolved
-resource/production gate is reported, including unpinned images. No generated
-output is checked into Git or uploaded by CI. Helm runs without repo updates,
-cluster lookup, dependency updates, release installation or automatic upgrade.
+Checked-in values are the authoritative Secret/ConfigMap reference inventory:
 
-## Read-only live preflight
+- [Langfuse](values/langfuse.yaml): bootstrap, PostgreSQL, Valkey, ClickHouse and
+  S3 credentials. Buckets/prefixes remain private and separately scoped.
+- [Collector](values/collector.yaml): receiver mTLS, exporter CA, explicit private
+  trace endpoint and **diagnostic-project** authorization. Ingestion keys are not
+  assumed write-only; no headers/keys in logs or Git.
+- [Homarr](values/homarr-workload.yaml): independent PVC and encryption key,
+  separate from `homarr-management`; do not run the management ESO sequence.
+- [Tokscale](tokscale/README.md#configuration-and-rendering): DB, OAuth/session
+  secrets and trusted TLS. Issuance, registrations and access grants are not
+  performed by rendering. Public test certificates/keys must never be deployed.
 
-Only when the selected target has an **existing authorized connection**, copy the
-synthetic target contract into private mode-0600 storage outside the repository;
-supply real context, namespace and immutable namespace UID, approved storage
-class, observed Kubernetes version, and `synthetic: false`. The UID is an explicit
-cluster binding, not a substitute for matching the selected host. Use only its
-existing kubeconfig; do not create grants or switch to another available host.
+Review [version-matched Langfuse setup](https://langfuse.com/self-hosting/deployment/kubernetes-helm)
+and owner organization/project/user onboarding before activation; the staged
+signup restriction also affects invitations. Keep media/export/paid integrations
+off unless separately scoped, and verify hardening rather than applying staging
+values unchanged. No real bootstrap credential is generated by this guide.
+
+## 3. Validate and inspect
+
+The [Docker validation guide](../validation/README.md) owns the reproducible
+command and tool/schema locks. Once execution is authorized, run from repo root:
+
+```sh
+sh validation/run.sh       # full lint plus both infrastructure contracts/schemas
+sh validation/run.sh lint  # independent offline lint and validator unit tests only
+```
+
+Both [application](../.github/workflows/application-infrastructure.yml) and
+[primary](../.github/workflows/primary-infrastructure.yml) workflows remain paused.
+They need read-only repository access/public downloads, not deployment credentials.
+The commands below are documented review interfaces, not evidence of execution
+or permission to bypass Docker/the pause:
+
+```sh
+# Local plan/revision; no network or cluster command.
+python3 application-infrastructure/scripts/bundle.py
+python3 application-infrastructure/scripts/bundle.py revision
+# Explicit public chart downloads, SHA256 checked; no installation.
+python3 application-infrastructure/scripts/bundle.py fetch
+# Offline renders; choose fresh output directories outside the repository.
+python3 application-infrastructure/scripts/bundle.py render \
+  --target /private/new-review-packet/render-target.json --output /private/new-render
+python3 application-infrastructure/tokscale/render.py \
+  /private/new-review-packet/tokscale-render-input.json > /private/tokscale-review.json
+python3 application-infrastructure/scripts/resource_report.py /private/new-render/manifests.yaml
+```
+
+Rendering needs locked Helm and PyYAML from the validation image. No repo/dependency
+update, cluster lookup or install runs. `report.json` binds bundle revision, target
+JSON and manifest digests. Generated/cache/private outputs stay out of Git and CI
+uploads. Resource totals retain omissions for custom resources and zero replicas;
+they do not prove per-node placement, limits, topology or eviction safety.
+
+Check [image locks](image-lock-evidence.md), [ClickHouse candidate contract](clickhouse-operator-contract.md),
+all secret references, hooks and permissions. Image-index/platform metadata does
+not prove runtime compatibility. ClickHouse custom resources remain deployment
+blockers even with pinned images. Operator/cert-manager images need separate pins.
+The checksum-bound SeaweedFS template correction suppresses an unused SFTP Secret
+before Helm runs; CI rejects nonempty rendered Secrets. Its required bucket hook
+is restricted to a dedicated no-token ServiceAccount, but bucket creation still
+requires approval. No upstream fix or independent S3 HA is claimed.
+
+**Never apply review output:** only Tokscale forces zero replicas; vendor charts
+retain normal workload replicas. Even zero-replica resources mutate network,
+storage and permissions. Successful rendering is not deployment consent.
+
+### Optional read-only target preflight — deferred
+
+Only after authorized inspection resumes, use the selected target's **existing
+reviewed connection**. Privately copy [target.synthetic.json](fixtures/target.synthetic.json),
+supply exact context, namespace/immutable UID, StorageClass and observed version,
+and set `synthetic: false`. No new grants or host substitution:
 
 ```sh
 python3 application-infrastructure/scripts/bundle.py preflight \
   --target /private/approved-target.json --output /private/fresh-preflight.json
 ```
 
-The command checks namespace UID before further reads, then reads nodes, storage
-classes, namespace PVCs, pod status and CRDs with timeouts. It writes only aggregate
-counts/readiness, not raw pod specs, annotations, names or credential output. It
-never reads Secrets, execs into pods, applies objects, installs operators or starts
-port forwards. An unavailable command/permission stops inspection; it does not
-retry with broader access. `kubectl` may use the existing kubeconfig's configured
-auth provider, so only use an already-reviewed connection.
+The UID is checked before other reads. Output is aggregate node/storage/PVC/pod/CRD
+status, never Secret contents, raw specs or annotations. No exec/apply/operator
+install/port-forward runs; existing kubeconfig authentication may execute its
+configured provider. A denied/unavailable command stops inspection. Physical
+storage, combined capacity, architecture, access and restore still need evidence;
+JSON booleans and healthy pod counts cannot establish them.
 
-**Still manual evidence:** physical storage backing/encryption, thin-pool/root
-headroom, available RAM and existing workload reservations, dependency image
-architectures, all required operator prerequisites, protected access, encrypted
-independent recovery and tested restore. Aggregate pod health is not a combined
-resource budget. Existing capacity constraints remain blockers until measured and
-resolved through separately approved changes. Do not infer free capacity from
-physical disk size, substitute another host, resize/repartition, change swap,
-move workloads or fabricate readiness from a JSON boolean.
+## 4. Deployment gates — no apply implementation
 
-## Components and unresolved production gates
+`bundle.py deploy` always exits blocked without external actions. The
+[disabled deployment design](validation/deploy-workflow.yml.disabled) is not an
+active workflow. Before implementing any bounded deployment route:
 
-| Component | Staged artifact | Before actual deployment |
-|---|---|---|
-| Langfuse and dependencies | Vendor chart lock + explicit values | Verify all image digests/architectures; review dependency PVCs, resource budget, operator/CRD permissions and existing secret references; synthetic ingestion and isolated restore |
-| SeaweedFS | Provisional chart dependency | Validate private bucket credentials/scopes, approved bucket provisioning, S3 compatibility and off-cluster encrypted recovery; renderer deterministically patches vendor-required bucket hook to the dedicated no-token ServiceAccount; not independent HA |
-| OTel Collector | Trace-only mTLS values | Exact-binary config validation, TLS/private ingress and scoped diagnostic-project credential; source-side envelope adapter and live canary tests; logs/metrics disabled |
-| Tokscale + dedicated PostgreSQL | [Build/staging contract](tokscale/README.md) | Source/image build, database migration/recovery and authenticated browser/read surface with tested narrow machine route; no scheduler |
-| Homarr workload | Independent chart values | Own PVC/encryption key, private authenticated onboarding, approved storage class and backup; no dependency on deferred ESO |
+1. Validate the **final** revision: exact-image/architecture, Collector whole-envelope
+   canaries, operator admission, TLS-negative/access-denial, isolated migration and
+   restore checks. Tokscale migrates before every server start; rehearse interruption,
+   retry and advisory-lock behavior with its existing migration engine.
+2. Prepare source + target/namespace UID + manifest/image digests, fresh evidence,
+   resource-level credential/network/storage/RBAC changes and rollback boundaries.
+3. Obtain exact current owner approval for those actions. A populated file, PR
+   merge, hypothetical compatibility or green check is not consent. Stop on target
+   or manifest drift, capacity shortfall, TLS failure or recovery uncertainty;
+   never weaken controls, regenerate keys, resize storage or switch hosts to proceed.
+4. Only after separately approved initial acceptance may a separately approved
+   protected CI environment own later rollouts with provenance and drift checks.
+   No service, public ingress, source enrollment, reporter, schedule, paid feature
+   or new credential follows automatically from deploying the hub.
 
-All database/storage/network/permission creation needs explicit action scope.
-Resource requests in checked-in values are staging inputs, not a measured fit.
-No plaintext secret values, browser credentials, real source content, source
-history reads, plugin hooks, importer watcher, public ingress or paid services are
-included. Ingestion project keys are not claimed to be write-only.
+Native diagnostics, plugin rich traces and bounded historical imports have
+**separate source/content gates** in the [telemetry contract](runbooks/telemetry.md).
+Logs/metrics remain disabled. Tokscale uses native reporting cadence and an
+explicit private endpoint at later enrollment—not a new six-hour collector.
 
-## Telemetry: offline contract, not a live exporter
+## 5. Recovery and rollback
 
-`telemetry.py` rebuilds a complete synthetic envelope from a positive typed
-allowlist. Unknown names, bodies, events, paths, model/job labels and nested
-attributes are not copied. It validates immutable explicit session ownership:
-importer owns explicitly assigned completed pre-cutover sessions; plugin owns
-assigned post-enrollment sessions; spanning sessions are held. Replays are
-idempotent in the **in-memory synthetic harness**, conflicts are rejected, and
-native diagnostic usage is removed. Missing usage remains unknown; cumulative
-snapshots are not silently summed. Canonical event timestamps must fall inside
-the owner's enrolled start/end interval (inclusive endpoints); a resumed session
-after its recorded end needs explicit reconciliation, not silent interval growth.
-Several distinct generations/spans can occur in one turn. The harness does not
-infer a token total from them or establish producer-native identity mapping.
+Before startup/migration, privately record exact source/image/schema versions,
+manifest hashes, custodian, encrypted independent destination, retention and
+measured recovery objectives. No destination or schedule is invented here.
 
-This is **not** a production source adapter, real OTLP semantic mapping, durable
-ownership/delivery ledger, content classifier or cross-host enrollment system.
-Marking input `synthetic: true` cannot prove that it contains no real data. Only
-use newly created fixtures; never supply histories to this harness. A real
-adapter must pass full-envelope canary/lineage tests and delivery reconciliation
-before any source activation. Plugin rich content and importer history remain
-separately disabled; native diagnostics never become canonical token accounting.
-
-### Native OTLP JSON boundary (new, untested)
-
-[`native_otlp.py`](native_otlp.py) now reconstructs a concrete OTLP trace request
-from an explicit **synthetic/native/traces-only** fixture. It preserves validated
-32-hex trace IDs / 16-hex span IDs and nanosecond intervals, strips full resource,
-scope and span content (including schema URLs), rejects cycles and conflicting
-within-batch replays, and labels its review envelope diagnostic/noncanonical.
-No source histories, endpoint, credential, network transmission or service exists
-in this path. See [the input/output fixtures and future connection contract](runbooks/native-otlp-boundary.md).
-This closes the offline serialization gap, **not** source integration, Collector
-runtime canary acceptance, durable delivery, project isolation or activation.
-
-## Initial deployment, subsequent CI and rollback
-
-`bundle.py deploy` **always exits blocked without running any external command**.
-The [disabled deployment design](validation/deploy-workflow.yml.disabled) is not
-an active workflow. This is intentional: essential live values, capacity solution,
-image manifests, independent recovery, secure custody and access proofs are not
-available yet. No approval token string or file can bypass this boundary.
-
-After those gates are proven, present the owner a concrete revision + target +
-manifest SHA256 review packet and resource-level change list. Initial owner
-approval must separately cover credentials, network, storage and permissions
-actually needed. Then implement/review the bounded apply route and protected
-CI environment; only the approved scope may become CI-driven. Require matching
-artifact provenance, fresh target identity and plan drift checks on each run.
-Do not treat a populated file, PR approval or CI green result as deployment consent.
-
-Rollback planning preserves original logs/history, PVCs, database state, encryption
-keys and receipt ledgers. Stop newly enrolled telemetry or disable reconciliation
-only under its approved scope. Do not uninstall, prune, delete namespaces/PVCs,
-truncate logs or assume image downgrade reverses database migrations. Existing
-services are not adopted or interrupted by this staging bundle.
-
-**Raw-render warning:** only the Tokscale review renderer forces zero replicas.
-Vendor Helm render outputs retain their chart workload replica defaults; they are
-not a safe no-op to apply manually. Rendering also describes PVCs/permissions and
-network-relevant resources. No output is authorized for `kubectl apply` or Helm
-installation, regardless of a successful staging check.
-
-
-### Reviewed vendor-template correction
-
-The locked SeaweedFS chart emits an unused SFTP Secret whenever all-in-one mode
-is enabled, even when SFTP is disabled. The runner verifies the original archive
-SHA256 and the exact SFTP template SHA256, then narrows that single condition to
-`allInOne.sftp.enabled` **before Helm evaluates any template**. Both SFTP flags
-remain explicitly false. A changed/missing template fails closed. The original
-archive is preserved; only a local deterministic derivative is used. CI rejects
-any nonempty rendered Secret. This is a reviewed local vendor correction, not a
-claim that the upstream chart has fixed it. No real service credential is supplied.
-
-## Hypothetical future-cluster contract (new, untested)
-
-The owner deferred live inspection and permits design against a compatible future
-cluster—not a readiness assertion. See [the activation/recovery handoff](runbooks/future-cluster-activation.md),
-[JSON schema](contracts/future-cluster.schema.json), and [essential-input template](contracts/future-cluster.example.json).
-`cluster_contract.py` can prepare private synthetic render inputs once essential
-values exist; it never executes rendering or enables deployment.
-`resource_report.py` estimates declared requests with explicit omissions and never
-approves fit. All new tests remain unrun with CI paused. Browser-runtime acceptance
-is a separate repository contract; generic cluster capabilities do not prove its
-lifecycle/lease fencing.
+- Use [engine-consistent backups](https://langfuse.com/self-hosting/configuration/backups)
+  for PostgreSQL data/schema/roles and matching ClickHouse,
+  Keeper and SeaweedFS object/index procedures—not copies of live PVC directories.
+  Preserve queue/replay semantics plus configuration and encryption material.
+- Encrypt before transfer with approved tooling/private credential files; no
+  passwords in arguments or logs. Same-cluster buckets/snapshots are not recovery.
+- Restore in isolation, without real traffic/reporters/OAuth callbacks. Verify
+  decryption/checksums, schema/journal, row/object/session IDs, authorization and
+  sample reconciliation; measure recoverable point/time. A download/start is not
+  a restore. Preserve source backups and evidence.
+- Stop only newly approved traffic/reporting/reconciliation within its scope.
+  Preserve original histories/attachments, receipts, PVCs, databases and keys.
+  Image rollback does not reverse migrations; use a rehearsed forward fix or
+  isolated restore/cutover with explicit data-loss approval. Never prune/uninstall,
+  delete namespaces/PVCs, truncate logs, rotate keys blindly or overwrite backups.
+  Reconcile unknown outcomes before retrying; existing services are not adopted.

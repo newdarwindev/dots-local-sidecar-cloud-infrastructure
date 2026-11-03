@@ -1,5 +1,10 @@
 # Trust boundaries and cloud extension (draft)
 
+**Deferred reference, not application setup.** No gateway, Crossplane provider,
+cloud identity or automatic failover is deployed. Use the current
+[operator guide](../application-infrastructure/README.md); the contracts below
+apply only to a separately approved future platform stage.
+
 ## Boundaries
 
 1. **Agent to gateway:** mutually authenticated requests; typed operations, policy, rate limits, expiry, audit. The agent never sees OpenBao root material, broad kubeconfigs, or cloud administrator credentials.
