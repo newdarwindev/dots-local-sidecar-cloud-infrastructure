@@ -23,6 +23,13 @@ GATES = ('capacityVerified storageBackingVerified encryptedSecretsVerified '
 COMPONENTS = {'langfuse': ('langfuse', 'langfuse'),
               'collector': ('otel-collector', 'collector'),
               'homarr': ('homarr-workload', 'homarr-workload')}
+STORAGE_CLASS_VALUES = {
+    'langfuse': ('postgresql.storage.className', 'redis.dataStorage.className',
+                 'clickhouse.cluster.storage.className', 'clickhouse.keeper.storage.className',
+                 's3.allInOne.data.storageClass'),
+    'collector': (),
+    'homarr': ('persistence.homarrDatabase.storageClassName',),
+}
 
 class Blocked(ValueError):
     pass
@@ -201,6 +208,45 @@ def private_output(path):
         raise Blocked('Output must be outside the repository')
     return output
 
+def storage_class_args(component, value):
+    """Use the same explicit storage selection for Helm lint and review rendering."""
+    storage = value.get('storageClass')
+    # Match the narrow packet/Tokscale contract, and exclude Helm value syntax.
+    if not isinstance(storage, str) or not re.fullmatch(r'[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?', storage):
+        raise Blocked('Supply an explicit StorageClass DNS label for review rendering')
+    return [argument for field in STORAGE_CLASS_VALUES[component]
+            for argument in ('--set-string', field + '=' + storage)]
+
+def storage_claim_specs(documents):
+    """The locked bundle's PVCs, StatefulSet templates and operator claims only."""
+    for obj in documents:
+        if not obj:
+            continue
+        if not isinstance(obj, dict):
+            raise Blocked('Rendered manifest must be an object')
+        spec = obj.get('spec', {})
+        if obj.get('kind') == 'PersistentVolumeClaim':
+            yield spec
+        if obj.get('kind') == 'StatefulSet':
+            yield from (claim['spec'] for claim in spec.get('volumeClaimTemplates', []))
+        if obj.get('kind') in {'ClickHouseCluster', 'KeeperCluster'}:
+            yield spec.get('dataVolumeClaimSpec', {})
+
+def preserve_storage_class(documents, string_documents, storage):
+    # Some locked templates emit an unquoted value: --set-string alone cannot
+    # stop YAML interpreting e.g. true, null, 0123 or a date as a typed scalar.
+    # Require the exact selected source text at all six known claim sites before
+    # preserving those fields as strings. Never repair a missing/defaulted class.
+    claims = list(storage_claim_specs(documents))
+    string_claims = list(storage_claim_specs(string_documents))
+    if len(claims) != 6 or len(string_claims) != 6:
+        raise Blocked('Locked persistence inventory changed; review storage wiring')
+    if any(claim.get('storageClassName') != storage for claim in string_claims):
+        raise Blocked('Selected StorageClass did not reach every rendered claim')
+    for claim in claims:
+        claim['storageClassName'] = storage
+    return documents
+
 def render(value, output):
     import yaml
     output = private_output(output)
@@ -215,11 +261,12 @@ def render(value, output):
         if key == 'langfuse':
             cmd += ['--api-versions', 'clickhouse.com/v1alpha1/ClickHouseCluster',
                     '--api-versions', 'clickhouse.com/v1alpha1/KeeperCluster']
-        if key == 'homarr':
-            cmd += ['--set-string', 'persistence.homarrDatabase.storageClassName=' + value['storageClass']]
+        cmd += storage_class_args(key, value)
         rendered.append(run(cmd).decode())
     payload = '\n---\n'.join(rendered)
-    docs = harden_hooks(list(yaml.safe_load_all(payload)))
+    docs = preserve_storage_class(list(yaml.safe_load_all(payload)),
+                                  list(yaml.load_all(payload, Loader=yaml.BaseLoader)), value['storageClass'])
+    docs = harden_hooks(docs)
     payload = yaml.safe_dump_all(docs, sort_keys=False)
     issues = inspect_documents(docs, value['namespace'])
     output.mkdir(parents=True, mode=0o700)

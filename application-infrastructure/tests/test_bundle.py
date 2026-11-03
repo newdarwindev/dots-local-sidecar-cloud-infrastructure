@@ -12,6 +12,77 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 
 class BundleTests(unittest.TestCase):
+    def test_storage_selection_covers_every_persistent_component(self):
+        value = {'storageClass': 'review-storage'}
+        expected = {
+            'langfuse': ['postgresql.storage.className', 'redis.dataStorage.className',
+                         'clickhouse.cluster.storage.className', 'clickhouse.keeper.storage.className',
+                         's3.allInOne.data.storageClass'],
+            'homarr': ['persistence.homarrDatabase.storageClassName'],
+            'collector': [],
+        }
+        for component, fields in expected.items():
+            with self.subTest(component=component):
+                self.assertEqual(bundle.storage_class_args(component, value),
+                                 [arg for field in fields for arg in ('--set-string', field + '=review-storage')])
+
+    def test_storage_selection_rejects_placeholders_and_helm_override_syntax(self):
+        for value in (None, '', 'REQUIRED_PRIVATE_STORAGE_CLASS', 'a,b=c', 'a/b', 'a.b', '-a', 'a' * 64):
+            with self.subTest(value=value), self.assertRaises(bundle.Blocked):
+                bundle.storage_class_args('langfuse', {'storageClass': value})
+
+    def test_render_applies_storage_selection_without_activating(self):
+        value = bundle.load(ROOT / 'fixtures/target.synthetic.json')
+        value['storageClass'] = 'review-storage'
+        def rendered(command):
+            count = {'langfuse': 5, 'otel-collector': 0, 'homarr-workload': 1}[command[2]]
+            return '\n---\n'.join(json.dumps({'apiVersion': 'v1', 'kind': 'PersistentVolumeClaim',
+                'metadata': {'name': command[2] + '-' + str(index)},
+                'spec': {'storageClassName': value['storageClass']}}) for index in range(count)).encode()
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(bundle, 'prepared_artifact', side_effect=lambda name: Path('/synthetic/' + name + '.tgz')), \
+                patch.object(bundle, 'run', side_effect=rendered) as run:
+            output = Path(directory) / 'render'
+            bundle.render(value, output)
+            report = json.loads((output / 'report.json').read_text())
+        self.assertEqual(run.call_count, len(bundle.COMPONENTS))
+        for component, invocation in zip(bundle.COMPONENTS, run.call_args_list):
+            command = invocation.args[0]
+            self.assertEqual(command[:2], ['helm', 'template'])
+            selected = bundle.storage_class_args(component, value)
+            if selected:
+                self.assertEqual(command[-len(selected):], selected)
+        self.assertIn('actual deployment path disabled pending owner review', report['deploymentBlockers'])
+        self.assertIn('synthetic target: no live evidence', report['deploymentBlockers'])
+
+    def test_rendered_storage_scalar_text_is_preserved_without_broad_coercion(self):
+        import yaml
+        def claim():
+            return {'storageClassName': 'SCALAR_SELECTION', 'testBoolean': True}
+        # Match the pinned chart shapes: Valkey/SeaweedFS/Homarr standalone
+        # claims, PostgreSQL's template, and ClickHouse/Keeper operator claims.
+        documents = [{'kind': 'PersistentVolumeClaim', 'spec': claim()} for _ in range(3)]
+        documents += [{'kind': 'StatefulSet', 'spec': {'volumeClaimTemplates': [{'spec': claim()}]}}]
+        documents += [{'kind': kind, 'spec': {'dataVolumeClaimSpec': claim()}}
+                      for kind in ('ClickHouseCluster', 'KeeperCluster')]
+        source = yaml.safe_dump_all(documents)
+        for storage in ('true', 'null', '0123', '2026-11-03', 'review-storage'):
+            payload = source.replace('storageClassName: SCALAR_SELECTION', 'storageClassName: ' + storage)
+            result = bundle.preserve_storage_class(list(yaml.safe_load_all(payload)),
+                list(yaml.load_all(payload, Loader=yaml.BaseLoader)), storage)
+            roundtrip = list(yaml.safe_load_all(yaml.safe_dump_all(result)))
+            claims = list(bundle.storage_claim_specs(roundtrip))
+            with self.subTest(storage=storage):
+                self.assertEqual(len(claims), 6)
+                self.assertTrue(all(item['storageClassName'] == storage for item in claims))
+                self.assertTrue(all(item['testBoolean'] is True for item in claims))
+
+    def test_rendered_storage_missing_wrong_or_changed_inventory_is_not_repaired(self):
+        for count, selected in ((5, 'review-storage'), (7, 'review-storage'), (6, None), (6, 'other-storage')):
+            documents = [{'kind': 'PersistentVolumeClaim', 'spec': {'storageClassName': selected}} for _ in range(count)]
+            with self.subTest(count=count, selected=selected), self.assertRaises(bundle.Blocked):
+                bundle.preserve_storage_class(documents, documents, 'review-storage')
+
     def test_vendor_patch_is_checksum_bound_and_pre_render(self):
         source = b'{{- if or .Values.sftp.enabled .Values.allInOne.enabled }}\nSYNTHETIC\n{{- end }}'
         digest = bundle.hashlib.sha256(source).hexdigest()

@@ -122,7 +122,10 @@ python3 application-infrastructure/scripts/resource_report.py /private/new-rende
 ```
 
 Rendering needs locked Helm and PyYAML from the validation image. No repo/dependency
-update, cluster lookup or install runs. `report.json` binds bundle revision, target
+update, cluster lookup or install runs. The selected StorageClass is wired to
+PostgreSQL, Valkey, ClickHouse, Keeper, SeaweedFS and Homarr for review; this does
+not verify that the class exists or meets storage/recovery requirements.
+`report.json` binds bundle revision, target
 JSON and manifest digests. Generated/cache/private outputs stay out of Git and CI
 uploads. Resource totals retain omissions for custom resources and zero replicas;
 they do not prove per-node placement, limits, topology or eviction safety.

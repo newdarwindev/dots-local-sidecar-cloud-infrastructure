@@ -27,6 +27,20 @@ with tempfile.TemporaryDirectory() as directory:
     run(sys.executable, 'scripts/bundle.py', 'render', '--target', str(ROOT / 'fixtures/target.synthetic.json'), '--output', str(rendered))
     report = json.loads((rendered / 'report.json').read_text())
     documents = [obj for obj in yaml.safe_load_all((rendered / 'manifests.yaml').read_text()) if obj]
+    target = json.loads((ROOT / 'fixtures/target.synthetic.json').read_text())
+    claims = []
+    for obj in documents:
+        spec = obj.get('spec', {})
+        if obj['kind'] == 'PersistentVolumeClaim':
+            claims.append(spec)
+        if obj['kind'] == 'StatefulSet':
+            claims.extend(claim['spec'] for claim in spec.get('volumeClaimTemplates', []))
+        if obj['kind'] in {'ClickHouseCluster', 'KeeperCluster'}:
+            claims.append(spec['dataVolumeClaimSpec'])
+    # Six locked persistence sites: PostgreSQL, Valkey, ClickHouse, Keeper,
+    # SeaweedFS and Homarr. Catch missing/defaulted fields, not just CLI flags.
+    assert len(claims) == 6, 'Locked bundle persistence inventory changed; review storage wiring'
+    assert all(claim.get('storageClassName') == target['storageClass'] for claim in claims), 'Selected StorageClass did not reach every rendered claim'
     dockerfile = (ROOT / 'validation/Dockerfile').read_text()
     sources = re.findall(r'^FROM (\S+) AS collector$', dockerfile, re.MULTILINE)
     assert len(sources) == 1, 'Expected one digest-pinned Collector binary source'

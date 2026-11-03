@@ -187,7 +187,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual({name for name, _ in MODULE.PRIMARY_CHARTS}, {'argocd', 'openbao', 'homarr', 'external-secrets'})
 
     def test_application_keeps_target_version_and_narrow_lint_override(self):
-        target = {'synthetic': True, 'kubernetesVersion': '1.32.0'}
+        target = {'synthetic': True, 'kubernetesVersion': '1.32.0', 'storageClass': 'review-storage'}
 
         def render(value, destination):
             self.assertIs(value, target)
@@ -207,6 +207,7 @@ class SchemaTests(unittest.TestCase):
                         'homarr': ('homarr-workload', 'homarr-workload')},
             artifact=lambda name, fetch: None,
             prepared_artifact=lambda name: Path('/synthetic/' + name + '.tgz'),
+            storage_class_args=lambda name, value: ['--set-string', name + '.storageClass=' + value['storageClass']],
             render=render,
         )
         lock = {'files': {'clickhouseclusters.yaml': {'kind': 'ClickHouseCluster'},
@@ -226,6 +227,9 @@ class SchemaTests(unittest.TestCase):
         self.assertTrue(all(command[command.index('--kube-version') + 1] == '1.32.0' for command in commands))
         self.assertIn('clickhouse.crdCheck=false', commands[0])
         self.assertTrue(all('clickhouse.crdCheck=false' not in command for command in commands[1:]))
+        for component, command in zip(bundle.COMPONENTS, commands):
+            self.assertIn('--set-string', command)
+            self.assertIn(component + '.storageClass=review-storage', command)
         self.assertEqual(validate.call_args.args[3], '1.32.0')
         self.assertEqual(len(validate.call_args.args[1]), 2)
         tokscale.assert_called_once()

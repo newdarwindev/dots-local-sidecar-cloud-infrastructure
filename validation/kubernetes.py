@@ -301,6 +301,7 @@ def application(root, scratch, schemas_lock):
             'helm', 'lint', str(bundle.prepared_artifact(name)),
             '--kube-version', kubernetes_version, '-f', str(bundle_path / 'values' / (values + '.yaml')),
         ]
+        command += bundle.storage_class_args(name, target)
         if name == 'langfuse':
             # helm lint has no --api-versions flag. This upstream-supported,
             # lint-only override never modifies source values or bundle.render.

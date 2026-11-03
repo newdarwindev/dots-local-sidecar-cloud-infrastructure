@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -58,6 +59,68 @@ class ContractTests(unittest.TestCase):
         report = contract.assess(config)
         self.assertFalse(report['deploymentAllowed'])
         self.assertGreater(report['evidenceClaimsNotVerified'], 0)
+
+    def test_operator_missing_identity_and_apis_are_explicit(self):
+        report = contract.assess(self.config())
+        self.assertIn('actual operator version missing', report['blockers'])
+        self.assertIn('actual operator/CRD revision missing', report['blockers'])
+        self.assertTrue(any(item.startswith('required operator APIs not reported: ') for item in report['blockers']))
+
+    def test_operator_mismatch_distinguished_from_missing_facts(self):
+        config = self.config()
+        config['operators']['clickhouse'].update(observedVersion='v0.0.7', observedCommit='0' * 40,
+            servedApis=['clickhouse.com/v1alpha1/ClickHouseCluster'])
+        report = contract.assess(config)
+        self.assertIn('actual operator version differs from reviewed candidate', report['blockers'])
+        self.assertIn('actual operator/CRD revision differs from reviewed candidate', report['blockers'])
+        self.assertIn('required operator APIs not reported: clickhouse.com/v1alpha1/KeeperCluster', report['blockers'])
+        self.assertNotIn('actual operator version missing', report['blockers'])
+        self.assertNotIn('actual operator/CRD revision missing', report['blockers'])
+        self.assertFalse(report['deploymentAllowed'])
+
+    def test_matching_operator_report_is_not_verification_or_approval(self):
+        config = self.config()
+        operator = config['operators']['clickhouse']
+        operator.update(observedVersion=operator['candidateVersion'], observedCommit=operator['candidateCommit'],
+                        servedApis=sorted(contract.OPERATOR_APIS))
+        report = contract.assess(config)
+        self.assertIn('reported operator identity and served APIs require independent verification', report['blockers'])
+        self.assertFalse(any('differs from reviewed candidate' in item for item in report['blockers']))
+        self.assertFalse(any(item.startswith('required operator APIs not reported: ') for item in report['blockers']))
+        self.assertFalse(report['deploymentAllowed'])
+
+    def test_operator_candidate_is_bound_to_authoritative_lock(self):
+        locked = json.loads(contract.OPERATOR_LOCK.read_text())
+        for key, value in [('candidateVersion', 'v0.0.7'), ('commit', '0' * 40)]:
+            changed = dict(locked, **{key: value})
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'operator.lock.json'
+                path.write_text(json.dumps(changed))
+                with patch.object(contract, 'OPERATOR_LOCK', path), self.assertRaises(ValueError):
+                    contract.assess(self.config())
+
+    def test_operator_placeholder_version_is_missing_not_verified(self):
+        config = self.config()
+        config['operators']['clickhouse']['observedVersion'] = 'REQUIRED'
+        report = contract.assess(config)
+        self.assertIn('actual operator version missing', report['blockers'])
+        self.assertNotIn('REQUIRED', json.dumps(report))
+
+    def test_packet_preserves_render_selection_not_live_readiness(self):
+        config = self.config()
+        config['target'].update(kubernetesVersion='1.32.0', storageClass='review-storage',
+                                contextRef='private-context-ref', namespaceUid='private-namespace-ref')
+        documents = contract.packet_documents(config)
+        target = documents['render-target.json']
+        self.assertEqual(target['storageClass'], 'review-storage')
+        self.assertEqual(target['kubernetesVersion'], '1.32.0')
+        self.assertTrue(documents['assessment.json']['canPrepareBundleRenderInputs'])
+        self.assertFalse(documents['assessment.json']['deploymentAllowed'])
+        self.assertFalse(documents['packet-lock.json']['renderExecuted'])
+        self.assertIs(target['synthetic'], True)
+        self.assertIs(target['storageBackingVerified'], False)
+        self.assertEqual(target['context'], 'synthetic-not-a-cluster')
+        self.assertNotEqual(target['namespaceUid'], config['target']['namespaceUid'])
 
     def test_packet_is_synthetic_private_write_once(self):
         config = self.config()

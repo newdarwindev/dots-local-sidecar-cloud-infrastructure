@@ -9,6 +9,8 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = ROOT / 'contracts/future-cluster.schema.json'
+OPERATOR_LOCK = ROOT / 'clickhouse-operator.lock.json'
+OPERATOR_APIS = {'clickhouse.com/v1alpha1/ClickHouseCluster', 'clickhouse.com/v1alpha1/KeeperCluster'}
 PLACEHOLDER = re.compile(r'(^|[^a-z])(required|replace|placeholder|changeme|todo|example|synthetic)([^a-z]|$)', re.I)
 
 
@@ -84,8 +86,21 @@ def assess(config):
         blockers.append('ARM64 app build/runtime unqualified')
     if not all(supplied(value) for value in config['recovery'].values()):
         blockers.append('independent recovery destination/custody/retention/restore evidence missing')
-    if not config['operators']['clickhouse']['observedCommit']:
-        blockers.append('actual operator/CRD revision unverified')
+    operator = config['operators']['clickhouse']
+    locked = json.loads(OPERATOR_LOCK.read_text())
+    if (operator['candidateVersion'], operator['candidateCommit']) != (locked['candidateVersion'], locked['commit']):
+        raise ValueError('candidate operator contract differs from reviewed lock')
+    # An exact reported match is still an unverified claim, not observed proof.
+    blockers.append('reported operator identity and served APIs require independent verification')
+    for key, expected, label in [('observedVersion', locked['candidateVersion'], 'operator version'),
+                                 ('observedCommit', locked['commit'], 'operator/CRD revision')]:
+        if not supplied(operator[key]):
+            blockers.append('actual ' + label + ' missing')
+        elif operator[key] != expected:
+            blockers.append('actual ' + label + ' differs from reviewed candidate')
+    missing_apis = OPERATOR_APIS - set(operator['servedApis'])
+    if missing_apis:
+        blockers.append('required operator APIs not reported: ' + ', '.join(sorted(missing_apis)))
     return {'schemaVersion': 1, 'mode': 'design-only', 'deploymentAllowed': False,
             'canPrepareBundleRenderInputs': not missing, 'missingBundleRenderInputs': missing,
             'canPrepareTokscaleRenderInputs': not missing and not tokscale_missing,
