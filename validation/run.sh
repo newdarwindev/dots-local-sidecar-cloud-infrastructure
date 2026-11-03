@@ -1,12 +1,16 @@
 #!/bin/sh
 # Bounded local Docker validation only. Does not start Docker or enable GitHub CI.
 set -eu
+ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+if [ "${1:-}" = setup ]; then
+  shift
+  exec sh "$ROOT/validation/setup.sh" "$@"
+fi
 case "${1:-all}" in
   all|primary|application|lint) BUNDLE=${1:-all} ;;
-  *) echo 'Usage: sh validation/run.sh [all|primary|application|lint]' >&2; exit 2 ;;
+  *) echo 'Usage: sh validation/run.sh [all|primary|application|lint] or setup ACTION /absolute/input.json' >&2; exit 2 ;;
 esac
 [ "$#" -le 1 ] || { echo 'Only one scope argument is allowed.' >&2; exit 2; }
-ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 command -v docker >/dev/null 2>&1 || {
   echo 'BLOCKED: Docker CLI unavailable. No host fallback; do not start a daemon.' >&2

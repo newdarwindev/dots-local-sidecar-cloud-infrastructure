@@ -51,24 +51,24 @@ put secret values, histories, account identities or credentials in the packet.
 | Immutable app/PostgreSQL image references, private HTTPS origin, gateway label, explicit DB size | Tokscale rendering; see [exact contract](tokscale/README.md) |
 | Target identity, dated capability/operator/capacity and recovery evidence | Later activation review; claims are not verified by the packet tool |
 
-The CLI interfaces below assess inputs and create a fresh mode-0700 review packet;
-they do not fetch/render/contact a cluster. **They are interface examples, not
-commands accepted by `validation/run.sh`.** The current runner validates synthetic
-fixtures only: it does not mount `/private` or expose arbitrary command execution.
-Private-input container wiring remains future reviewed setup; do not run these on
-the host to bypass that missing route or the current execution pause.
+The bounded [Docker setup route](../validation/README.md#offline-setup-review)
+accepts one explicitly prepared, owner-reviewed **nonsecret** JSON file outside
+the repository (regular, non-symlink, at most 64 KiB). Once execution is authorized
+and Docker already available, it assesses inputs or prints a review packet to
+private stdout. It never mounts the file, creates durable output or contacts a
+cluster; only a bounded private input snapshot is temporarily staged on the host.
+These new paths remain **UNRUN**; do not bypass the current execution pause.
 
 ```sh
-# CLI interface examples, relative to the repository root; not a host run recipe.
-python3 application-infrastructure/scripts/cluster_contract.py assess \
-  --config /private/future-cluster.json
-python3 application-infrastructure/scripts/cluster_contract.py packet \
-  --config /private/future-cluster.json --output /private/new-review-packet
+sh validation/run.sh setup cluster-assess /private/future-cluster.json
+sh validation/run.sh setup cluster-packet /private/future-cluster.json
 ```
 
-The packet contains synthetic `render-target.json`, `assessment.json`, a hash
-receipt and, when complete, `tokscale-render-input.json`. It retains nonexistent
-context/UID and false readiness gates regardless of supplied evidence claims.
+The packet's `documents` object contains synthetic `render-target.json`,
+`assessment.json`, a hash receipt and, when complete, `tokscale-render-input.json`.
+No packet directory or manifests are created. Live context/UID and evidence are
+not copied; readiness gates remain false. Keep outputs private: schema validation
+does not detect secrets hidden in otherwise valid fields or sanitize real history.
 No pullable Tokscale app image is published by this work; a prior local CI image
 ID is not a registry reference. Publishing an image needs separate authorization.
 

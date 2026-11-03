@@ -94,19 +94,11 @@ def assess(config):
             'blockers': sorted(set(blockers))}
 
 
-def packet(config, output):
+def packet_documents(config):
+    """Pure review documents; never carries live identity or grants activation."""
     report = assess(config)
     if not report['canPrepareBundleRenderInputs']:
         raise ValueError('essential bundle render inputs missing; use assess for their names')
-    output = Path(output).absolute()
-    if output.exists() or output.is_symlink():
-        raise ValueError('packet destination exists; refusing overwrite')
-    # Resolve symlinked parent before enforcing the repository boundary.
-    output = output.resolve()
-    if output == ROOT.parent or ROOT.parent in output.parents:
-        raise ValueError('packet must be outside the repository')
-    output.mkdir(mode=0o700, parents=True)
-    os.chmod(output, 0o700)
     target = json.loads((ROOT / 'fixtures/target.synthetic.json').read_text())
     target.update(namespace=config['target']['namespace'], storageClass=config['target']['storageClass'],
                   kubernetesVersion=config['target']['kubernetesVersion'])
@@ -117,18 +109,32 @@ def packet(config, output):
         documents['tokscale-render-input.json'] = dict(namespace=config['target']['namespace'],
             storageClass=config['target']['storageClass'], appImage=t['appImage'], postgresImage=t['postgresImage'],
             origin=t['privateOrigin'], gatewayPodLabel=t['gatewayPodLabel'], databaseSize=t['databaseSize'])
+    inputs = {'contractSha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
+              'schemaSha256': hashlib.sha256(SCHEMA.read_bytes()).hexdigest(),
+              'files': {name: hashlib.sha256((json.dumps(data, indent=2) + '\n').encode()).hexdigest()
+                        for name, data in documents.items()},
+              'deploymentAllowed': False, 'renderExecuted': False}
+    documents['packet-lock.json'] = inputs
+    return documents
+
+
+def packet(config, output):
+    documents = packet_documents(config)
+    output = Path(output).absolute()
+    if output.exists() or output.is_symlink():
+        raise ValueError('packet destination exists; refusing overwrite')
+    # Resolve symlinked parent before enforcing the repository boundary.
+    output = output.resolve()
+    if output == ROOT.parent or ROOT.parent in output.parents:
+        raise ValueError('packet must be outside the repository')
+    output.mkdir(mode=0o700, parents=True)
+    os.chmod(output, 0o700)
     for filename, data in documents.items():
         with (output / filename).open('x') as stream:
             json.dump(data, stream, indent=2)
             stream.write('\n')
         (output / filename).chmod(0o600)
-    inputs = {'contractSha256': hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest(),
-              'schemaSha256': hashlib.sha256(SCHEMA.read_bytes()).hexdigest(),
-              'files': {name: hashlib.sha256((output / name).read_bytes()).hexdigest() for name in documents},
-              'deploymentAllowed': False, 'renderExecuted': False}
-    (output / 'packet-lock.json').write_text(json.dumps(inputs, indent=2) + '\n')
-    (output / 'packet-lock.json').chmod(0o600)
-    return report
+    return documents['assessment.json']
 
 
 def main():
