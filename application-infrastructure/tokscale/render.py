@@ -51,7 +51,7 @@ def render(config):
           'selector': {'matchLabels': selector(pg)},
           'template': {'metadata': {'labels': selector(pg)}, 'spec': {
              'automountServiceAccountToken': False,
-             'securityContext': dict(pod_security, runAsUser=999, runAsGroup=999, fsGroup=999),
+             'securityContext': dict(pod_security, runAsUser=70, runAsGroup=70, fsGroup=70),
              'containers': [{'name': 'postgres', 'image': pg_image,
                'args': ['-c', 'ssl=on', '-c', 'ssl_cert_file=/tls/tls.crt', '-c', 'ssl_key_file=/tls/tls.key'],
                'securityContext': container_security,

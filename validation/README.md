@@ -22,7 +22,7 @@ container `/tmp` is writable. Parsed Python/TS/shell/config inputs are not execu
 by linters. Synthetic validator tests separately import trusted helpers/renderers.
 The contracts stage permits public downloads and uses an ephemeral source copy.
 No host mounts, daemon socket, credentials, kubeconfig, live preflight, install,
-deployment or service startup. Commands fail fast; use `lint` independently of
+deployment or live service startup. Commands fail fast; use `lint` independently of
 networked schema checks. ARM hosts need an already configured amd64 builder.
 
 ## Offline setup review
@@ -131,3 +131,53 @@ Tool references: [Hadolint](https://github.com/hadolint/hadolint),
 [Biome](https://biomejs.dev/reference/cli/),
 [kubeconform](https://github.com/yannh/kubeconform),
 [Helm lint](https://helm.sh/docs/helm/helm_lint/).
+
+## Isolated Collector runtime canaries
+
+The `all` and `application` scopes also run `collector_runtime.py` in a separate
+**network-none**, non-root, read-only container. Only loopback listeners exist;
+there are no host ports, mounts, live services, account credentials or installed
+trust changes. OpenSSL already in the pinned image creates one-day synthetic
+self-signed SAN certificates solely in ephemeral container tmpfs. These test
+keys never leave the container or enter a deployment. Collector process logs
+are emitted into the caller's validation log before ephemeral files disappear.
+
+Six tests exercise the exact pinned Collector 0.163.2 with the unchanged privacy
+processors and strict receiver/exporter TLS. Test-only substitutions are local
+endpoints, ephemeral certificate paths, obvious synthetic authorization, JSON
+export encoding and shorter batch/retry time bounds. Positive export verifies
+the authorization and ingestion headers; missing/untrusted client certificates,
+TLS 1.2, wrong exporter CA and wrong exporter hostname must fail. These are
+bounded synthetic controls, not delivery durability, load, or live acceptance.
+
+**Confirmed limitation:** direct Collector input retains resource and scope
+schema URLs. That test intentionally verifies the limitation rather than
+weakening it or claiming privacy readiness. Arbitrary attribute/name/status/
+trace-state canaries are stripped and spans with events or links are dropped.
+A separate test passes the synthetic request through `native_otlp.py` first and
+checks the entire exported JSON for canary/schema-URL absence. This qualifies
+only that offline synthetic reconstruction path, not connected source
+activation, arbitrary real-content classification, or every possible covert
+channel in identifiers/numeric fields. Real-source consent and recovery gates
+remain unchanged.
+
+## Explicit local Tokscale database qualification
+
+```sh
+sh validation/run.sh tokscale-db --local
+```
+
+This separate, opt-in local scope requires the already built
+`infrastructure-validation:local` and `tokscale-ci:review` images plus the locked
+PostgreSQL image already available to Docker. It does not run as part of `all`,
+`application`, or CI, and it does not enable CI. No daemon is started or image
+pulled by this route. The harness rejects a missing or additional local flag.
+
+It uses a disposable PostgreSQL server and synthetic client sharing an isolated
+network-none namespace, with no published host ports. Only public compromised-
+by-design TLS fixtures and the authored test script are mounted read-only;
+no real credentials, databases or source histories are mounted. Runtime state
+lives in container tmpfs. Receipts and logs are retained under the ignored
+`application-infrastructure/.runtime/` directory; containers are stopped and
+retained, not pruned. Database migration, workload and restart tests do not
+establish encrypted backup/recovery or production readiness.

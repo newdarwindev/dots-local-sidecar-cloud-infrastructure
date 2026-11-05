@@ -106,7 +106,8 @@ alternateConfig:
 # adapter must emit an envelope with no schema URLs; Collector OTTL does not
 # expose schema URLs through resource/scope paths. native_otlp.py now supplies
 # an OFFLINE SYNTHETIC request-rebuilding prototype, not a connected source or
-# validated production filter. Until exact-binary canary
-# tests verify the whole exported envelope, synthetic traffic only. This file
+# validated production filter. Exact-binary isolated canaries confirm that direct
+# input retains schema URLs; only the offline synthetic rebuilt envelope passed.
+# Synthetic traffic only; this does not qualify connected or real sources. This file
 # is not a claim of validated real-content filtering. Volatile bounded queue
 # can lose diagnostics on outage/termination; no completeness guarantee.

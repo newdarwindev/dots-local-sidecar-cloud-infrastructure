@@ -47,6 +47,17 @@ class RenderTests(unittest.TestCase):
             with self.assertRaises(KeyError):
                 module.render(config)
 
+    def test_locked_alpine_postgres_identity_and_key_mode(self):
+        pg = next(i for i in module.render(self.config())['items'] if i['kind'] == 'StatefulSet')
+        pod = pg['spec']['template']['spec']
+        for key in ('runAsUser', 'runAsGroup', 'fsGroup'):
+            self.assertEqual(pod['securityContext'][key], 70)
+        self.assertTrue(pod['securityContext']['runAsNonRoot'])
+        tls = next(v for v in pod['volumes'] if v['name'] == 'tls')
+        self.assertEqual(tls['secret']['defaultMode'], 0o440)
+        mount = next(v for v in pod['containers'][0]['volumeMounts'] if v['name'] == 'tls')
+        self.assertTrue(mount['readOnly'])
+
     def test_floating_images_rejected(self):
         for key in ('appImage', 'postgresImage'):
             config = self.config()

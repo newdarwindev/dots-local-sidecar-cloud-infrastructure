@@ -2,13 +2,18 @@
 # Bounded local Docker validation only. Does not start Docker or enable GitHub CI.
 set -eu
 ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
+if [ "${1:-}" = tokscale-db ]; then
+  shift
+  export VALIDATION_IMAGE=infrastructure-validation:local
+  exec sh "$ROOT/application-infrastructure/tokscale/db-integration.sh" "$@"
+fi
 if [ "${1:-}" = setup ]; then
   shift
   exec sh "$ROOT/validation/setup.sh" "$@"
 fi
 case "${1:-all}" in
   all|primary|application|lint) BUNDLE=${1:-all} ;;
-  *) echo 'Usage: sh validation/run.sh [all|primary|application|lint] or setup ACTION /absolute/input.json' >&2; exit 2 ;;
+  *) echo 'Usage: sh validation/run.sh [all|primary|application|lint] or setup ACTION /absolute/input.json or tokscale-db --local' >&2; exit 2 ;;
 esac
 [ "$#" -le 1 ] || { echo 'Only one scope argument is allowed.' >&2; exit 2; }
 cd "$ROOT"
@@ -32,6 +37,12 @@ docker run --rm --network=none --read-only --user 65532:65532 \
   --tmpfs /runner-exec:rw,nosuid,nodev,exec,size=64m \
   -e VALIDATION_EXEC_TMPDIR=/runner-exec \
   "$IMAGE" lint
+if [ "$BUNDLE" = all ] || [ "$BUNDLE" = application ]; then
+  docker run --rm --network=none --read-only --user 65532:65532 \
+    --cpus=2 --memory=2g --pids-limit=256 --cap-drop=ALL \
+    --security-opt=no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,noexec,size=128m \
+    "$IMAGE" collector-runtime
+fi
 if [ "$BUNDLE" != lint ]; then
   # Only public pinned artifacts/schema downloads. No kubeconfig, host mounts,
   # daemon socket, private account environment or cluster endpoint is passed in.

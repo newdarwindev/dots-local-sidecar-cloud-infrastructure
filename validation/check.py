@@ -24,7 +24,7 @@ class SafeParser(argparse.ArgumentParser):
 
 def main():
     parser = SafeParser(description=__doc__)
-    parser.add_argument('stage', choices=('lint', 'contracts', 'setup'))
+    parser.add_argument('stage', choices=('lint', 'contracts', 'collector-runtime', 'setup'))
     parser.add_argument('--bundle', choices=('all', 'primary', 'application'), default='all')
     parser.add_argument('--action', choices=ACTIONS)
     args = parser.parse_args()
@@ -39,6 +39,9 @@ def main():
     if args.stage == 'lint':
         run(ROOT, sys.executable, 'validation/lint.py')
         run(ROOT, sys.executable, '-m', 'unittest', 'discover', '-s', 'validation/tests', '-v')
+        return
+    if args.stage == 'collector-runtime':
+        run(ROOT, sys.executable, 'validation/collector_runtime.py')
         return
     # Bundle tests cache public archives; writes stay in ephemeral container tmpfs.
     with tempfile.TemporaryDirectory(prefix='infra-contracts-') as directory:

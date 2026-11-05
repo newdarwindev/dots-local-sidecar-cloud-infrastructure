@@ -4,8 +4,9 @@ Use [application setup](../README.md) for target, validation, approval and recov
 This directory supplies a **zero-replica review bundle**, not a running hub or a
 published production image. No reporter/scheduler is installed. Python contract
 tests, the AMD64 app build, image smoke check and all 13 TypeScript TLS socket
-tests passed locally on 2026-11-05. CI remains owner-paused. Real database,
-migration/recovery and browser access acceptance remain pending.
+tests passed locally on 2026-11-05. Isolated real PostgreSQL TLS, migration, load
+and process-restart checks also passed locally. CI remains owner-paused.
+Encrypted recovery, deployed-platform and browser access acceptance remain pending.
 
 ## Pinned source and behavior
 
@@ -21,8 +22,8 @@ candidate preserves upstream Drizzle engine/directory and lock/retry orchestrati
 Runtime, advisory lock and migration child share explicit `verify-full`, trusted
 CA and hostname checks; URL query/fragment overrides, IP endpoints and verification
 disabling are rejected. Drizzle uses structured credentials because the pinned
-version ignores separate SSL options with URL credentials. This is an unvalidated
-candidate, not evidence TLS/migration/recovery works.
+version ignores separate SSL options with URL credentials. Isolated synthetic
+qualification below is not evidence of deployed service or encrypted recovery.
 
 ## Configuration and rendering
 
@@ -55,9 +56,14 @@ storage/network policy and requires approval; rendering authorizes no apply.
 `DATABASE_URL`, `DATABASE_SSL=verify-full`, `DATABASE_CA_FILE`, explicit `APP_URL`,
 GitHub OAuth and stable `AUTH_SECRET` are required; no automatic session-secret
 fallback. OAuth registration/certificates/Secret creation need separate scope.
-PostgreSQL TLS projection is root-owned `0440`, group 999: verify selected-image
+PostgreSQL TLS projection is root-owned `0440`, group 70: verify selected-image
 UID/GID, key/PVC permissions and actual startup without loosening permissions.
-Public `.pem.fixture` certificates/keys are test material, never deployment keys.
+The locked Alpine PostgreSQL image reports UID/GID **70**. Qualification exposed
+an earlier renderer mismatch (999); source now uses 70 for user, group and fsGroup
+with an explicit regression test. Live root-owned `0440` group-70 key projection
+and persistent storage startup remain unqualified: the isolated test copies the
+public key to its own tmpfs with mode `0600`. Public `.pem.fixture`
+certificates/keys are test material, never deployment keys.
 
 ## Access and reporters
 
@@ -114,10 +120,42 @@ in ignored `.runtime`, never evidence of application health.
 fixtures, not a real DB/migration/server. Correct CA/DNS must reach a synthetic
 marker; wrong CA/DNS or refused TLS must fail for runtime, lock and migration child.
 All 13 checks passed locally with an independent Python/OpenSSL STARTTLS mock
-sharing the client's `network=none` container namespace. Activation requires real isolated
-migration/interruption/retry and encrypted off-cluster restore with authorization/
-data reconciliation, exact-platform runtime and private browser/machine tests.
+sharing the client's `network=none` container namespace. Activation still requires
+encrypted off-cluster restore with authorization/data reconciliation,
+exact-platform runtime and private browser/machine tests.
 Rollback preserves databases/PVCs, keys, source histories, attachments and receipts.
+
+## Isolated real PostgreSQL qualification
+
+The explicit local-only `sh validation/run.sh tokscale-db --local` route uses
+`db-integration.sh` and `db-integration.ts`. On 2026-11-05 it passed against the
+reviewed AMD64 app image and locked PostgreSQL 16.15 image. It uses a shared
+`network=none` loopback namespace, tmpfs PostgreSQL storage, public TLS fixtures,
+trust authentication and a public ignored client password placeholder. It creates
+no authentication credential, host listener, deployment or reporter. Containers
+are stopped but retained; logs and receipts remain in ignored `.runtime`.
+
+Verified checks:
+
+- All 33 migrations apply; repeated/concurrent runs retain 33 journal records.
+- Real runtime TLS works; wrong CA and hostname fail for runtime, advisory-lock
+  and Drizzle-child clients. TLS-disabled PostgreSQL is rejected by runtime and
+  Drizzle child. The advisory-lock wrapper stays fail-closed during a bounded
+  10-second observation but retries refusal; **fail-fast behavior is not qualified**.
+- 100 concurrent synthetic writes complete through the runtime singleton.
+- A deliberately terminated real migration child retries successfully on its
+  second attempt without duplicate journal entries.
+- PostgreSQL process restart preserves the 100 synthetic rows in the same tmpfs;
+  the existing runtime pool reconnects and migration-lock acquisition retries
+  the interruption. Upstream postgres.js emits `TimeoutNegativeWarning` during
+  reconnect, but the assertions pass.
+
+This is process restart/reconnection, **not a backup, restore or encrypted
+recovery test**. The interrupted migration was waiting on its journal query;
+rollback of partially executed schema changes is not established. No browser,
+OAuth, HTTP load, production key projection or persistent-volume acceptance is
+implied. The earlier TLS-disabled lock test was bounded by stopping its fixture
+client; that failed-run receipt is retained alongside the successful bounded run.
 
 ## Prepared source evidence
 

@@ -1,5 +1,28 @@
 # Pinned Tokscale runtime contract audit
 
+## Qualification update: 2026-11-05
+
+The original source-only findings below are historical; their statements that
+Docker was absent and the overlay was unrun are superseded by local AMD64 image
+build, 13 TLS socket tests and isolated real PostgreSQL 16.15 qualification.
+All 33 migrations, concurrent/idempotent reruns, 100 synthetic runtime writes,
+migration-child interruption/retry and PostgreSQL process restart/reconnection
+passed. Wrong CA and hostname fail for runtime, advisory-lock and migration-child
+clients. With PostgreSQL TLS disabled, runtime and migration child reject it;
+the advisory-lock wrapper remains fail-closed during a bounded 10-second
+observation but retries refusal. Its terminal refusal/fail-fast behavior was not
+qualified. Verification was never relaxed.
+
+This does not qualify OAuth/private browser access, token lifecycle, reporter
+enrollment, deployment, root-owned group-readable key projection, persistent
+storage, interrupted schema-change rollback or encrypted off-cluster restore.
+Same-tmpfs process restart is not backup/recovery. The renderer's PostgreSQL
+identity mismatch was corrected from 999 to locked Alpine UID/GID70 with a
+regression test; nothing was applied to a cluster. See [current qualification
+scope and local test route](README.md#isolated-real-postgresql-qualification).
+
+## Original source-only audit
+
 Source-inspection evidence only; no live database, OAuth, token issuance, ingestion, scheduler installation or deployment was performed. Source revision: [`junhoyeo/tokscale` at `b26c433d03f23a2255ad9f212512ce83ede83da3`](https://github.com/junhoyeo/tokscale/tree/b26c433d03f23a2255ad9f212512ce83ede83da3). No runtime tests were executed by this audit (repository requires Docker and local Docker is absent). A successful image build is not evidence that the following activation blockers are resolved.
 
 ## Upstream database TLS finding; overlay acceptance still pending
