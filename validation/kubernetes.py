@@ -115,6 +115,57 @@ def metadata_schema(lock, kubernetes_version):
     return metadata
 
 
+def write_crd_definition_schema(lock, kubernetes_version, directory):
+    """Supply the pinned Kubernetes CRD-object schema absent from standalone schemas."""
+    schema_location(lock)
+    kubernetes_version = version(kubernetes_version)
+    revision = lock['revision']
+    base = 'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/'
+    url = base + revision + '/v' + kubernetes_version + '/customresourcedefinition.json'
+    schema = json.loads(fetch(url, maximum=8 * 1024 * 1024))
+
+    # The versioned upstream schema references its companion definitions through
+    # master. Rewrite only those known refs to the same immutable locked commit.
+    floating_prefix = base + 'master/v' + kubernetes_version + '/_definitions.json#'
+    pinned_prefix = base + revision + '/v' + kubernetes_version + '/_definitions.json#'
+
+    def pin_references(value):
+        if isinstance(value, dict):
+            if '$ref' in value:
+                reference = value['$ref']
+                if not isinstance(reference, str):
+                    raise ValueError('Pinned CRD schema references must be strings')
+                if reference.startswith(floating_prefix):
+                    value['$ref'] = pinned_prefix + reference[len(floating_prefix):]
+                elif reference.startswith(pinned_prefix) or reference.startswith('#'):
+                    pass
+                else:
+                    raise ValueError('CRD schema contains an unapproved reference')
+            for child in value.values():
+                pin_references(child)
+        elif isinstance(value, list):
+            for child in value:
+                pin_references(child)
+
+    pin_references(schema)
+    gvk = schema.get('x-kubernetes-group-version-kind')
+    if (schema.get('type') != 'object' or not isinstance(schema.get('properties'), dict)
+            or not isinstance(gvk, list)
+            or not any(item == {'group': 'apiextensions.k8s.io', 'version': 'v1',
+                                'kind': 'CustomResourceDefinition'} for item in gvk)):
+        raise ValueError('Pinned Kubernetes schema is not the v1 CustomResourceDefinition schema')
+    properties = schema['properties']
+    properties['apiVersion'] = {'type': 'string', 'enum': ['apiextensions.k8s.io/v1']}
+    properties['kind'] = {'type': 'string', 'enum': ['CustomResourceDefinition']}
+    schema['required'] = sorted(set(schema.get('required', [])) |
+                               {'apiVersion', 'kind', 'metadata', 'spec'})
+    schema['additionalProperties'] = False
+    destination = directory / 'apiextensions.k8s.io' / 'customresourcedefinition_v1.json'
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(json.dumps(schema, indent=2) + '\n')
+    return destination
+
+
 def normalize_schema(value, close_properties=True):
     """Convert CRD OpenAPI extensions without relaxing declared constraints.
 
@@ -225,6 +276,7 @@ def validate_files(paths, registry, schemas_lock, kubernetes_version, scratch):
     local = scratch / ('schemas-' + kubernetes_version)
     local.mkdir(parents=True, exist_ok=True)
     if registry:
+        write_crd_definition_schema(schemas_lock, kubernetes_version, local)
         write_crd_schemas(registry, local, metadata_schema(schemas_lock, kubernetes_version))
     # Missing remote/local schemas, invalid documents, and absent kubeconform are
     # all failures. Never use default/master, -skip or -ignore-missing-schemas.

@@ -354,6 +354,13 @@ def preflight(value, output):
         handle.write(json.dumps(report, indent=2) + '\n')
     print('Read-only aggregate preflight recorded; readiness remains unproven.')
 
+def fetch_artifacts():
+    for name in COMPONENTS:
+        # Artifact labels are fixed repository keys; never print URLs or response details.
+        print('Checking locked public chart: ' + name, file=sys.stderr, flush=True)
+        artifact(name, fetch=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', nargs='?', default='plan', choices=['plan', 'revision', 'fetch', 'render', 'preflight', 'deploy'])
@@ -366,8 +373,7 @@ def main():
         if args.action == 'revision':
             print(revision()); return
         if args.action == 'fetch':
-            for name in COMPONENTS:
-                artifact(name, fetch=True)
+            fetch_artifacts()
             print('Checksum-verified public chart archives cached; nothing installed.'); return
         if args.action == 'plan':
             value = target(args.target) if args.target else load(ROOT / 'fixtures/target.synthetic.json')

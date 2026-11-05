@@ -23,9 +23,14 @@ docker info >/dev/null 2>&1 || {
 # Existing dormant application workflow reuses this image for its build recipe.
 IMAGE=infrastructure-validation:local
 docker build --platform linux/amd64 -f validation/Dockerfile -t "$IMAGE" .
+# Runner regressions execute their authored mock Docker CLI from a dedicated
+# tmpfs. Keep general /tmp noexec; setup inputs retain their own noexec tmpfs.
 docker run --rm --network=none --read-only --user 65532:65532 \
   --cpus=2 --memory=2g --pids-limit=256 --cap-drop=ALL \
-  --security-opt=no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=512m \
+  --security-opt=no-new-privileges \
+  --tmpfs /tmp:rw,nosuid,nodev,noexec,size=512m \
+  --tmpfs /runner-exec:rw,nosuid,nodev,exec,size=64m \
+  -e VALIDATION_EXEC_TMPDIR=/runner-exec \
   "$IMAGE" lint
 if [ "$BUNDLE" != lint ]; then
   # Only public pinned artifacts/schema downloads. No kubeconfig, host mounts,

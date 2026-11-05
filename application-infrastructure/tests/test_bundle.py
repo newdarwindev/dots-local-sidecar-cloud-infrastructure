@@ -1,4 +1,5 @@
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
@@ -201,6 +202,19 @@ class BundleTests(unittest.TestCase):
             value['context'] = '--malicious-option'
             path.write_text(json.dumps(value))
             with self.assertRaises(bundle.Blocked): bundle.target(path)
+
+    def test_fetch_failure_logs_only_fixed_artifact_label(self):
+        stderr = io.StringIO()
+        with patch.object(bundle, 'COMPONENTS', {'langfuse': ('langfuse', 'langfuse')}), \
+                patch.object(bundle, 'artifact', side_effect=OSError('SYNTHETIC-PRIVATE-DETAIL')), \
+                patch.object(bundle.sys, 'argv', ['bundle.py', 'fetch']), \
+                patch.object(bundle.sys, 'stderr', stderr):
+            with self.assertRaises(SystemExit) as failure:
+                bundle.main()
+        self.assertEqual(failure.exception.code, 2)
+        self.assertIn('Checking locked public chart: langfuse', stderr.getvalue())
+        self.assertIn('Invalid input or unavailable prerequisite', stderr.getvalue())
+        self.assertNotIn('SYNTHETIC-PRIVATE-DETAIL', stderr.getvalue())
 
     def test_missing_cache_does_not_fetch(self):
         with tempfile.TemporaryDirectory() as directory:

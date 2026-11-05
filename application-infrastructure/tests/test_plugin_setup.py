@@ -175,6 +175,13 @@ class PluginSetupTests(unittest.TestCase):
                     self.assertNotIn(CANARY, str(failure.exception))
                     self.assertNotIn(key, str(failure.exception))
 
+    def test_empty_json_environment_values_are_fixed_setup_errors(self):
+        for key in ("LANGFUSE_CODEX_TAGS", "LANGFUSE_CODEX_METADATA"):
+            raw = fixture()
+            raw["layers"]["env"][key] = ""
+            with self.subTest(key=key), self.assertRaisesRegex(p.SetupError, "^invalid JSON input$"):
+                p.check(raw)
+
     def test_empty_metadata_and_tags_only(self):
         raw = fixture()
         raw["layers"]["env"].update(LANGFUSE_CODEX_TAGS="[]", LANGFUSE_CODEX_METADATA="{}")
