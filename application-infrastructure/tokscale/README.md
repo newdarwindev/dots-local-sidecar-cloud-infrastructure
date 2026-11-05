@@ -3,9 +3,9 @@
 Use [application setup](../README.md) for target, validation, approval and recovery.
 This directory supplies a **zero-replica review bundle**, not a running hub or a
 published production image. No reporter/scheduler is installed. Python contract
-tests passed in local Docker validation on 2026-11-05. The current app build and
-TypeScript TLS socket tests remain unrun; CI is owner-paused. Earlier successful
-AMD64 build `8659b0d` does not validate the changed source.
+tests, the AMD64 app build, image smoke check and all 13 TypeScript TLS socket
+tests passed locally on 2026-11-05. CI remains owner-paused. Real database,
+migration/recovery and browser access acceptance remain pending.
 
 ## Pinned source and behavior
 
@@ -92,9 +92,16 @@ AMD64/ARM64 manifests; inspected PostgreSQL AMD64 reports 16.15. Manifest existe
 is not runtime qualification. `build_plan.py` verifies exact Bun digest/full tree
 and prints, never executes, a build command. The paused
 [application workflow](../../.github/workflows/application-infrastructure.yml)
-owns `ci-build.sh`, sets `VALIDATION_IMAGE=infrastructure-validation:local`, and
-supplies the genuine CI context. Do not force `CI=true` locally or invoke Docker
-directly to bypass that guard; direct builds can pull before the build-time check.
+uses `ci-build.sh` and supplies the genuine CI context. For an authorized local
+AMD64 build, first run the committed validation entrypoint, then use:
+
+```sh
+VALIDATION_IMAGE=infrastructure-validation:local sh application-infrastructure/tokscale/ci-build.sh --local
+```
+
+The script pins the validation image ID, verifies source and base locks, caps the
+build at 5 GiB/two CPUs, and runs the same image and TLS socket checks locally.
+It does not publish an image or connect a database. Do not force `CI=true` locally.
 
 Source/Python checks run inside Docker. CI builds AMD64 only, checks non-root user,
 required files and Bun's node wrapper under `--network=none`, and records a local
@@ -106,7 +113,18 @@ in ignored `.runtime`, never evidence of application health.
 `tls-contract.test.ts` uses isolated PostgreSQL TLS/startup mocks with public Node
 fixtures, not a real DB/migration/server. Correct CA/DNS must reach a synthetic
 marker; wrong CA/DNS or refused TLS must fail for runtime, lock and migration child.
-These tests are authored **not run**. Activation additionally requires real isolated
+All 13 checks passed locally with an independent Python/OpenSSL STARTTLS mock
+sharing the client's `network=none` container namespace. Activation requires real isolated
 migration/interruption/retry and encrypted off-cluster restore with authorization/
 data reconciliation, exact-platform runtime and private browser/machine tests.
 Rollback preserves databases/PVCs, keys, source histories, attachments and receipts.
+
+## Prepared source evidence
+
+The first local build stopped on an inconsistent aggregate prepared-tree hash.
+The locked archive, original patch sources and overlay checksums matched. A file
+comparison against that archive found exactly the five documented privacy/TLS
+changes and no other modified, missing or added file. The aggregate tree lock was
+corrected to `872f0424d40400ad9f856656422de9baa5f476f3126a6a95ca17a938226c4500`.
+Source preparation, the AMD64 build and all TLS checks then passed with the
+existing archive, patch, image and certificate checks retained.

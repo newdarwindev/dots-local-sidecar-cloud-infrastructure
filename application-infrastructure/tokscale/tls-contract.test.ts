@@ -1,9 +1,6 @@
 // Run only inside the built image, --network=none. Public Node test keys only.
 // This is a PostgreSQL TLS/startup mock, NOT a database or migration rehearsal.
 import { test, expect } from "bun:test";
-import { createServer } from "node:net";
-import { createSecureContext, TLSSocket } from "node:tls";
-import { readFileSync } from "node:fs";
 import { sql } from "drizzle-orm";
 import { getDb } from "../src/lib/db";
 import { getDatabaseTlsOptions, getDatabaseCredentials } from "../src/lib/db/tls";
@@ -20,59 +17,25 @@ function failureChain(error: unknown): string {
   }
   return messages.join("\n");
 }
-const secureContext = createSecureContext({
-  key: readFileSync(`${FIXTURES}/agent1-key.pem.fixture`),
-  cert: readFileSync(`${FIXTURES}/agent1-cert.pem.fixture`),
-});
-
-function errorPacket() {
-  const payload = Buffer.from(`SFATAL\0CZX001\0M${SENTINEL}\0\0`);
-  const length = Buffer.alloc(4);
-  length.writeUInt32BE(payload.length + 4);
-  return Buffer.concat([Buffer.from("E"), length, payload]);
-}
-
+// The mock uses Python/OpenSSL in a second container sharing this container's
+// network=none namespace. This exercises the pinned Bun CLIENT against an
+// independent STARTTLS implementation, without relying on Bun server emulation.
 async function mockDatabase(refuseTls = false) {
-  const sockets = new Set<any>();
+  const control = "http://127.0.0.1:15431";
+  let ready = false;
+  for (let attempt = 0; attempt < 50; attempt++) {
+    try { const health = await fetch(control); await health.json(); ready = true; break; }
+    catch { await Bun.sleep(100); }
+  }
+  if (!ready) throw new Error("isolated TLS mock unavailable");
+  const response = await fetch(control + (refuseTls ? "/refuse" : "/open"), { method: "POST" });
+  const database = await response.json() as { id: string; port: number };
   const observations = { requests: 0, startups: 0 };
-  const server = createServer(socket => {
-    sockets.add(socket);
-    socket.on("error", () => {});
-    socket.once("data", request => {
-      observations.requests++;
-      if (request.length !== 8 || request.readUInt32BE(4) !== 80877103) {
-        socket.destroy(); return;
-      }
-      if (refuseTls) {
-        socket.write("N");
-        socket.once("data", next => {
-          if (next[0] === 0x16) {
-            // Fatal TLS handshake_failure, so the lock does not retry a mere EOF.
-            socket.end(Buffer.from([0x15, 0x03, 0x03, 0x00, 0x02, 0x02, 0x28]));
-          } else {
-            // A cleartext fallback is a test failure, not a successful refusal.
-            observations.startups++;
-            socket.end(errorPacket());
-          }
-        });
-        return;
-      }
-      socket.write("S");
-      const tls = new TLSSocket(socket, { isServer: true, secureContext });
-      sockets.add(tls);
-      tls.on("error", () => {});
-      tls.once("data", () => {
-        observations.startups++;
-        // A recognizable PG rejection proves verified TLS + startup reached us.
-        // No authentication, credentials, SQL execution or database exists here.
-        tls.end(errorPacket());
-      });
-    });
-  });
-  await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
-  return { observations, port: (server.address() as any).port,
-    async close() { for (const socket of sockets) socket.destroy();
-      await new Promise<void>(resolve => server.close(() => resolve())); } };
+  return { observations, port: database.port,
+    async close() {
+      const result = await fetch(`${control}/close/${database.id}`, { method: "POST" });
+      Object.assign(observations, await result.json());
+    } };
 }
 
 const paths = {

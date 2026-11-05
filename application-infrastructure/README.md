@@ -9,7 +9,9 @@ For Git-backed configuration recovery, initial local access and the current
 capacity calculation, see [configuration recovery](../docs/configuration-recovery.md).
 
 **Status:** rendering, synthetic telemetry contracts and review tooling exist;
-deployment/source enrollment do not. Full Docker validation passed locally on
+production deployment/source enrollment do not. A separate
+[bounded synthetic lab](lab/README.md) provides an explicit local setup path.
+Full Docker validation passed locally on
 2026-11-05, including lint, 54 validator tests, 7 primary tests, application tests,
 Helm renders and strict schemas. Live cluster acceptance remains separate.
 GitHub workflows remain owner-paused.

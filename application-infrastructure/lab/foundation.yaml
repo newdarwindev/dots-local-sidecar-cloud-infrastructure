@@ -1,0 +1,68 @@
+# Synthetic-only lab foundation; host identity and credentials stay private.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: dots-lab-retain
+  labels: {dots.example/purpose: synthetic-lab}
+provisioner: rancher.io/local-path
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: false
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: lab-budget
+  namespace: dots-synthetic-lab
+spec:
+  hard:
+    requests.cpu: "6"
+    requests.memory: 6Gi
+    limits.cpu: "16"
+    limits.memory: 10Gi
+    requests.storage: 80Gi
+    persistentvolumeclaims: "12"
+    pods: "24"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: lab-defaults
+  namespace: dots-synthetic-lab
+spec:
+  limits:
+    - type: Container
+      default: {cpu: "1", memory: 1Gi}
+      defaultRequest: {cpu: 100m, memory: 128Mi}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: dots-synthetic-lab
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: namespace-and-dns
+  namespace: dots-synthetic-lab
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}

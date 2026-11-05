@@ -377,7 +377,19 @@ def application(root, scratch, schemas_lock):
     # Validate the CRD resources themselves as well as CR instances.
     paths.append(write_manifests(scratch / 'clickhouse-crds.yaml', crds))
     validate_files(paths, registry, schemas_lock, kubernetes_version, scratch)
+    synthetic_lab(bundle_path, scratch, schemas_lock, registry, target)
     tokscale(root, scratch, schemas_lock)
+
+
+def synthetic_lab(bundle_path, scratch, schemas_lock, registry, target):
+    lab = load_module('schema_synthetic_lab', bundle_path / 'lab/render.py')
+    lab_target = dict(target, namespace=lab.NAMESPACE, storageClass=lab.STORAGE)
+    lab.bundle.COMPONENTS = {key: value for key, value in lab.bundle.COMPONENTS.items() if key != 'collector'}
+    lab.bundle.render(lab_target, scratch / 'lab-baseline')
+    lab_manifests = lab.bounded(documents((scratch / 'lab-baseline/manifests.yaml').read_text()))
+    lab.validate_images(lab_manifests, read_json(bundle_path / 'images.lock.json'))
+    path = write_manifests(scratch / 'synthetic-lab.yaml', lab_manifests)
+    validate_files([path], registry, schemas_lock, target['kubernetesVersion'], scratch)
 
 
 def tokscale(root, scratch, schemas_lock):

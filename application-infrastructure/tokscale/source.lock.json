@@ -31,7 +31,7 @@
       "        <Analytics />\n"
     ]
   },
-  "preparedTreeSha256": "4e09664df62ba0ae0fc78e19941c99e4c3f47daa410ac946486f0c5b8c866331",
+  "preparedTreeSha256": "872f0424d40400ad9f856656422de9baa5f476f3126a6a95ca17a938226c4500",
   "tlsPatches": [
     {
       "path": "packages/frontend/src/lib/db/index.ts",

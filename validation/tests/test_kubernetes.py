@@ -298,6 +298,7 @@ class SchemaTests(unittest.TestCase):
                 patch.object(MODULE, 'locked_bytes', side_effect=operator_bytes), \
                 patch.object(MODULE, 'run') as run, \
                 patch.object(MODULE, 'validate_files') as validate, \
+                patch.object(MODULE, 'synthetic_lab') as lab, \
                 patch.object(MODULE, 'tokscale') as tokscale:
             root = Path(directory) / 'repo'
             MODULE.application(root, Path(directory), self.schema_lock())
@@ -312,6 +313,7 @@ class SchemaTests(unittest.TestCase):
             self.assertIn(component + '.storageClass=review-storage', command)
         self.assertEqual(validate.call_args.args[3], '1.32.0')
         self.assertEqual(len(validate.call_args.args[1]), 2)
+        lab.assert_called_once()
         tokscale.assert_called_once()
 
     def test_tokscale_synthetic_fixture_zero_replicas_and_version(self):

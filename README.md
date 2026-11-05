@@ -13,8 +13,9 @@ identity, measurements and access remain in the private operational overlay.
 **Validation status:** the full Docker entrypoint passed locally on 2026-11-05:
 lint, 54 validator tests, 7 primary tests, application tests, Helm renders and
 strict Kubernetes schemas. This verifies source contracts; live cluster acceptance
-remains separate. GitHub workflows remain owner-paused and application deployment
-is deliberately unimplemented.
+remains separate. GitHub workflows remain owner-paused. The production deployment
+gate is disabled; the separate [synthetic lab](application-infrastructure/lab/README.md)
+provides an explicit bounded setup path.
 
 ## Use only the references needed for your stage
 

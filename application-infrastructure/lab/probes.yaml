@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dots-lab-server-probe
+  namespace: dots-synthetic-lab
+  labels: {dots.example/purpose: synthetic-lab-probe}
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  containers:
+    - name: probe
+      image: python:3.14.0-slim-bookworm@sha256:d13fa0424035d290decef3d575cea23d1b7d5952cdf429df8f5542c71e961576
+      command: [python, -m, http.server, "8000"]
+      resources:
+        requests: {cpu: 25m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 128Mi}
+      readinessProbe: {httpGet: {path: /, port: 8000}, periodSeconds: 2}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dots-lab-outside-probe
+  namespace: default
+  labels: {dots.example/purpose: synthetic-lab-probe}
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  containers:
+    - name: probe
+      image: python:3.14.0-slim-bookworm@sha256:d13fa0424035d290decef3d575cea23d1b7d5952cdf429df8f5542c71e961576
+      command: [python, -m, http.server, "8000"]
+      resources:
+        requests: {cpu: 25m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 128Mi}
+      readinessProbe: {httpGet: {path: /, port: 8000}, periodSeconds: 2}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dots-lab-storage-probe
+  namespace: dots-synthetic-lab
+  labels: {dots.example/purpose: synthetic-lab-probe}
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: dots-lab-retain
+  resources: {requests: {storage: 1Gi}}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dots-lab-client-probe
+  namespace: dots-synthetic-lab
+  labels: {dots.example/purpose: synthetic-lab-probe}
+spec:
+  automountServiceAccountToken: false
+  restartPolicy: Never
+  securityContext: {runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000}
+  volumes:
+    - name: storage
+      persistentVolumeClaim: {claimName: dots-lab-storage-probe}
+  containers:
+    - name: probe
+      image: python:3.14.0-slim-bookworm@sha256:d13fa0424035d290decef3d575cea23d1b7d5952cdf429df8f5542c71e961576
+      command: [python, -c, "import time; time.sleep(1800)"]
+      resources:
+        requests: {cpu: 25m, memory: 32Mi}
+        limits: {cpu: 100m, memory: 128Mi}
+      volumeMounts: [{name: storage, mountPath: /probe}]
