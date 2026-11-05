@@ -7,7 +7,10 @@ deployment gate remains independent.
 The foundation creates `dots-synthetic-lab`, an 80-GiB requested-storage budget,
 6-GiB memory request budget, 10-GiB memory limit budget, retained local-path storage,
 default resource limits and network isolation. Pods can communicate within the
-namespace and resolve cluster DNS; other pod ingress/egress is denied. Actual
+namespace and resolve cluster DNS. The selected ClickHouse operator controller
+can reach only its server native-control port 9001 and Keeper port 2181; other
+cross-namespace pod ingress/egress is denied. These ports match the reviewed
+operator source and observed replica-probe behavior. Actual
 physical storage and CNI enforcement must be checked separately. Local-path
 claims share backing capacity and have no hard filesystem quota.
 
