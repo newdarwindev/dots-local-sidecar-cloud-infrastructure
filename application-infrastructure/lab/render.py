@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Render the bounded synthetic Langfuse/Homarr lab inside the Docker tool image."""
 import argparse
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -67,6 +68,15 @@ def bounded(documents):
                 container['resources'] = budget('256Mi', '512Mi') if kind == 'Job' else budget('512Mi', '1Gi')
                 if name in {'homarr-workload', 'langfuse-redis', 'langfuse-s3-all-in-one'}:
                     container['resources'] = budget('256Mi', '512Mi')
+                if name in {'langfuse-web', 'langfuse-worker'} and 'livenessProbe' in container:
+                    container['startupProbe'] = copy.deepcopy(container['livenessProbe'])
+                    container['startupProbe'].update(initialDelaySeconds=0, failureThreshold=60)
+                if name == 'langfuse-web':
+                    container['resources'] = budget('1Gi', '2Gi')
+                    environment = container.setdefault('env', [])
+                    if any(item['name'] == 'NODE_OPTIONS' for item in environment):
+                        raise ValueError('review changed upstream Node options before overriding')
+                    environment.append({'name': 'NODE_OPTIONS', 'value': '--max-old-space-size=1536'})
             for claim in spec.get('volumeClaimTemplates', []):
                 claim['spec']['resources']['requests']['storage'] = '8Gi'
             if kind == 'StatefulSet':

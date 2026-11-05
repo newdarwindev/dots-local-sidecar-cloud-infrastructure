@@ -52,6 +52,9 @@ boundaries, removes empty vendor Secret placeholders, sets resource limits and
 Recreate Deployments, and reduces six PVC requests to 43 GiB: PostgreSQL 8, Valkey
 2, ClickHouse 20, Keeper 2, SeaweedFS 10 and Homarr 1. The retained probe adds 1 GiB.
 Operator/system overhead and actual shared-filesystem growth need measurement.
+Langfuse web has a 2-GiB limit and explicit 1536-MiB V8 heap after a measured
+512-MiB default-heap startup failure in the initial 1-GiB container. Web/worker
+startup probes allow up to ten minutes before normal liveness checking begins.
 
 Use the observed lab namespace UID and cluster UID. Generate fresh lab-only keys
 once, privately; an existing key or private directory stops generation without
