@@ -121,9 +121,13 @@ class ReviewTests(unittest.TestCase):
 
 class RunnerTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
+        exec_tmpdir = os.environ.get('VALIDATION_EXEC_TMPDIR')
+        if not exec_tmpdir:
+            raise RuntimeError('Runner mock tests require the dedicated executable tmpfs')
+        self.directory = tempfile.TemporaryDirectory(dir=exec_tmpdir)
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
+        self.assertEqual(self.root.parent, Path(exec_tmpdir))
         binary = self.root / 'bin'
         binary.mkdir()
         self.log = self.root / 'calls.jsonl'

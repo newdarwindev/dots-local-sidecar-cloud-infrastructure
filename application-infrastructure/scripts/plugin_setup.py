@@ -200,7 +200,10 @@ def nonfinite(_value):
 def decode(content):
     if type(content) is not bytes or len(content) > MAX_BYTES:
         raise SetupError("setup input exceeds byte limit")
-    return json.loads(content.decode("utf-8"), object_pairs_hook=no_duplicates, parse_constant=nonfinite)
+    try:
+        return json.loads(content.decode("utf-8"), object_pairs_hook=no_duplicates, parse_constant=nonfinite)
+    except json.JSONDecodeError:
+        raise SetupError("invalid JSON input") from None
 
 
 class SafeParser(argparse.ArgumentParser):

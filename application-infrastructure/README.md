@@ -5,11 +5,14 @@ ClickHouse/Keeper, Valkey and SeaweedFS; a trace-only OTel Collector; Tokscale +
 its own PostgreSQL; and an independent `homarr-workload` instance. Shared
 Authentik, OpenBao/ESO and domains are [deferred](../docs/auth-domain-plan.md).
 
+For Git-backed configuration recovery, initial local access and the current
+capacity calculation, see [configuration recovery](../docs/configuration-recovery.md).
+
 **Status:** rendering, synthetic telemetry contracts and review tooling exist;
-deployment/source enrollment do not. Current changes are **UNRUN** because local
-Docker is absent and GitHub workflows are owner-paused. Earlier green revision
-`8659b0d` covered 44 tests, chart rendering, Collector config and an AMD64 Tokscale
-build/smoke only—not subsequent TLS, image, cluster-contract or telemetry changes.
+deployment/source enrollment do not. Full Docker validation passed locally on
+2026-11-05, including lint, 54 validator tests, 7 primary tests, application tests,
+Helm renders and strict schemas. Live cluster acceptance remains separate.
+GitHub workflows remain owner-paused.
 
 ## 1. Prerequisites
 
@@ -25,19 +28,46 @@ build/smoke only—not subsequent TLS, image, cluster-contract or telemetry chan
   make tests pass. Langfuse telemetry opt-out is not proof of zero external traffic.
 - Measure one combined budget: existing workloads, operators, all replicas/init
   containers/Jobs, upgrade surge, databases, retained PVCs, queues/logs and growth.
-  Verify physical backing/encryption, thin-pool/root/RAM headroom, RWO semantics
-  and retention. Shared disks count once; requests and the report's 25% planning
-  headroom are not proof of fit. Browser/Temporal/lease/gateway workloads need
-  their own manifests and acceptance evidence; they are not included implicitly.
+  Verify physical backing, thin-pool/root/RAM headroom, RWO semantics and retention.
+  Real-data profiles require encrypted volume backing and encrypted independent
+  recovery. The explicitly synthetic-only unencrypted profile below is a narrow
+  exception; it does not waive backing, capacity, RWO or retention checks. Shared
+  disks count once; requests and the report's 25% planning headroom are not proof
+  of fit. Browser/Temporal/lease/gateway workloads need their own manifests and
+  acceptance evidence; they are not included implicitly.
 - Establish private authenticated administration, least-privilege machine access,
   encrypted secret custody independent of this cluster/IdP, and an independently
   encrypted recovery destination with a tested restore. No default passwords,
   anonymous APIs, public usage data or disabled TLS verification.
-- Validation must run in Docker through the committed workflows. Do not install
-  or start a daemon, use another host/compiler, or enable CI to bypass the pause.
+- Validation must run in Docker through the committed entrypoint. Do not use
+  another host/compiler or enable CI to bypass the workflow pause.
   Use newly invented fixtures only; `synthetic: true` does not sanitize real data.
 
 ## 2. Configure privately
+
+### Synthetic-only unencrypted lab profile
+
+The [synthetic unencrypted lab contract](contracts/synthetic-unencrypted-lab.example.json)
+is a design-only exception for a disposable, synthetic-data lab on an
+owner-selected host. It explicitly disables volume encryption and forbids
+real histories, real telemetry, credentials, external source ingestion and
+production use. Keep the target's actual identity, StorageClass and capacity
+evidence private. This profile does not claim a volume exists, that its contents
+are disposable, or that any deployment gate is satisfied.
+
+This profile uses K3s' `local-path` provisioner on an ext4 filesystem mounted at
+`/var/lib/rancher/k3s/storage`; it is node-local, is not CSI, and PVC size requests
+are not hard quotas on the shared filesystem. This narrowly waives the generic
+encrypted-RWO-CSI requirement only for synthetic-only use. Real-data profiles
+continue to require encrypted CSI storage. The profile does not enable the
+repository's blocked deployment path.
+
+Keep Kubernetes Secret encryption, application encryption keys, private access
+controls and normal PVC retention requirements unchanged. Do not reuse this
+profile for real data: a real-data profile still requires encrypted volume
+backing, independent encrypted recovery and a tested restore. Synthetic values
+are not safe merely because they are labeled synthetic; ensure they contain no
+copied histories, credentials, identifying payloads or internal telemetry.
 
 Copy the [essential-input template](contracts/future-cluster.example.json) to a
 mode-0600 file **outside the repository**, checked against its
@@ -57,7 +87,7 @@ the repository (regular, non-symlink, at most 64 KiB). Once execution is authori
 and Docker already available, it assesses inputs or prints a review packet to
 private stdout. It never mounts the file, creates durable output or contacts a
 cluster; only a bounded private input snapshot is temporarily staged on the host.
-These new paths remain **UNRUN**; do not bypass the current execution pause.
+These setup paths have not been verified end to end; record each actual result.
 
 ```sh
 sh validation/run.sh setup cluster-assess /private/future-cluster.json

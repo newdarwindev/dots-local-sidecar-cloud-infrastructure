@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic-only unencrypted lab policy; design only, never deployment approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profileId",
+    "mode",
+    "dataClassification",
+    "volumeEncryption",
+    "storageClassName",
+    "storageProvisioner",
+    "storagePath",
+    "requiresCsi",
+    "pvcRequestsAreHardQuota",
+    "singleNodeOnly",
+    "realDataAllowed",
+    "credentialsAllowed",
+    "sourceIngestionAllowed",
+    "productionAllowed",
+    "kubernetesSecretsEncryption",
+    "requiredStorageChecks",
+    "deploymentAllowed"
+  ],
+  "properties": {
+    "profileId": { "const": "synthetic-unencrypted-lab" },
+    "mode": { "const": "design-only" },
+    "dataClassification": { "const": "synthetic-only" },
+    "volumeEncryption": { "const": "disabled" },
+    "storageClassName": { "const": "local-path" },
+    "storageProvisioner": { "const": "rancher.io/local-path" },
+    "storagePath": { "const": "/var/lib/rancher/k3s/storage" },
+    "requiresCsi": { "const": false },
+    "pvcRequestsAreHardQuota": { "const": false },
+    "singleNodeOnly": { "const": true },
+    "realDataAllowed": { "const": false },
+    "credentialsAllowed": { "const": false },
+    "sourceIngestionAllowed": { "const": false },
+    "productionAllowed": { "const": false },
+    "kubernetesSecretsEncryption": { "const": "unchanged-enabled" },
+    "requiredStorageChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physicalBacking",
+        "capacity",
+        "rwo",
+        "pvcRetention"
+      ],
+      "properties": {
+        "physicalBacking": { "const": true },
+        "capacity": { "const": true },
+        "rwo": { "const": true },
+        "pvcRetention": { "const": true }
+      }
+    },
+    "deploymentAllowed": { "const": false }
+  }
+}

@@ -28,6 +28,38 @@ class ContractTests(unittest.TestCase):
         self.assertFalse(report['canPrepareBundleRenderInputs'])
         self.assertEqual(report['missingBundleRenderInputs'], ['target.kubernetesVersion', 'target.storageClass'])
 
+    def test_unencrypted_lab_profile_is_synthetic_only_and_never_approves_deployment(self):
+        schema = json.loads((ROOT / 'contracts/synthetic-unencrypted-lab.schema.json').read_text())
+        profile = json.loads((ROOT / 'contracts/synthetic-unencrypted-lab.example.json').read_text())
+        contract.validate(profile, schema)
+        self.assertEqual(profile['volumeEncryption'], 'disabled')
+        self.assertEqual(profile['storageClassName'], 'local-path')
+        self.assertEqual(profile['storageProvisioner'], 'rancher.io/local-path')
+        self.assertEqual(profile['storagePath'], '/var/lib/rancher/k3s/storage')
+        self.assertIs(profile['requiresCsi'], False)
+        self.assertIs(profile['pvcRequestsAreHardQuota'], False)
+        self.assertIs(profile['singleNodeOnly'], True)
+        self.assertEqual(profile['dataClassification'], 'synthetic-only')
+        self.assertIs(profile['realDataAllowed'], False)
+        self.assertIs(profile['credentialsAllowed'], False)
+        self.assertIs(profile['sourceIngestionAllowed'], False)
+        self.assertIs(profile['productionAllowed'], False)
+        self.assertIs(profile['deploymentAllowed'], False)
+        self.assertEqual(profile['kubernetesSecretsEncryption'], 'unchanged-enabled')
+        self.assertEqual(profile['requiredStorageChecks'], {
+            'physicalBacking': True, 'capacity': True, 'rwo': True,
+            'pvcRetention': True
+        })
+        self.assertFalse(contract.assess(self.config())['deploymentAllowed'])
+
+        for key, value in [('volumeEncryption', 'enabled'), ('dataClassification', 'real-data'),
+                           ('realDataAllowed', True), ('credentialsAllowed', True),
+                           ('sourceIngestionAllowed', True), ('productionAllowed', True),
+                           ('deploymentAllowed', True), ('kubernetesSecretsEncryption', 'disabled')]:
+            changed = dict(profile, **{key: value})
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                contract.validate(changed, schema)
+
     def test_no_approval_or_extra_secret_fields(self):
         for key, value in [('deploymentApproved', True), ('ciReenableApproved', True), ('secretValue', 'PUBLIC-TEST')]:
             config = self.config()

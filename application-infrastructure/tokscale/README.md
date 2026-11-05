@@ -2,9 +2,10 @@
 
 Use [application setup](../README.md) for target, validation, approval and recovery.
 This directory supplies a **zero-replica review bundle**, not a running hub or a
-published production image. No reporter/scheduler is installed. Strict-TLS overlays
-and current tests are **UNRUN**: Docker is absent and CI is owner-paused. Earlier
-successful AMD64 build `8659b0d` does not validate the changed source.
+published production image. No reporter/scheduler is installed. Python contract
+tests passed in local Docker validation on 2026-11-05. The current app build and
+TypeScript TLS socket tests remain unrun; CI is owner-paused. Earlier successful
+AMD64 build `8659b0d` does not validate the changed source.
 
 ## Pinned source and behavior
 

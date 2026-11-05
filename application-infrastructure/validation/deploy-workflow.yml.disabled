@@ -13,7 +13,8 @@ on: workflow_dispatch
 permissions: {}
 jobs:
   blocked:
-    if: ${{ false }}
+    # This file remains outside .github/workflows with a .disabled suffix.
+    # If copied there accidentally, fail visibly without any deployment step.
     runs-on: ubuntu-24.04
     steps:
       - run: exit 1

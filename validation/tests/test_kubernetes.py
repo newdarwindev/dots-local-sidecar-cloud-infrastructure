@@ -151,6 +151,86 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MODULE.schema_location(lock)
 
+    def test_crd_definition_schema_uses_locked_commit_and_strict_gvk(self):
+        lock = self.schema_lock()
+        mutable = (
+            'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/master/v1.32.0/'
+            '_definitions.json#/definitions/io.k8s.apiextensions.apis.v1.CustomResourceDefinitionSpec'
+        )
+        original = {
+            'type': 'object',
+            'required': ['spec'],
+            'properties': {
+                'apiVersion': {'type': ['string', 'null']},
+                'kind': {'type': ['string', 'null'], 'enum': ['CustomResourceDefinition']},
+                'metadata': {'$ref': mutable},
+                'spec': {'$ref': '#/definitions/spec'},
+            },
+            'x-kubernetes-group-version-kind': [{
+                'group': 'apiextensions.k8s.io', 'version': 'v1',
+                'kind': 'CustomResourceDefinition',
+            }],
+        }
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(MODULE, 'fetch', return_value=json.dumps(original).encode()) as fetch:
+            destination = MODULE.write_crd_definition_schema(lock, '1.32.0', Path(directory))
+            result = json.loads(destination.read_text())
+        fetch.assert_called_once_with(
+            'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/'
+            + lock['revision'] + '/v1.32.0/customresourcedefinition.json',
+            maximum=8 * 1024 * 1024,
+        )
+        self.assertEqual(destination.relative_to(Path(directory)).as_posix(),
+                         'apiextensions.k8s.io/customresourcedefinition_v1.json')
+        self.assertEqual(result['properties']['apiVersion'],
+                         {'type': 'string', 'enum': ['apiextensions.k8s.io/v1']})
+        self.assertEqual(result['properties']['kind'],
+                         {'type': 'string', 'enum': ['CustomResourceDefinition']})
+        self.assertEqual(result['required'], ['apiVersion', 'kind', 'metadata', 'spec'])
+        self.assertFalse(result['additionalProperties'])
+        self.assertIn(lock['revision'], result['properties']['metadata']['$ref'])
+        self.assertEqual(result['properties']['spec']['$ref'], '#/definitions/spec')
+        self.assertNotIn('/master/', json.dumps(result))
+
+    def test_crd_definition_schema_rejects_unapproved_references(self):
+        lock = self.schema_lock()
+        schema = {
+            'type': 'object',
+            'properties': {
+                'metadata': {'$ref': 'https://schemas.example.invalid/object.json#/$defs/metadata'},
+            },
+            'x-kubernetes-group-version-kind': [{
+                'group': 'apiextensions.k8s.io', 'version': 'v1',
+                'kind': 'CustomResourceDefinition',
+            }],
+        }
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(MODULE, 'fetch', return_value=json.dumps(schema).encode()):
+            with self.assertRaisesRegex(ValueError, 'unapproved reference'):
+                MODULE.write_crd_definition_schema(lock, '1.32.0', Path(directory))
+
+    def test_crd_definition_schema_rejects_other_revision_and_version_references(self):
+        lock = self.schema_lock()
+        unapproved_references = (
+            'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/'
+            + 'b' * 40 + '/v1.32.0/_definitions.json#/definitions/metadata',
+            'https://raw.githubusercontent.com/yannh/kubernetes-json-schema/'
+            + lock['revision'] + '/v1.31.0/_definitions.json#/definitions/metadata',
+        )
+        for reference in unapproved_references:
+            schema = {
+                'type': 'object',
+                'properties': {'metadata': {'$ref': reference}},
+                'x-kubernetes-group-version-kind': [{
+                    'group': 'apiextensions.k8s.io', 'version': 'v1',
+                    'kind': 'CustomResourceDefinition',
+                }],
+            }
+            with self.subTest(reference=reference), tempfile.TemporaryDirectory() as directory, \
+                    patch.object(MODULE, 'fetch', return_value=json.dumps(schema).encode()):
+                with self.assertRaisesRegex(ValueError, 'unapproved reference'):
+                    MODULE.write_crd_definition_schema(lock, '1.32.0', Path(directory))
+
     def test_kubeconform_never_skips_and_keeps_requested_version(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(MODULE, 'run') as run:
             path = Path(directory)

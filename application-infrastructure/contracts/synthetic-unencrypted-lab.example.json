@@ -1,0 +1,24 @@
+{
+  "profileId": "synthetic-unencrypted-lab",
+  "mode": "design-only",
+  "dataClassification": "synthetic-only",
+  "volumeEncryption": "disabled",
+  "storageClassName": "local-path",
+  "storageProvisioner": "rancher.io/local-path",
+  "storagePath": "/var/lib/rancher/k3s/storage",
+  "requiresCsi": false,
+  "pvcRequestsAreHardQuota": false,
+  "singleNodeOnly": true,
+  "realDataAllowed": false,
+  "credentialsAllowed": false,
+  "sourceIngestionAllowed": false,
+  "productionAllowed": false,
+  "kubernetesSecretsEncryption": "unchanged-enabled",
+  "requiredStorageChecks": {
+    "physicalBacking": true,
+    "capacity": true,
+    "rwo": true,
+    "pvcRetention": true
+  },
+  "deploymentAllowed": false
+}

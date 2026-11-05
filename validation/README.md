@@ -9,10 +9,10 @@ sh validation/run.sh primary      # Lint + primary bundle tests/Helm/schemas
 sh validation/run.sh application  # Lint + application tests/Helm/Tokscale schemas
 ```
 
-**Current status:** Docker CLI unavailable; the runner exits 2 before building or
-checking anything. Lint/tests/rendering remain **unrun**. Both GitHub workflows
-remain disabled for budget. Do not start a daemon, install host tools, or enable
-CI to bypass this block. Missing tools or schemas fail; they are never skipped.
+**Current status:** the full Docker runner passed locally on 2026-11-05: lint,
+54 validator tests, 7 primary tests, application tests, Helm rendering and strict
+schema checks. Live cluster acceptance remains separate. Both GitHub workflows
+remain owner-paused. Missing tools or schemas fail; they are never skipped.
 
 ## Execution boundary
 
@@ -64,7 +64,8 @@ capture must stay private and out of Git/CI uploads. `cluster-packet` returns na
 receipt digest covers the document serialized with JSON indent 2 plus a newline
 (in returned key order). Plugin output remains disabled. No arbitrary command,
 chart fetch/render, preflight, deployment, config installation or source enrollment
-is exposed. Setup and its synthetic regression tests remain **UNRUN** here.
+is exposed. Setup's synthetic regression tests passed in the full local run;
+a private target packet has not been assessed through this route.
 
 ## Coverage
 

@@ -10,10 +10,11 @@ OpenTelemetry Collector, Tokscale with a separate PostgreSQL database, and
 `homarr-workload`. Design assumes an eventually compatible cluster; actual host
 identity, measurements and access remain in the private operational overlay.
 
-**Validation status:** current changes are **UNRUN**. Docker is unavailable in the
-editing environment and the owner paused GitHub workflows for budget. Last green
-revision `8659b0d` does not validate later changes. Do not enable CI or start a
-daemon to bypass that pause. Application deployment is deliberately unimplemented.
+**Validation status:** the full Docker entrypoint passed locally on 2026-11-05:
+lint, 54 validator tests, 7 primary tests, application tests, Helm renders and
+strict Kubernetes schemas. This verifies source contracts; live cluster acceptance
+remains separate. GitHub workflows remain owner-paused and application deployment
+is deliberately unimplemented.
 
 ## Use only the references needed for your stage
 
