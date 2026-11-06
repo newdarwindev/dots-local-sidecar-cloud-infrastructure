@@ -4,6 +4,11 @@ The [operator setup guide](../application-infrastructure/README.md) is the curre
 source of truth: selected-cluster Langfuse/dependencies/S3, OTel, Tokscale with its
 own PostgreSQL and independent `homarr-workload`. All are staged, not deployed.
 
+**Codex monitoring revision — 2026-11-06:** use
+[native exporters and upstream integrations](codex-native-monitoring.md).
+Custom relay/adapter development is superseded. Additional metrics/log backends
+in that comparison are candidate expansions, not deployed components.
+
 Primary management, Authentik, OpenBao/ESO and shared domains remain
 [later proposals](auth-domain-plan.md), not prerequisites. Exact host identity and
 capacity stay private; hypothetical compatibility is not readiness or consent.

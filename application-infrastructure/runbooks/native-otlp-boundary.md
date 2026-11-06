@@ -1,5 +1,11 @@
 # Native OTLP boundary — synthetic, offline, UNRUN
 
+**Superseded for rollout, 2026-11-06.** The owner selected
+[native Codex exporters/upstream integrations](../../docs/codex-native-monitoring.md)
+and rejected custom relays. Preserve this prototype and its earlier design for
+provenance; do not turn it into a receiver, service or required source adapter.
+The historical execution-state wording below is not a current validation result.
+
 Follow [telemetry gates](telemetry.md) and [application setup](../README.md).
 `native_otlp.py` reconstructs a whole-envelope OTLP trace request; it is **not** a
 receiver, source integration, exporter or production filter. No socket, credentials,
@@ -53,6 +59,10 @@ although OTLP can accept 64-bit JSON numbers, this prototype accepts decimal
 strings only and rejects zero/unset timestamps.
 
 ## Future connection gates
+
+The following is the **superseded prototype proposal**, not the current native
+integration plan. Its reconstruction requirement must not block a supported
+native route or trigger new custom code.
 
 Pin/test installed Codex emissions and implement a reviewed source-local boundary
 before any authenticated transport. This CLI cannot be configured as a source

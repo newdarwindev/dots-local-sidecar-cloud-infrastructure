@@ -1,14 +1,18 @@
-# Telemetry setup contract — no source enabled
+# Telemetry setup contract — native and upstream integrations
 
 Follow [application setup](../README.md) first. These are separate source/content
 approval scopes; deploying a hub does not enroll any device or account. Current
-contracts are offline/synthetic and **UNRUN**, not live exporters or durable ledgers.
+contracts alone do not establish live exporters or durable delivery.
+**Owner revision, 2026-11-06:** follow the
+[native integration matrix](../../docs/codex-native-monitoring.md). Custom Codex
+relay, source-adapter and queue development is superseded; use supported product
+configuration and upstream components. Existing prototypes remain preserved.
 
 | Selected path | Destination / ownership | Still required |
 | --- | --- | --- |
-| Native Codex OTel traces | Private mTLS Collector → separate Langfuse diagnostic project; noncanonical usage | Reviewed source-local adapter/transport, exact Collector canaries and delivery reconciliation |
+| Native Codex OTel traces | Direct OTLP/HTTP → separate private Langfuse diagnostic project; noncanonical usage | Installed-version field review, supported TLS/auth configuration and persisted readback; optional standard Collector for routing |
 | Official Codex plugin | Supported Langfuse path; canonical for explicitly assigned future rich sessions | Pinned hook/config review, content consent and effective-config validation before activation |
-| Community historical importer | Canonical for explicitly assigned completed historical sessions | Pinned code/schema/privacy review, bounded allowlist/checkpoints; no watcher |
+| Community historical importer | Earlier optional history proposal; outside the initial native rollout | Keep inactive; do not develop a custom importer to fill native coverage gaps |
 
 Do not assume plugin/importer exporters support the Collector; verify their actual
 transport/auth interface. Native logs and metrics remain **disabled** until their
@@ -17,9 +21,11 @@ not arbitrary logs/metrics or gRPC. No debug/stdout fallback for source content.
 
 ## Source and privacy gates
 
-- Default to positive typed metadata allowlists before transport and again at the
-  gateway. No prompts, filenames/paths, repo contents, tool I/O, images, instructions,
-  reasoning summaries, raw errors or secrets. Model/job labels may also be private.
+- Review the supported native fields against the approved metadata scope. Do not
+  equate prompt redaction with whole-envelope sanitization. If supported settings
+  or standard Collector configuration cannot satisfy a required field boundary,
+  report the limitation and keep that source inactive; do not build an adapter.
+  Prompts, paths, tool I/O, images, instructions, reasoning and errors may be private.
   Rich content requires bounded source/project/viewer/retention approval and tested
   local masking; server masking cannot undo content already transmitted.
 - Newly authored synthetic fixtures only. A marker is not proof of synthetic,
@@ -28,23 +34,25 @@ not arbitrary logs/metrics or gRPC. No debug/stdout fallback for source content.
 - Record each authorized CLI, exec/CI, desktop/app-server, WSL/VM or hosted surface
   separately with exact version/config, allowed source, test session and confirmed
   destination record. Neither CLI support nor a running hub proves full coverage.
-- Private TLS/mTLS and project separation are mandatory; verify resolved destination
+- Private authenticated TLS and project separation are required; use supported
+  mTLS settings when that endpoint requires them. Verify resolved destination
   and credential association without printing credentials. Langfuse project keys
   are not assumed write-only or per-host. No blanket `/api/*` auth exception.
 
-## Native diagnostic boundary
+## Native diagnostic route
 
-[Native OTLP prototype](native-otlp-boundary.md) reconstructs a whole synthetic
-request. It is not a receiver or Codex endpoint. Only its `request` member is an
-OTLP body; the review wrapper is not. Raw native emissions must never bypass the
-future source-local boundary merely because the gateway filters again.
+Use Codex's built-in trace exporter with the destination's supported transport.
+The [native matrix](../../docs/codex-native-monitoring.md) gives endpoint, signal
+and compatibility details. Native logs and metrics require their own backends;
+neither is routed into Langfuse's trace endpoint. Do not add synthetic desktop
+health spans as a substitute for actual Codex telemetry.
 
-The future transport is OTLP/HTTP JSON to private gateway `/v1/traces`; the gateway
-uses Langfuse `/api/public/otel/v1/traces` with the reviewed ingestion-version
-header. Distinguish `otel.trace_exporter` from log `otel.exporter` and
-`otel.metrics_exporter` using the installed Codex version. The current Collector
-is trace-only, bounds its volatile queue/retries, and can lose diagnostics during
-outage/termination. No complete-delivery or live filter claim follows from config.
+The [whole-envelope prototype](native-otlp-boundary.md) is preserved historical
+work, not an integration prerequisite. Unsupported privacy, pseudonymization,
+lineage or delivery guarantees remain explicit gaps. Native export is diagnostic
+and is not claimed as a complete, durable audit ledger. Standard upstream
+Collector configuration may provide routing/fan-out; no custom receiver or
+SQLite delivery service is selected.
 
 ## Plugin configuration before any later enrollment
 
@@ -75,6 +83,10 @@ The runner and [synthetic tests](../tests/test_plugin_setup.py) remain **UNRUN**
 explicitly supplied credential-free global/project/env layers, never ambient
 files/environment/auth. Both reject unknown fields, activation, hosted fallback,
 identity drift and unreviewed tags/metadata. There is no install/write/enable mode.
+This checker models an older pinned upstream release; current web documentation
+does not qualify that pin or its deployment. Do not extend this checker or add a
+custom hook as part of the native rollout. Use the selected upstream release's
+documented installation and configuration for any later plugin activation.
 `max_history_chars` (1–200000) bounds model history only, **not tool output or total
 content**, and is not masking. A passing check proves neither the live configuration,
 credential custody nor consent; later environment changes can override a file.
