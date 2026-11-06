@@ -29,6 +29,7 @@ provides an explicit bounded setup path.
 | Consider the deferred management bootstrap | [Primary reference](primary-infrastructure/README.md), [action-time approval](primary-infrastructure/APPROVAL.md) |
 | Consider later shared identity, secrets or domains | [Deferred platform boundaries](docs/auth-domain-plan.md) |
 | Record private target evidence | [Inventory template](docs/inventory-template.md), [fleet rules](docs/fleet-alignment.md) |
+| Install an optional X11 desktop dashboard beside Conky | [Desktop launcher](desktop-dashboard/README.md) |
 
 Primary management, Authentik, OpenBao/ESO, shared ingress/domains, Crossplane and
 cloud expansion are **later proposals, not application-setup prerequisites**.
