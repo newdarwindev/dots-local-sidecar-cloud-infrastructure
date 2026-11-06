@@ -81,6 +81,11 @@ an accidental-execution guard; an agent may not manufacture approval.
     This enables self-heal but never pruning. Argo/ESO controller upgrades remain
     explicit bootstrap actions; neither has authority to upgrade itself.
 
+The dedicated Lima state uses `~/.local/share/dots-primary-lima` so generated SSH
+socket paths stay within macOS's UNIX-domain socket limit. This is separate from
+the runtime/tools directory under `~/Library/Application Support/dots-primary-infrastructure/`;
+no existing Lima state is migrated automatically.
+
 The scripts implement installation and service scaffolding. Owner-held TLS,
 unseal/root handling, policy setup and backup destination enrollment deliberately
 remain explicit steps; none is silently executed by a bootstrap script.

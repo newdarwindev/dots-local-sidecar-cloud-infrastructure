@@ -5,7 +5,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 STATE = pathlib.Path.home() / 'Library/Application Support/dots-primary-infrastructure'
 LOCK = json.loads((ROOT / 'artifacts.lock.json').read_text())
 LIMA = STATE / 'runtime/bin/limactl'
-ENV = dict(os.environ, LIMA_HOME=str(STATE / 'lima'))
+LIMA_HOME = pathlib.Path.home() / '.local/share/dots-primary-lima'
+ENV = dict(os.environ, LIMA_HOME=str(LIMA_HOME))
 
 def run(args, **kwargs):
     return subprocess.run([str(x) for x in args], check=True, env=ENV, **kwargs)
