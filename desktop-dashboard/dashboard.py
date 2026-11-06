@@ -6,11 +6,13 @@ from datetime import datetime, timezone
 import fcntl
 import html
 import json
+import math
 import os
 from pathlib import Path
 import re
 import select
 import signal
+import shutil
 import socket
 import subprocess
 import time
@@ -28,6 +30,55 @@ def geometry(screen, conky=None):
     if right - left < 160:
         raise ValueError('No usable dashboard space beside Conky')
     return left, sy + 56, right - left, max(160, height - 80)
+
+
+def pane_geometries(area, weights, gap=16):
+    """Tile the available desktop without overlapping Conky or other panes."""
+    x, y, width, height = area
+    count = len(weights)
+    vertical = width - gap * (count - 1) < 160 * count
+    extent = (height if vertical else width) - gap * (count - 1)
+    if extent < 160 * count:
+        raise ValueError('Display is too small for the configured dashboard panes')
+    sizes = [int(extent * weight / sum(weights)) for weight in weights]
+    sizes[-1] += extent - sum(sizes)
+    for index, size in enumerate(sizes):
+        if size < 160:
+            difference = 160 - size
+            sizes[index] = 160
+            largest = max(range(count), key=lambda candidate: sizes[candidate])
+            sizes[largest] -= difference
+    boxes, offset = [], 0
+    for size in sizes:
+        boxes.append((x, y + offset, width, size) if vertical else (x + offset, y, size, height))
+        offset += size + gap
+    return boxes
+
+
+def langfuse_preferences(url, interval):
+    """Native v4 preferences, scoped to this exact local project and origin."""
+    parsed = urlsplit(url)
+    project = re.match(r'/project/([^/]+)/', parsed.path)
+    if parsed.scheme not in ('http', 'https') or project is None:
+        raise ValueError('Langfuse refresh needs a project-specific HTTP URL')
+    settings = json.dumps({'origin': parsed.scheme + '://' + parsed.netloc, 'project': project[1], 'interval': interval})
+    return '''(() => {
+const preference = SETTINGS;
+if (location.origin !== preference.origin || !location.pathname.startsWith('/project/' + preference.project + '/')) return;
+try {
+ const marker = 'desktop-refresh-configured-' + preference.project;
+ if (sessionStorage.getItem(marker)) return;
+ const keys = ['tableRefreshInterval-events-' + preference.project, 'tableRefreshInterval-' + preference.project];
+ let reload = false;
+ for (const key of keys) {
+  const value = JSON.stringify(preference.interval);
+  if (sessionStorage.getItem(key) !== value) { sessionStorage.setItem(key, value); reload = true; }
+ }
+ if (localStorage.getItem('sidebar:state') !== 'false') { localStorage.setItem('sidebar:state', 'false'); reload = true; }
+ sessionStorage.setItem(marker, 'true');
+ if (reload) location.reload();
+} catch (error) { console.warn('Desktop refresh preferences unavailable'); }
+})();'''.replace('SETTINGS', settings)
 
 
 def validate_config(config):
@@ -62,8 +113,39 @@ def validate_config(config):
             url = urlsplit(item['url'])
             if url.scheme != 'https' or not url.hostname or url.username or url.password:
                 raise ValueError('Bookmarks require credential-free HTTPS URLs')
+    overview = config.get('overview')
+    if overview:
+        if not all(cluster.get(key) for key in ('context', 'system_namespace_uid', 'namespace_uids')):
+            raise ValueError('Live overview requires pinned cluster identities')
+        if not cluster['namespace_uids'].get(overview.get('namespace')):
+            raise ValueError('Live overview requires a pinned namespace')
+        if type(overview.get('port')) is not int or not 1024 <= overview['port'] <= 65535 or overview['port'] in ports:
+            raise ValueError('Live overview requires its own unprivileged local port')
+        if type(overview.get('refresh_seconds', 15)) is not int or not 5 <= overview.get('refresh_seconds', 15) <= 300:
+            raise ValueError('Live overview refresh must be 5–300 seconds')
+        live_path = overview.get('live_health_credentials')
+        if live_path and (not isinstance(live_path, str) or not Path(live_path).is_absolute() or
+                          not any(item['id'] == 'langfuse' for item in forwards)):
+            raise ValueError('Live health export needs an absolute credential path and the owned Langfuse forward')
     if config.get('start', 'home') not in {'home', *(item['id'] for item in config.get('links', []))}:
         raise ValueError('Unknown start page')
+    panes = config.get('panes')
+    if panes is not None:
+        if not isinstance(panes, list) or not 1 <= len(panes) <= 3:
+            raise ValueError('Configure one to three dashboard panes')
+        available = {'home', *(item['id'] for item in config.get('links', []))}
+        selected = set()
+        for pane in panes:
+            if pane.get('link') not in available or pane['link'] in selected:
+                raise ValueError('Dashboard panes require distinct known links')
+            selected.add(pane['link'])
+            weight, zoom = pane.get('weight', 1), pane.get('zoom', 1)
+            if type(weight) not in (int, float) or not math.isfinite(weight) or weight <= 0:
+                raise ValueError('Dashboard pane weights must be positive finite numbers')
+            if type(zoom) not in (int, float) or not .5 <= zoom <= 2:
+                raise ValueError('Dashboard zoom must be between 0.5 and 2')
+            if 'langfuse_refresh_ms' in pane and pane['langfuse_refresh_ms'] not in (30000, 60000, 300000, 900000):
+                raise ValueError('Use a native Langfuse refresh interval')
     return config
 
 
@@ -147,10 +229,11 @@ class Forward:
 
 
 class DesktopWindow:
-    def __init__(self, window_id):
+    def __init__(self, window_id, index=0, weights=None):
         from Xlib import X, XK, Xatom, display
         from Xlib.protocol import event
         self.X, self.Xatom, self.event = X, Xatom, event
+        self.index, self.weights = index, weights or [1]
         self.display = display.Display()
         self.root = self.display.screen().root
         self.window = self.display.create_resource_object('window', window_id)
@@ -204,7 +287,7 @@ class DesktopWindow:
                     break
         except (OSError, subprocess.SubprocessError):
             pass
-        box = geometry(monitor, conky)
+        box = pane_geometries(geometry(monitor, conky), self.weights)[self.index]
         if box != self.last_geometry:
             self.message('_NET_MOVERESIZE_WINDOW', [0x2f00, *box])
             self.window.configure(stack_mode=self.X.Above)
@@ -233,6 +316,65 @@ class DesktopWindow:
         return result
 
 
+class BrowserPane:
+    def __init__(self, spec, index, weights, profile, home, log):
+        self.spec, self.index, self.weights = spec, index, weights
+        self.profile, self.home, self.log = profile, home, log
+        self.child, self.window, self.last_attempt = None, None, 0.0
+
+    def start(self, records, prefer_home=False):
+        self.last_attempt = time.monotonic()
+        target = self.home if prefer_home else next(
+            (item['url'] for item in records if item['id'] == self.spec['link'] and item['url']), self.home)
+        base_cookies = self.profile / 'cookies.txt'
+        cookies = base_cookies if self.index == 0 else self.profile / f'cookies-{self.spec["link"]}.txt'
+        if not cookies.exists() and base_cookies.exists():
+            shutil.copyfile(base_cookies, cookies)
+        cookies.touch(exist_ok=True, mode=0o600)
+        extra = []
+        if self.spec.get('langfuse_refresh_ms') and target != self.home:
+            script = self.profile / ('preferences-' + self.spec['link'] + '.js')
+            script.write_text(langfuse_preferences(target, self.spec['langfuse_refresh_ms']))
+            extra = ['-r', str(script)]
+        from Xlib import display, Xatom
+        focus_display = display.Display()
+        active = focus_display.screen().root.get_full_property(
+            focus_display.intern_atom('_NET_ACTIVE_WINDOW'), Xatom.WINDOW)
+        previous = int(active.value[0]) if active is not None and len(active.value) else 0
+        focus_display.close()
+        cache = '-D' if self.spec.get('langfuse_refresh_ms') else '-d'
+        self.child = spawn(['surf', '-w', '-f', '-T', '-x', '-g', '-n', '-B', cache, '-a', '@',
+                            '-z', str(self.spec.get('zoom', 1)), '-c', str(cookies), *extra, target],
+                           stdout=subprocess.PIPE, stderr=self.log, text=True)
+        try:
+            readable, _, _ = select.select([self.child.stdout], [], [], 20)
+            if not readable:
+                raise RuntimeError('Browser did not create a window')
+            self.window = DesktopWindow(int(self.child.stdout.readline().strip(), 0), self.index, self.weights)
+            self.window.placement()
+            self.window.restore_focus(previous)
+        except (ValueError, RuntimeError):
+            stop_child(self.child)
+            self.child, self.window = None, None
+            raise
+
+    def update(self, records):
+        if self.child is None or self.child.poll() is not None:
+            self.window = None
+            if time.monotonic() - self.last_attempt >= 15:
+                try:
+                    self.start(records)
+                except (OSError, ValueError, RuntimeError) as error:
+                    print(f'{self.spec["link"]}: browser unavailable ({type(error).__name__})', flush=True)
+            return
+        self.window.placement()
+        if self.window.home_pressed():
+            self.window.navigate(self.home)
+
+    def close(self):
+        stop_child(self.child)
+
+
 def write_hub(state, config, forwards, running=True, profile=None):
     now = datetime.now(timezone.utc).isoformat(timespec='seconds')
     links = []
@@ -251,7 +393,7 @@ def write_hub(state, config, forwards, running=True, profile=None):
 h1{color:#66ddca;font-weight:500;margin:0}p{color:#a1b4c5}main{display:grid;grid-template-columns:repeat(auto-fit,minmax(225px,1fr));gap:16px;margin:28px 0}
 a,.inactive{display:flex;flex-direction:column;gap:9px;border:1px solid #304657;background:#182a38;border-radius:10px;padding:22px;color:inherit;text-decoration:none}
 a:hover,a:focus{border-color:#66ddca}.inactive{opacity:.65}strong{font-weight:500;font-size:20px}span{color:#66ddca}small,footer{color:#a1b4c5;font-size:13px}
-</style><h1>Desktop dashboards</h1><p>One page at a time · Ctrl + Alt + Shift + Home returns here</p><main>'''
+</style><h1>Desktop dashboards</h1><p>Ctrl + Alt + Shift + Home returns here</p><main>'''
     page += ''.join(links) + f'</main><footer>Local connection check: {now}<br>Unavailable and staged applications stay inactive.</footer></html>'
     ((profile or state) / 'home.html').write_text(page)
     report = {'observed_at': now, 'supervisor_running': running, 'links': records}
@@ -336,7 +478,9 @@ def main():
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
     forwards = {item['id']: Forward(item, config.get('cluster', {}), state) for item in config.get('forwards', [])}
-    browser = None
+    panes = []
+    overview = None
+    overview_log = None
     home = (profile / 'home.html').as_uri()
     try:
         for _ in range(12):
@@ -346,43 +490,49 @@ def main():
                 break
             time.sleep(1)
         records = write_hub(state, config, forwards, profile=profile)
-        target = home if args.home else next(
-            (item['url'] for item in records if item['id'] == config.get('start') and item['url']), home)
-        cookies = profile / 'cookies.txt'
-        cookies.touch(exist_ok=True, mode=0o600)
-        from Xlib import display, Xatom
-        focus_display = display.Display()
-        active = focus_display.screen().root.get_full_property(
-            focus_display.intern_atom('_NET_ACTIVE_WINDOW'), Xatom.WINDOW)
-        previous = int(active.value[0]) if active is not None and len(active.value) else 0
-        focus_display.close()
-        browser = spawn(['surf', '-w', '-f', '-T', '-x', '-g', '-n', '-B', '-d', '-a', '@',
-                         '-c', str(cookies), target], stdout=subprocess.PIPE, stderr=log, text=True)
-        readable, _, _ = select.select([browser.stdout], [], [], 20)
-        if not readable:
-            raise RuntimeError('Browser did not create a window')
-        window = DesktopWindow(int(browser.stdout.readline().strip(), 0))
-        window.restore_focus(previous)
+        if config.get('overview'):
+            overview_log = (state / 'overview.log').open('a', buffering=1)
+            overview = spawn(['/usr/bin/python3', str(Path(__file__).with_name('live_status.py')),
+                              '--config', str(args.config)], stdout=overview_log, stderr=subprocess.STDOUT)
+        specs = config.get('panes') or [{'link': config.get('start', 'home'), 'weight': 1}]
+        weights = [spec.get('weight', 1) for spec in specs]
+        for index, spec in enumerate(specs):
+            pane = BrowserPane(spec, index, weights, profile, home, log)
+            panes.append(pane)
+            try:
+                pane.start(records, prefer_home=args.home and index == 0)
+            except (OSError, ValueError, RuntimeError) as error:
+                print(f'{spec["link"]}: browser unavailable ({type(error).__name__})', flush=True)
         ticks = 0
-        while running and browser.poll() is None:
-            window.placement()
-            if window.home_pressed():
-                window.navigate(home)
+        while running:
+            for pane in panes:
+                pane.update(records)
             try:
                 command = control.recv(32)
                 if command == b'stop':
                     break
-                window.navigate(home)
+                if panes[0].window is not None:
+                    panes[0].window.navigate(home)
             except BlockingIOError:
                 pass
             if ticks % 5 == 0:
+                if overview is not None and overview.poll() is not None:
+                    overview = spawn(['/usr/bin/python3', str(Path(__file__).with_name('live_status.py')),
+                                      '--config', str(args.config)], stdout=overview_log, stderr=subprocess.STDOUT)
                 for forward in forwards.values():
                     forward.update()
-                write_hub(state, config, forwards, profile=profile)
+                records = write_hub(state, config, forwards, profile=profile)
+                layout = [{'link': pane.spec['link'], 'geometry': pane.window.last_geometry if pane.window else None}
+                          for pane in panes]
+                (state / 'panes.json').write_text(json.dumps(layout, indent=2) + '\n')
             ticks += 1
             time.sleep(1)
     finally:
-        stop_child(browser)
+        for pane in panes:
+            pane.close()
+        stop_child(overview)
+        if overview_log is not None:
+            overview_log.close()
         for forward in forwards.values():
             forward.close()
             forward.ready = False

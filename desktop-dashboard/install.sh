@@ -8,6 +8,8 @@ python3 -c 'import Xlib' >/dev/null
 app_dir="$HOME/.local/lib/desktop-dashboard"
 mkdir -p "$app_dir" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/.config/desktop-dashboard" "$HOME/.config/autostart"
 install -m 755 "$source_dir/dashboard.py" "$app_dir/dashboard.py"
+install -m 755 "$source_dir/live_status.py" "$app_dir/live_status.py"
+install -m 755 "$source_dir/health_otel.py" "$app_dir/health_otel.py"
 if [ ! -f "$HOME/.config/desktop-dashboard/config.json" ]; then
     install -m 600 "$source_dir/config.example.json" "$HOME/.config/desktop-dashboard/config.json"
 fi

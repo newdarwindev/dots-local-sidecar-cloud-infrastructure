@@ -1,5 +1,10 @@
 # Langfuse setup
 
+**Codex integration:** follow the [native/upstream comparison](codex-native-monitoring.md).
+Native OTLP provides the initial operational-trace route. The upstream Langfuse
+plugin is an optional richer, transcript-reading integration; no custom relay
+or locally authored hook is planned.
+
 Use the [operator setup guide](../application-infrastructure/README.md) for the
 selected bundle, prerequisites, private inputs, validation and recovery.
 The [telemetry contract](../application-infrastructure/runbooks/telemetry.md)
