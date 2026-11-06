@@ -12,6 +12,7 @@ import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError
 from urllib.request import ProxyHandler, Request, build_opener
 
 
@@ -101,6 +102,7 @@ def verification_summary(config):
 
 def collect_snapshot(config, query=kube_json, identity_check=identities_match):
     now = time.time()
+    start_ns = time.time_ns()
     snapshot = {'observed_at': datetime.fromtimestamp(now, timezone.utc).isoformat(timespec='seconds'),
                 'host': config['overview'].get('title', 'Local workload status'),
                 'namespace': config['overview']['namespace'], 'pods': [], 'nodes': [], 'volumes': [],
@@ -143,15 +145,21 @@ def collect_snapshot(config, query=kube_json, identity_check=identities_match):
                 item['id'] == spec['id'] and item['status'] == 'Available locally' for item in report.get('links', []))
         except (OSError, ValueError, KeyError, TypeError):
             owned = False
-        healthy = False
+        healthy, started_ns, ended_ns, http_status = False, None, None, None
         if owned:
+            started_ns = time.time_ns()
             try:
                 endpoint = spec.get('health_path', '/')
                 with build_opener(ProxyHandler({})).open(f'http://127.0.0.1:{spec["local_port"]}{endpoint}', timeout=2) as response:
                     healthy = response.status == 200
+                    http_status = response.status
+            except HTTPError as error:
+                http_status = error.code
             except OSError:
                 pass
-        snapshot['services'].append({'name': spec['id'], 'healthy': healthy, 'owned': bool(owned)})
+            ended_ns = time.time_ns()
+        snapshot['services'].append({'name': spec['id'], 'healthy': healthy, 'owned': bool(owned),
+                                     'started_ns': started_ns, 'ended_ns': ended_ns, 'http_status': http_status})
     snapshot['storage'] = storage_rows(config['overview'].get('storage', []))
     memory = {}
     try:
@@ -171,6 +179,7 @@ def collect_snapshot(config, query=kube_json, identity_check=identities_match):
     snapshot['summary'] = {'running': sum(row['healthy'] for row in active), 'total': len(active),
                            'restarts': sum(row['restarts'] for row in active),
                            'volumes_bound': sum(row['phase'] == 'Bound' for row in snapshot['volumes'])}
+    snapshot['timing'] = {'start_ns': start_ns, 'end_ns': time.time_ns()}
     return snapshot
 
 
@@ -196,6 +205,7 @@ node('ready').textContent=s.available.pods?s.summary.running+' / '+s.summary.tot
 node('pods').replaceChildren(...s.pods.filter(p=>p.phase!=='Succeeded').map(p=>{const tr=row([p.name,p.healthy?'Running':p.reason,p.ready+' / '+p.desired,p.restarts]);tr.children[1].className=p.healthy?'good':'warn';return tr}));
 node('services').replaceChildren(...s.services.map(v=>{const e=document.createElement('span');e.className=v.healthy?'good':'warn';e.textContent=v.name+' · '+(v.healthy?'HTTP healthy':'Unavailable');return e}));
 const verification=node('verification');verification.hidden=!s.verification;if(s.verification){verification.textContent=s.verification.available?'Langfuse pipeline verified · '+s.verification.traces+' traces / '+s.verification.observations+' observations · SYNTHETIC TEST DATA':'Langfuse diagnostic project temporarily unavailable'}
+if(s.live_feed){verification.hidden=false;verification.textContent='LIVE local health → Langfuse · '+s.live_feed.accepted_spans+' spans accepted this session · '+s.live_feed.status;verification.className=s.live_feed.failed_batches?'warn':'muted'}
 node('storage').replaceChildren(...s.storage.map(v=>{const e=document.createElement('div'),line=document.createElement('div');line.className='volume';const label=document.createElement('span'),value=document.createElement('span');label.textContent=v.name;value.textContent=gib(v.available_bytes)+' free';line.append(label,value);const track=document.createElement('div'),fill=document.createElement('div');track.className='track';fill.className='fill';fill.style.width=(v.used_percent||0)+'%';if(v.used_percent>=90)fill.style.background='#ffc078';track.append(fill);e.append(line,track);return e}));
 node('claims').textContent=s.volumes.map(v=>v.capacity+' '+v.phase).join(' · ');
 const samples=s.history.samples,svg=node('history');svg.replaceChildren();if(samples.length>1){const line=document.createElementNS('http://www.w3.org/2000/svg','polyline');line.setAttribute('points',samples.map((v,i)=>(i*400/(samples.length-1)).toFixed(1)+','+(70-v.cpu*.65).toFixed(1)).join(' '));line.setAttribute('fill','none');line.setAttribute('stroke','#66ddca');line.setAttribute('stroke-width','1.8');svg.append(line)}
@@ -244,12 +254,24 @@ def main():
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     server = StatusServer(('127.0.0.1', config['overview']['port']), Handler)
-    server.snapshot = collect_snapshot(config)
+    exporter = None
+    if config['overview'].get('live_health_credentials'):
+        from health_otel import HealthExporter
+        forward = next(item for item in config['forwards'] if item['id'] == 'langfuse')
+        exporter = HealthExporter(config['overview']['live_health_credentials'], forward['local_port'])
+
+    def sample():
+        snapshot = collect_snapshot(config)
+        if exporter is not None:
+            snapshot['live_feed'] = exporter.publish(snapshot)
+        return snapshot
+
+    server.snapshot = sample()
     stop = threading.Event()
 
     def collect():
         while not stop.wait(config['overview'].get('refresh_seconds', 15)):
-            server.snapshot = collect_snapshot(config)
+            server.snapshot = sample()
 
     def shutdown(_signum, _frame):
         stop.set()

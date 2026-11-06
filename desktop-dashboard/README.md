@@ -1,7 +1,7 @@
 # Desktop dashboards beside Conky
 
 An optional Linux/X11 login-session launcher for the minimal WebKit/GTK browser
-[surf](https://surf.suckless.org/). It creates a borderless desktop-type window,
+[surf](https://surf.suckless.org/). It creates borderless desktop-type windows,
 below applications and Conky, sticky across workspaces and absent from the taskbar
 and pager. It reserves an icon column and top-panel clearance, follows monitor
 changes and leaves a 42-pixel gap before the actual `ConkyDashboard` window.
@@ -25,12 +25,38 @@ The installer preserves an existing private config and writes:
 - an application-menu entry and an initially inert private config at
   `~/.config/desktop-dashboard/config.json`.
 
+The installed implementation includes `live_status.py` and `health_otel.py`;
+neither enables collection or export in the default configuration.
+
 Edit the private JSON before starting. `links` contains `id`, `name`, optional
 `description` and either a credential-free HTTPS `url`, an authorized `forward`
 ID with relative `path`, or an inactive `status`. `start` selects a link ID or
 `home`. The generated home page lists connection status and bookmarks without
 running staged services. Do not put passwords, tokens or credential-bearing URLs
 in this configuration, the repository or process arguments.
+
+To keep configured dashboards side by side, add a `panes` array. For example,
+after configuring the two referenced links:
+
+```json
+"panes": [
+  {"link": "langfuse", "weight": 70, "langfuse_refresh_ms": 30000},
+  {"link": "homarr", "weight": 30}
+]
+```
+
+One to three distinct links (or `home`) are supported. Positive `weight` values
+divide the existing available area, separated by 16 pixels; small displays use
+a vertical stack when necessary. Optional `zoom` is 0.5–2. Without `panes`, the
+existing `start` setting selects one window. Closed panes restart after 15 seconds.
+Conky's bounds and configuration are preserved.
+
+For a Langfuse link to `/project/<project-id>/traces`, `langfuse_refresh_ms` sets
+its native table refresh and collapses the navigation sidebar. Supported values
+are 30000, 60000, 300000 and 900000. The generated surf script applies only to
+that exact origin and project; it reloads once per browser session when changing
+preferences. Browser storage is enabled for this pane. Refreshing a table does
+not itself enroll a telemetry source or create observations.
 
 An optional `cluster` object selects an existing kubectl `context`, the observed
 `system_namespace_uid` of `kube-system`, and a `namespace_uids` mapping. Each
@@ -58,19 +84,21 @@ OAuth grants, production access or real-data activation from desktop installatio
 Run `desktop-dashboard` now or let XFCE start it after login. The single-instance
 lock prevents duplicate browsers/forwards. From the focused dashboard,
 **Ctrl+Alt+Shift+Home** opens the local dashboard hub; the application-menu entry and
-`desktop-dashboard --home` do the same. Surf's **Ctrl+h** goes back and **Ctrl+r**
+`desktop-dashboard --home` open the hub in the primary pane. The shortcut applies
+to the focused pane. Surf's **Ctrl+h** goes back and **Ctrl+r**
 reloads. Configure Homarr App links to open in the same window; popup-created
 browser windows are ordinary drill-down windows, outside this supervisor's layout.
 
 `desktop-dashboard --status` reports the last observed connection sample and time
 and checks the supervisor lock. It alone does not prove browser or UI health.
 `desktop-dashboard --stop` stops
-the owned browser and forwards. Disable later login startup by setting
+all owned panes, the overview and forwards. Disable later login startup by setting
 `Hidden=true` in `~/.config/autostart/desktop-dashboard.desktop`, then stop it.
 Re-enable by removing that line. No reboot is needed.
 
 State is under `~/.local/state/desktop-dashboard/`: append-only launcher/forward
-logs and generated `status.json`. The generated hub and private cookie database
+logs, generated `status.json` and observed pane geometry in `panes.json`.
+The generated hub and private cookie databases
 are under `~/.surf/desktop-dashboard/`, within surf's distribution AppArmor
 allowlist; no AppArmor relaxation is required. State files use owner-only
 permissions and are never source artifacts. Browser cookies can confer access;
@@ -78,6 +106,10 @@ preserve their privacy. The runtime control socket and
 lock use `$XDG_RUNTIME_DIR/desktop-dashboard` when available. A restart preserves
 existing logs and cookies. Uninstallation may remove the launcher and two desktop
 entries, but must preserve any histories, service data, credentials and receipts.
+
+The first pane retains `cookies.txt`. Additional panes use `cookies-<link>.txt`,
+seeded once from the first pane's dedicated cookie file and preserved thereafter.
+Each pane can retain its own service session without concurrent cookie-file writes.
 
 Inspect geometry with `xwininfo` and state/type with `xprop`. Verify icon/panel
 clearance, Conky's unchanged bounds, stacking under an ordinary application,
@@ -117,6 +149,35 @@ only when the supervisor reports its Langfuse forward owned and healthy. The
 count covers up to the latest 100 observations and is labeled synthetic.
 Real workload readiness and synthetic tracing tests are separate observations.
 
+### Optional live health traces
+
+After the owner explicitly selects **live local dashboard health checks**, create
+a separate Langfuse project and project-scoped API key through the service's
+supported flows. Keep verification fixtures in their synthetic project. Store
+`public_key`, `secret_key` and `project_id` in an owner-only local JSON file, and
+set `overview.live_health_credentials` to its absolute path. This requires an
+explicitly configured, owned `langfuse` forward. There is no default enrollment,
+account creation or key generation at startup.
+
+Each overview sample then exports one real collection span and child spans for
+the actual owned HTTP service checks, using their measured times, HTTP status
+and health. The reconstructed OTLP envelope contains only these fields, service
+labels, `local-desktop` environment and `synthetic=false`; it excludes prompts,
+responses, histories, log contents, host identities and arbitrary snapshot data.
+API keys remain in the Python child, outside browser code. Export pauses when
+the supervisor's Langfuse connection is not owned and healthy.
+
+The overview shows accepted spans, errors and skipped batches in `/api/status`,
+with a visible feed status. Counters reset with the overview process. HTTP
+acceptance is separate from persisted-data verification. There is no durable
+queue or replay guarantee: unavailable destinations and uncertain deliveries
+can leave gaps, and this diagnostic stream is not a complete audit record.
+
+Langfuse receives these traces directly at its native OTLP/HTTP endpoint. This
+does not deploy a standalone OpenTelemetry Collector, Prometheus/Grafana or a
+general metrics/log backend and dashboard. Those remain separate infrastructure
+work; the local workload panel is not a replacement for them.
+
 Complete service onboarding through the service's supported flows. Homarr board
 setup and service accounts are separate from installing this utility. Keep local
 passwords, API keys, session cookies, saved board responses and target identities
@@ -138,5 +199,7 @@ compatibility mode or enroll real sources merely to make a test pass.
 Use `sh validation/run.sh lint` through the committed Docker entrypoint. It checks
 the source and runs synthetic regressions for Conky geometry, small/secondary
 monitors, missing pins, wrong cluster/namespace identities, duplicate ports,
-unsafe bookmark URLs and inactive/escaped hub links. It does not launch a browser,
+unsafe bookmark URLs, weighted pane placement, native refresh scoping, health
+envelope allowlisting, destination ownership and inactive/escaped hub links.
+It does not launch a browser,
 connect to a cluster, test authentication or enable the paused CI workflows.
