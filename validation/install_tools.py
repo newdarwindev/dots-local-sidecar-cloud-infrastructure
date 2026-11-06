@@ -38,8 +38,27 @@ def binary_bytes(data, item):
         return stream.read()
 
 
+def build_lock_mounted():
+    """BuildKit omits .dockerenv; require its read-only lockfile bind mount.
+
+    This prevents accidental host execution, not hostile container impersonation.
+    No environment switch or caller flag can waive the Docker-only guard.
+    """
+    target = ROOT / 'tools.lock.json'
+    try:
+        if not target.is_file() or target.is_symlink():
+            return False
+        for line in Path('/proc/self/mountinfo').read_text().splitlines():
+            fields = line.split()
+            if len(fields) >= 10 and fields[4] == str(target) and 'ro' in fields[5].split(','):
+                return True
+    except OSError:
+        return False
+    return False
+
+
 def main():
-    if not Path('/.dockerenv').exists():
+    if not Path('/.dockerenv').exists() and not build_lock_mounted():
         raise SystemExit('Tool installation is Docker-build-only; no host fallback.')
     lock = json.loads((ROOT / 'tools.lock.json').read_text())
     for name, item in lock['binaries'].items():

@@ -6,7 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp \
     RUFF_CACHE_DIR=/tmp/ruff
 COPY validation/requirements.txt validation/tools.lock.json validation/install_tools.py /repo/validation/
-RUN pip install --no-cache-dir --require-hashes --only-binary=:all: -r validation/requirements.txt \
+RUN --mount=type=bind,source=validation/tools.lock.json,target=/repo/validation/tools.lock.json,ro \
+    pip install --no-cache-dir --require-hashes --only-binary=:all: -r validation/requirements.txt \
     && python validation/install_tools.py
 COPY --from=collector /otelcol-contrib /usr/local/bin/otelcol-contrib
 COPY . /repo

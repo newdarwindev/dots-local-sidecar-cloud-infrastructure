@@ -14,6 +14,11 @@ sh validation/run.sh application  # Lint + application tests/Helm/Tokscale schem
 schema checks. Live cluster acceptance remains separate. Both GitHub workflows
 remain owner-paused. Missing tools or schemas fail; they are never skipped.
 
+The [2026-11-06 primary follow-up](../docs/bootstrap-validation-2026-11-06.md)
+passed the Docker `primary` scope after repairing BuildKit detection: offline lint,
+83 validator tests, 11 primary tests and 105 strict-schema resources with no skips.
+This newer primary result does not rerun or supersede application acceptance.
+
 ## Execution boundary
 
 The runner builds a Linux amd64 tool image with checksum-pinned public downloads.

@@ -69,6 +69,11 @@ production acceptance. Unencrypted lab data is exposed to offline device access.
 
 ## Rebuild sequence
 
+Use the [primary management recovery packet](primary-recovery.md) for the
+component inventory, encrypted checkpoint and isolated etcd restore rehearsal.
+The selected private destination and custody record stay in the operational
+overlay; this generic procedure contains no credentials or recovery material.
+
 Restore the exact reviewed source commit, validate it, verify target identity
 and capacity, then provision the approved cluster/storage/network prerequisites.
 Restore secrets from independent custody; restore databases and objects from a
