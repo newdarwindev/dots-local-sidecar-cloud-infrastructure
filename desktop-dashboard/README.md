@@ -85,6 +85,54 @@ workspace switching, duplicate launch, Home navigation, forward recovery and
 stop/cleanup on the actual host. Window-manager behavior is a live acceptance
 check; offline tests do not establish it.
 
+## Optional live workload panel
+
+An explicitly enabled `overview` object adds a read-only loopback HTTP child,
+owned by the same desktop supervisor. Select `port`, an identity-pinned
+`namespace`, a display `title`, and optional `storage` entries with `name`/`path`.
+`refresh_seconds` defaults to 15 and must be 5–300. Its port must differ from the
+configured service forwards. The default example leaves this collector disabled.
+
+The collector checks cluster/namespace UIDs on every refresh, then queries only
+nodes, pods and PVC metadata. It displays selected workload readiness, restarts,
+volume bindings, HTTP health, host available memory and explicitly selected
+filesystem capacity. It reuses CPU-only samples from the existing Conky history
+without changing Conky. Missing data is unknown, stale data is marked stale, and
+connection failures stay visible. No Kubernetes logs, Secret objects, addresses,
+environment variables, serials or conversation contents enter its browser JSON.
+
+The page is available at `/` or `/embed`, with JSON at `/api/status`. It has no
+write routes or arbitrary file serving; unexpected Host headers are rejected.
+It may be embedded in Homarr at `http://127.0.0.1:17575`; its CSP permits that
+origin and itself only. Create an iframe item with the exact local `/embed` URL,
+no camera/microphone/location/payment permissions, and enough grid rows for the
+table. Use current-tab App navigation. Remove irrelevant first-run sample widgets
+from the new board after retaining its configuration for recovery.
+
+A separately authorized **synthetic** Langfuse verification project may supply
+an optional `verification_credentials` path in the private overview configuration.
+Only its numeric observation/trace counts are returned; API credentials stay in
+the backend and are never embedded in browser code. The collector authenticates
+only when the supervisor reports its Langfuse forward owned and healthy. The
+count covers up to the latest 100 observations and is labeled synthetic.
+Real workload readiness and synthetic tracing tests are separate observations.
+
+Complete service onboarding through the service's supported flows. Homarr board
+setup and service accounts are separate from installing this utility. Keep local
+passwords, API keys, session cookies, saved board responses and target identities
+outside Git with owner-only permissions. A read-only public Homarr board is
+viewable by anyone able to reach its existing loopback port; it grants no board
+editing or management rights. It creates no public Internet endpoint.
+
+For Langfuse v4, use [headless initialization](https://langfuse.com/self-hosting/administration/headless-initialization)
+for an explicitly authorized isolated local owner/project while public signup
+stays disabled. Test ingestion through
+[`/api/public/otel/v1/traces`](https://langfuse.com/integrations/native/opentelemetry)
+with `x-langfuse-ingestion-version: 4`; query `/api/public/v2/observations` to verify
+persisted data. The old trace ingestion route rejects events in v4 `events_only`
+mode. Constructed test spans must be labeled synthetic; do not enable a migration
+compatibility mode or enroll real sources merely to make a test pass.
+
 ## Validation
 
 Use `sh validation/run.sh lint` through the committed Docker entrypoint. It checks

@@ -62,6 +62,16 @@ def validate_config(config):
             url = urlsplit(item['url'])
             if url.scheme != 'https' or not url.hostname or url.username or url.password:
                 raise ValueError('Bookmarks require credential-free HTTPS URLs')
+    overview = config.get('overview')
+    if overview:
+        if not all(cluster.get(key) for key in ('context', 'system_namespace_uid', 'namespace_uids')):
+            raise ValueError('Live overview requires pinned cluster identities')
+        if not cluster['namespace_uids'].get(overview.get('namespace')):
+            raise ValueError('Live overview requires a pinned namespace')
+        if type(overview.get('port')) is not int or not 1024 <= overview['port'] <= 65535 or overview['port'] in ports:
+            raise ValueError('Live overview requires its own unprivileged local port')
+        if type(overview.get('refresh_seconds', 15)) is not int or not 5 <= overview.get('refresh_seconds', 15) <= 300:
+            raise ValueError('Live overview refresh must be 5–300 seconds')
     if config.get('start', 'home') not in {'home', *(item['id'] for item in config.get('links', []))}:
         raise ValueError('Unknown start page')
     return config
@@ -337,6 +347,8 @@ def main():
     signal.signal(signal.SIGINT, stop)
     forwards = {item['id']: Forward(item, config.get('cluster', {}), state) for item in config.get('forwards', [])}
     browser = None
+    overview = None
+    overview_log = None
     home = (profile / 'home.html').as_uri()
     try:
         for _ in range(12):
@@ -346,6 +358,10 @@ def main():
                 break
             time.sleep(1)
         records = write_hub(state, config, forwards, profile=profile)
+        if config.get('overview'):
+            overview_log = (state / 'overview.log').open('a', buffering=1)
+            overview = spawn(['/usr/bin/python3', str(Path(__file__).with_name('live_status.py')),
+                              '--config', str(args.config)], stdout=overview_log, stderr=subprocess.STDOUT)
         target = home if args.home else next(
             (item['url'] for item in records if item['id'] == config.get('start') and item['url']), home)
         cookies = profile / 'cookies.txt'
@@ -376,6 +392,9 @@ def main():
             except BlockingIOError:
                 pass
             if ticks % 5 == 0:
+                if overview is not None and overview.poll() is not None:
+                    overview = spawn(['/usr/bin/python3', str(Path(__file__).with_name('live_status.py')),
+                                      '--config', str(args.config)], stdout=overview_log, stderr=subprocess.STDOUT)
                 for forward in forwards.values():
                     forward.update()
                 write_hub(state, config, forwards, profile=profile)
@@ -383,6 +402,9 @@ def main():
             time.sleep(1)
     finally:
         stop_child(browser)
+        stop_child(overview)
+        if overview_log is not None:
+            overview_log.close()
         for forward in forwards.values():
             forward.close()
             forward.ready = False
