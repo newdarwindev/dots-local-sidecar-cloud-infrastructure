@@ -346,7 +346,8 @@ def main():
                 break
             time.sleep(1)
         records = write_hub(state, config, forwards, profile=profile)
-        target = next((item['url'] for item in records if item['id'] == config.get('start') and item['url']), home)
+        target = home if args.home else next(
+            (item['url'] for item in records if item['id'] == config.get('start') and item['url']), home)
         cookies = profile / 'cookies.txt'
         cookies.touch(exist_ok=True, mode=0o600)
         from Xlib import display, Xatom
