@@ -1,11 +1,78 @@
 """Docker-only chart rendering and safety regression validation; no cluster needed."""
 import hashlib, importlib.util, io, json, pathlib, subprocess, tarfile, tempfile, unittest, urllib.request
 import yaml
+from unittest import mock
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 assert pathlib.Path('/.dockerenv').exists(), 'Run only through the committed Docker workflow'
 LOCK=json.loads((ROOT/'artifacts.lock.json').read_text())
 def read(p): return yaml.safe_load((ROOT/p).read_text())
 def docs(text): return [d for d in yaml.safe_load_all(text) if d]
+def launcher():
+    spec=importlib.util.spec_from_file_location('infra',ROOT/'scripts/infra.py')
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    return module
+
+class Launcher(unittest.TestCase):
+    def test_start_checks_effective_lima_home(self):
+        for entry,message in [('_config','global overrides'),('primary','Instance already exists')]:
+            with self.subTest(entry=entry), tempfile.TemporaryDirectory() as td:
+                module=launcher();base=pathlib.Path(td)
+                module.STATE=base/'old-state';module.LIMA_HOME=base/'new-home'
+                module.LIMA=base/'limactl';module.LIMA.touch()
+                (module.LIMA_HOME/entry).mkdir(parents=True)
+                self.assertFalse((module.STATE/'lima'/entry).exists())
+                with mock.patch.object(module,'approve'), mock.patch.object(module,'no_encode'), \
+                     mock.patch.object(module,'run') as run, mock.patch.object(module.sys,'argv',['infra','start']):
+                    with self.assertRaisesRegex(SystemExit,message):module.main()
+                    run.assert_not_called()
+
+    def clock(self, module):
+        self.now=0
+        def sleep(seconds):self.now+=seconds
+        self.enterContext(mock.patch.object(module.time,'monotonic',side_effect=lambda:self.now))
+        self.enterContext(mock.patch.object(module.time,'sleep',side_effect=sleep))
+
+    def test_registration_precedes_readiness_with_one_deadline(self):
+        module=launcher();self.clock(module);calls=[]
+        def kubectl(*args,**kwargs):
+            calls.append((args,kwargs))
+            self.assertLessEqual(self.now+kwargs['timeout'],180)
+            if len(calls)==1:
+                self.now+=4
+                raise subprocess.CalledProcessError(1,args)
+            if args[0]=='get':self.now+=2
+        with mock.patch.object(module,'kubectl',side_effect=kubectl):module.wait_for_node()
+        self.assertEqual([c[0][0] for c in calls],['get','get','wait'])
+        self.assertEqual(calls[-1][1]['timeout'],173)
+        self.assertIn('--timeout=173.000s',calls[-1][0])
+
+    def test_registration_deadline_bounds_hung_commands(self):
+        module=launcher();self.clock(module);calls=[]
+        def kubectl(*args,**kwargs):
+            calls.append(args)
+            self.assertLessEqual(self.now+kwargs['timeout'],180)
+            self.now+=kwargs['timeout']
+            raise subprocess.TimeoutExpired(args,kwargs['timeout'])
+        with mock.patch.object(module,'kubectl',side_effect=kubectl):
+            with self.assertRaisesRegex(SystemExit,'registration.*180-second.*do not rerun installation'):
+                module.wait_for_node()
+        self.assertEqual(self.now,180)
+        self.assertTrue(all(c[0]=='get' for c in calls))
+
+    def test_readiness_failures_preserve_installed_state(self):
+        for failure in [subprocess.CalledProcessError(1,['wait']),subprocess.TimeoutExpired(['wait'],180)]:
+            with self.subTest(failure=type(failure).__name__):
+                module=launcher();self.clock(module)
+                with mock.patch.object(module,'approve'), mock.patch.object(module,'artifact'), \
+                     mock.patch.object(module,'put') as put, mock.patch.object(module,'guest') as guest, \
+                     mock.patch.object(module,'kubectl',side_effect=[None,failure]) as kubectl, \
+                     mock.patch.object(module.sys,'argv',['infra','bootstrap']):
+                    with self.assertRaisesRegex(SystemExit,'readiness.*do not rerun installation'):module.main()
+                    self.assertEqual(put.call_count,3)
+                    self.assertEqual(guest.call_args_list.count(mock.call('sudo','systemctl','enable','--now','k3s')),1)
+                    self.assertEqual(guest.call_args_list.count(mock.call('test','!','-e','/usr/local/bin/k3s')),1)
+                    self.assertEqual(kubectl.call_count,2)
+
 class Configuration(unittest.TestCase):
     def test_vm_exposure_and_resource_budget(self):
         vm=read('lima/primary.yaml')

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Explicitly gated bootstrap. Never collects or generates service credentials."""
-import argparse, datetime, hashlib, json, os, pathlib, platform, subprocess, sys, tarfile, urllib.request
+import argparse, datetime, hashlib, json, os, pathlib, platform, subprocess, sys, tarfile, time, urllib.request
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 STATE = pathlib.Path.home() / 'Library/Application Support/dots-primary-infrastructure'
 LOCK = json.loads((ROOT / 'artifacts.lock.json').read_text())
@@ -66,6 +66,33 @@ def put(source, destination):
 def kubectl(*args, **kwargs):
     return guest('sudo','/usr/local/bin/k3s','kubectl',*args,**kwargs)
 
+def wait_for_node():
+    # One deadline includes API startup, registration, readiness and command time.
+    deadline = time.monotonic() + 180
+    phase = 'registration'
+    try:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired('node registration', 180)
+            try:
+                kubectl('get','node/dots-primary','--request-timeout=5s',
+                        stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                        timeout=min(5, remaining))
+                break
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                time.sleep(min(1, max(0, deadline - time.monotonic())))
+        phase = 'readiness'
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise subprocess.TimeoutExpired('node readiness', 180)
+        kubectl('wait','--for=condition=Ready','node/dots-primary',
+                f'--timeout={remaining:.3f}s',timeout=remaining)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        sys.exit(f'Node {phase} failed within the combined 180-second wait. '
+                 'Inspect K3s status/logs before further action; do not rerun installation. '
+                 'The guest and installed state are preserved.')
+
 def apply(path):
     kubectl('apply','--server-side','-f','-',input=path.read_bytes())
 
@@ -94,8 +121,8 @@ def main():
         no_encode()
         if not LIMA.exists(): sys.exit('Install the approved pinned runtime first.')
         # Dedicated LIMA_HOME prevents inherited mounts or global Lima overrides.
-        if (STATE/'lima/_config').exists(): sys.exit('Inspect existing Lima global overrides before starting.')
-        if (STATE/'lima/primary').exists():
+        if (LIMA_HOME/'_config').exists(): sys.exit('Inspect existing Lima global overrides before starting.')
+        if (LIMA_HOME/'primary').exists():
             sys.exit('Instance already exists; use status and review before resuming.')
         run([LIMA,'start','--name=primary','--tty=false',ROOT/'lima/primary.yaml']); return
     if args.action == 'bootstrap':
@@ -109,7 +136,7 @@ def main():
         guest('sudo','modprobe','overlay'); guest('sudo','modprobe','br_netfilter')
         guest('sudo','sysctl','-w','net.ipv4.ip_forward=1')
         guest('sudo','systemctl','daemon-reload'); guest('sudo','systemctl','enable','--now','k3s')
-        kubectl('wait','--for=condition=Ready','node/dots-primary','--timeout=180s'); return
+        wait_for_node(); return
     if args.action in {'argocd','openbao','eso'}:
         apply(ROOT/'bootstrap/namespaces.yaml')
         if args.action == 'openbao':

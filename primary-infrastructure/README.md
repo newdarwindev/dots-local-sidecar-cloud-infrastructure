@@ -86,6 +86,12 @@ socket paths stay within macOS's UNIX-domain socket limit. This is separate from
 the runtime/tools directory under `~/Library/Application Support/dots-primary-infrastructure/`;
 no existing Lima state is migrated automatically.
 
+The launcher checks for both an existing `primary` instance and global overrides
+inside that dedicated `LIMA_HOME` before starting. Bootstrap waits for node
+registration before readiness, with one 180-second deadline covering both phases
+and their subprocesses. A failed wait preserves the guest and installed K3s;
+inspect service status/logs before further action and do not rerun installation.
+
 The scripts implement installation and service scaffolding. Owner-held TLS,
 unseal/root handling, policy setup and backup destination enrollment deliberately
 remain explicit steps; none is silently executed by a bootstrap script.
