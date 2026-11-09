@@ -77,12 +77,12 @@ class NativeEventTests(ConversationTests):
             self.assertEqual(len(spans), 1)
             self.assertNotIn('events', spans[0])
             values = {a['key']: a['value'] for a in spans[0]['attributes']}
-            self.assertEqual(values[POLICY.PREFIX + 'sum.input_token_count'], {'intValue': '0'})
+            self.assertNotIn(POLICY.PREFIX + 'sum.input_token_count', values)
             self.assertNotIn(CANARY, json.dumps(docs))
         _, _, spans = self.collect(fixture([{'event.name': 'codex.sse_event', 'event.kind': 'not-completed', 'input_token_count': '12'}]))
         self.assertNotIn('events', spans[0])
         values = {a['key']: a['value'] for a in spans[0]['attributes']}
-        self.assertEqual(values[POLICY.PREFIX + 'sum.input_token_count'], {'intValue': '0'})
+        self.assertNotIn(POLICY.PREFIX + 'sum.input_token_count', values)
         payload = fixture([])
         payload['resourceSpans'][0]['scopeSpans'][0]['scope']['name'] = 'unvetted'
         self.assertEqual(self.collect(payload)[2], [])
@@ -130,6 +130,18 @@ class NativeEventTests(ConversationTests):
         self.assertLessEqual(len(values[POLICY.PREFIX + 'timeline_json']['stringValue'].encode()), 4096)
         self.assertLess(len(json.dumps(docs).encode()) * 4, 65536)
         self.assertNotIn(CANARY, json.dumps(docs))
+
+
+    def test_zero_event_span_has_compact_metadata(self):
+        _, docs, spans = self.collect(fixture([]))
+        self.assertEqual(len(spans), 1)
+        values = {a['key']: a['value'] for a in spans[0]['attributes']}
+        self.assertEqual(values, {
+            'dots.accounting.role': {'stringValue': 'diagnostic-noncanonical'},
+            POLICY.PREFIX + 'event_count': {'intValue': '0'},
+            POLICY.PREFIX + 'timeline_json': {'stringValue': '[]'},
+        })
+        self.assertLess(len(json.dumps(docs).encode()), 1500)
 
 
 

@@ -83,6 +83,13 @@ def processors():
         f'set({timeline}, spanevent.cache["encoded"]) where Len(spanevent.cache["encoded"]) <= 4096 and Len(spanevent.cache["timeline"]) <= 32',
         f'set({omitted}, {omitted} + 1) where Len(spanevent.cache["encoded"]) > 4096 or Len(spanevent.cache["timeline"]) > 32',
     ]
+    # Missing per-kind/sum/omission fields mean zero. Retain total count and
+    # timeline shape even for spans without events; avoid zero-field amplification.
+    zero_keys = [PREFIX + 'unclassified_event_count', PREFIX + 'timeline_omitted_count']
+    zero_keys += [PREFIX + 'count.' + event for event in EVENTS]
+    zero_keys += [PREFIX + 'sum.' + ('reported_total_token_count' if field == 'tool_token_count' else field) for field in FIELDS]
+    finalize = ['delete_key(span.attributes, "native.temporary.fragments")']
+    finalize += [f'delete_key({a}, {json.dumps(key)}) where {a}[{json.dumps(key)}] == 0' for key in zero_keys]
     return {'filter/source': SOURCE.source_gate(),
             'filter/event-envelope': {'error_mode': 'propagate', 'traces': {'span': ['Len(span.links) > 0', 'Len(span.events) > 10000']}},
             'transform/event-envelope': {'error_mode': 'propagate', 'trace_statements': [
@@ -90,7 +97,7 @@ def processors():
                 {'context': 'scope', 'statements': ['keep_keys(scope.attributes, [])', 'set(scope.name, "codex.native.diagnostics")', 'set(scope.version, "1")', 'set(scope.schema_url, "")']},
                 {'context': 'span', 'statements': init}]},
             'transform/events': {'error_mode': 'propagate', 'trace_statements': [{'context': 'spanevent', 'statements': statements}]},
-            'transform/event-finalize': {'error_mode': 'propagate', 'trace_statements': [{'context': 'span', 'statements': ['delete_key(span.attributes, "native.temporary.fragments")']}]},
+            'transform/event-finalize': {'error_mode': 'propagate', 'trace_statements': [{'context': 'span', 'statements': finalize}]},
             'filter/summarized-events': {'error_mode': 'propagate', 'traces': {'spanevent': ['true']}}}
 
 
