@@ -154,3 +154,51 @@ printf '%s\\n' "$BOOT_ID"
             'EnvironmentVariables': {'HOME': '__HOME__', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'},
             'StandardOutPath': prefix + 'launch.stdout.log',
             'StandardErrorPath': prefix + 'launch.stderr.log'})
+
+    def run_forward(self, *args, **env):
+        return subprocess.run(['/bin/sh', str(STARTUP / 'forward-primary-ui.sh'), *args],
+                              env=self.env | env, capture_output=True, text=True, timeout=10)
+
+    def test_ui_forward_allowlist_exact_loopback_routes_and_no_guest_start(self):
+        self.runtime.write_text('''#!/bin/sh
+set -eu
+printf '%s|%s\\n' "$LIMA_HOME" "$*" >> "$HOME/calls"
+case "$1" in
+  list) printf '%s\\n' "$STATUS" ;;
+  shell) exit 0 ;;
+  *) exit 99 ;;
+esac
+''')
+        routes = [('homarr', 'homarr', 'svc/homarr', '17575:7575'),
+                  ('argocd', 'argocd', 'svc/argocd-server', '18443:443'),
+                  ('openbao', 'openbao', 'svc/openbao', '18200:8200')]
+        for name, namespace, target, ports in routes:
+            result = self.run_forward(name)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(self.calls()[-1], str(self.guest.parents[1]) +
+                             f'|shell primary -- sudo k3s kubectl -n {namespace} '
+                             f'port-forward {target} {ports} --address=127.0.0.1')
+        self.assertEqual(len(self.calls()), 6)
+
+    def test_ui_forward_rejects_unknown_extra_arguments_and_stopped_guest(self):
+        for args in ((), ('unknown',), ('homarr', '--address=0.0.0.0')):
+            self.assertNotEqual(self.run_forward(*args).returncode, 0)
+        self.assertEqual(self.calls(), [])
+        for status in ('Stopped', 'Broken', '', 'Running\nStopped'):
+            self.assertNotEqual(self.run_forward('homarr', STATUS=status).returncode, 0)
+        self.assertTrue(all('|list primary ' in line for line in self.calls()))
+        self.guest.unlink()
+        self.assertNotEqual(self.run_forward('homarr').returncode, 0)
+        self.assertEqual(len(self.calls()), 4)
+
+    def test_ui_templates_are_exact_routes_with_throttled_recovery_and_separate_logs(self):
+        for name in ('homarr', 'argocd', 'openbao'):
+            value = plistlib.loads((STARTUP / f'local.dots.primary-ui-{name}.plist.template').read_bytes())
+            prefix = '__HOME__/Library/Application Support/dots-primary-infrastructure/startup/'
+            self.assertEqual(value, {
+                'Label': f'local.dots.primary-ui-{name}',
+                'ProgramArguments': ['/bin/sh', prefix + 'forward-primary-ui.sh', name],
+                'RunAtLoad': True, 'KeepAlive': True, 'ThrottleInterval': 30, 'ProcessType': 'Background',
+                'EnvironmentVariables': {'HOME': '__HOME__', 'PATH': '/usr/bin:/bin:/usr/sbin:/sbin'},
+                'StandardOutPath': prefix + name + '.stdout.log',
+                'StandardErrorPath': prefix + name + '.stderr.log'})

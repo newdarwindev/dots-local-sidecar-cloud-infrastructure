@@ -94,7 +94,10 @@ def file_kind(path):
         return 'yaml'
     if path.name in {'.gitignore', '.dockerignore'} or path.name.startswith('LICENSE'):
         return 'text'
-    if path.name == 'local.dots.primary-start.plist.template':
+    if path.name in {'local.dots.primary-start.plist.template',
+                     'local.dots.primary-ui-homarr.plist.template',
+                     'local.dots.primary-ui-argocd.plist.template',
+                     'local.dots.primary-ui-openbao.plist.template'}:
         return 'plist'
     return {'.py': 'python', '.sh': 'shell', '.ts': 'typescript', '.tsx': 'typescript',
             '.json': 'json', '.md': 'markdown', '.hcl': 'hcl', '.service': 'systemd',
