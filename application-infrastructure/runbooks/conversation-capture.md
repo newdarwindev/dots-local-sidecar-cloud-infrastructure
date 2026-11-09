@@ -161,7 +161,7 @@ Actual installed-plugin integration is a separate bounded acceptance check and
 must pass before any live activation; no global capture is enabled by this fix.
 
 The desktop edge exporter authenticates solely with its existing mTLS client
-certificate to the the internal collector ingress. It sends **no Authorization header** and has
+certificate to the internal collector ingress. It sends **no Authorization header** and has
 no Langfuse project credential. The new private Langfuse project credential
 belongs exclusively to the central exporter on the internal collector. Local plugin-to-Collector
 Basic authentication is independently provisioned and must not reuse that

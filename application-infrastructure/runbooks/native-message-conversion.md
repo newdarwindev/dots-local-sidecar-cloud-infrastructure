@@ -66,3 +66,42 @@ only through the previously approved private deployment process. No retry queue
 is configured; no historical files are read. Plugin and native metadata routes
 remain separate and unchanged. In runtime tests the exporter is replaced by an
 ephemeral synthetic file and outbound networking is disabled.
+
+
+## Bounded live qualification: 2026-11-09
+
+The standard-component conversion was deployed to separate authenticated
+loopback Collectors on the two approved desktop sources. Existing local Basic
+authentication and the existing mTLS destination were reused; no new project
+credentials, external endpoint, firewall exposure or custom runtime were added.
+Queueing and retry are explicitly disabled in this bounded path.
+
+Each source ran a fresh interactive Codex 0.167.0 CLI session with `--no-daemon`.
+Native prompt/final-answer flags were enabled only in a private process-selected
+profile. The exact session ID and source-time cutoff were installed before the
+first harmless prompt. Plugin capture was disabled, so these receipts did not
+come from transcript parsing or the Langfuse plugin.
+
+Backend IO readback found four EVENT observations: exactly one input-only user
+event and one output-only assistant event for each source, with the expected
+visible text. No event from an unlisted session reached the project. A local
+shape test showed that the product title helper emits separate prompt/answer
+logs with the same producer and main-agent classification; exact session gates
+were therefore essential to exclude that traffic.
+
+Unauthenticated local requests returned 401. CLI test sessions exited and their
+private profiles' content flags were reset to false after the tests. Receivers
+remain available with their narrow allowlists. This is functional bounded native
+message capture, not an automatic all-session rollout. Existing plugin and native
+metadata collectors remain separate.
+
+This qualification establishes CLI → authenticated local projection → encrypted
+transport → Langfuse backend persistence. Web UI verification is a separate
+acceptance step and was not completed: the approved UI endpoint is loopback-only
+and no existing trusted browser connection was established. Do not describe the
+API receipts as browser verification.
+
+The full Docker application workflow passed 251 tests before live deployment,
+including six native-conversion runtime cases, plus pinned Collector/Helm/schema
+checks. Source configuration, credentials, session/trace IDs, deployment receipts
+and preserved logs remain outside Git.

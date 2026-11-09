@@ -1,7 +1,10 @@
 # Product-native conversation export: readiness contract
 
 Status as of 2026-11-09: **selected direction, not an available or enabled
-all-session capability**. Continue using supported product/upstream integrations;
+all-session capability**. Bounded native message conversion is now implemented
+and backend-verified using standard upstream Collector components; see the
+[live conversion runbook](../application-infrastructure/runbooks/native-message-conversion.md).
+Continue using supported product/upstream integrations;
 do not introduce a custom relay, transcript parser, watcher, uploader or wrapper.
 This document is an upstream-ready requirements and acceptance brief, not an
 upstream submission, API promise, implementation ETA or activation approval.
@@ -34,8 +37,9 @@ app/IDE/hosted client from a CLI source change.
   session exclusions or stop newly emitted text from quoting past content.
 
 These are useful native building blocks. Existing content flags are **not** a
-substitute for the product-owned export boundary described below. Keep native
-content logging disabled in the current deployment.
+substitute for the product-owned export boundary described below. Keep global native
+content logging disabled. The bounded conversion workflow enables it only for
+explicitly qualified fresh sessions through private process-selected profiles.
 
 ## Missing product-owned boundary
 
@@ -110,8 +114,11 @@ updates of the same ID are not a reliable deduplication mechanism. The existing
 
 A supported native integration must either produce suitable trace observations
 itself or use an officially supported upstream integration with the same source
-policy guarantees. No bespoke log-to-trace conversion or transcript reconstruction
-is selected. Retain authenticated loopback intake where applicable, encrypted
+policy guarantees. The implemented bounded path uses upstream `transform` plus the alpha
+`otlp_json` connector to produce independent message-event spans. It uses typed
+map serialization, not a custom application service or transcript reconstruction.
+This bridges the signal mismatch, but does not supply missing provenance or
+durable automatic exclusion guarantees. Retain authenticated loopback intake where applicable, encrypted
 transport and separate diagnostics/conversation projects. Project credentials
 remain at their designated exporter boundary; no new sharing or access is implied.
 
