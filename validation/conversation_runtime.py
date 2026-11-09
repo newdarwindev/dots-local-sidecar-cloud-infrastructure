@@ -111,6 +111,8 @@ class ConversationTests(unittest.TestCase):
                 finally:
                     process.terminate()
                     process.wait(timeout=5)
+            if status >= 500:
+                print('SYNTHETIC Collector processing failure:', (directory / 'log').read_text(), flush=True)
             output = directory / 'output.jsonl'
             documents = [json.loads(line) for line in output.read_text().splitlines()] if output.exists() else []
             spans = [span for doc in documents for resource in doc.get('resourceSpans', [])

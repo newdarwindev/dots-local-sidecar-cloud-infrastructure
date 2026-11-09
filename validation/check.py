@@ -45,6 +45,7 @@ def main():
         run(ROOT, sys.executable, 'validation/conversation_runtime.py')
         run(ROOT, sys.executable, 'validation/native_message_runtime.py')
         run(ROOT, sys.executable, 'validation/central_native_message_runtime.py')
+        run(ROOT, sys.executable, 'validation/native_event_runtime.py')
         return
     # Bundle tests cache public archives; writes stay in ephemeral container tmpfs.
     with tempfile.TemporaryDirectory(prefix='infra-contracts-') as directory:
