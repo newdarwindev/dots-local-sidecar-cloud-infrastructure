@@ -32,7 +32,15 @@ public repository.
 
 ## 1. Select the existing primary VM on the Mac
 
-Run in a normal interactive macOS zsh or bash terminal:
+Run in a separate private interactive macOS zsh or bash terminal, outside any
+agent session. First require a local terminal:
+
+```sh
+test -t 0 && test -t 1 && printf "Local terminal is interactive.\n"
+```
+
+Stop unless the success message appears. Do not substitute an agent-allocated
+TTY or share this terminal with an assistant. Then select the existing VM:
 
 ```sh
 export LIMA_HOME="$HOME/.local/share/dots-primary-lima"
@@ -81,7 +89,7 @@ Interpret the response before proceeding:
 - `initialized: false`, a different seal type, `migration: true`, unexpected
   `t`/`n`, or a different cluster/storage arrangement: stop and review the
   matching recovery instructions. **Do not run `bao operator init`.**
-- Nonzero `progress`: coordinate with the other key holders first. Do not
+- Nonzero starting `progress`: stop and coordinate with the other key holders. Do not
   automatically reset their work or assume which shares were submitted.
 - A TLS, connection, or permissions error is not a sealed-status result. Stop;
   do not use `-tls-skip-verify`, replace certificates, or broaden access.
@@ -96,6 +104,14 @@ primary_kubectl -n openbao exec -it openbao-0 -c openbao -- \
 Continue only if the success message appears. Keep stdin and stdout attached to
 your terminal. Do not use a pipe, heredoc, `tee`, output redirection or an agent
 tool for the following share entry. `-it` is required for the hidden prompt.
+
+Immediately before the first share, repeat steps 1–2 in this private terminal.
+Require the same intended running pod, `initialized: true`, `sealed: true`,
+`type: "shamir"`, `t: 2`, `n: 3`, `progress: 0`, and no migration. Earlier
+observations can become stale while coordinating. Stop on any unexpected state,
+existing progress, TLS failure or unavailable TTY; do not reset progress. If
+already unsealed, skip share entry and verify. Expected progress `1/2` after
+your own first successful submission is handled in steps 4–5.
 
 ## 4. Enter the first share at the hidden OpenBao prompt
 
@@ -146,10 +162,29 @@ recoverable backups.
 
 When done, close this dedicated terminal window. No port-forward or background
 job was created. Keep recovery material in its existing approved custody.
+When an assistant is coordinating, return only a plain completion confirmation
+(e.g. "Finished entering the shares") or a nonsecret failure description. Do not
+paste terminal transcripts or send screenshots. The assistant can then repeat
+the read-only status and pod readiness checks; completion is not verified until
+those checks succeed.
+
 Only record a minimal result such as the time, intended target, sealed/unsealed
 state and readiness outcome; never include shares, tokens or private recovery
 locations. If you suspect a share was exposed, stop and use the owner's incident
 and recovery process; do not erase existing logs or silently rotate credentials.
+
+## Validation notes (2026-11-09)
+
+- Rechecked the owner-run procedure against the official OpenBao 2.7 command
+  documentation: no share argument selects the hidden prompt; status exit codes
+  distinguish sealed (2), unsealed (0) and error (1).
+- Read-only preflight exercised the existing in-pod status command with an
+  isolated CLI environment and explicit CA verification. No share was supplied.
+  This is preflight evidence only, not evidence of completed unsealing or health.
+- `sh validation/run.sh primary`: blocked because the Docker daemon was
+  unavailable. No daemon was started and no host validation fallback was used.
+- Private-terminal transport and share submission remain owner-run checks.
+  Recheck live state each time; these notes do not authorize skipping preflight.
 
 ## Limits and troubleshooting
 
