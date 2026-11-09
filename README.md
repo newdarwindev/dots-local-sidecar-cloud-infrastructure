@@ -26,6 +26,7 @@ provides an explicit bounded setup path.
 | Connect Codex without custom relay code | [Native monitoring integration matrix](docs/codex-native-monitoring.md) |
 | Run bounded native prompt/final-answer conversion | [Native message conversion](application-infrastructure/runbooks/native-message-conversion.md) |
 | Retain safe native event diagnostics | [Native event diagnostics](application-infrastructure/runbooks/native-event-diagnostics.md) |
+| Project numeric-only native log events | [Native log diagnostics](application-infrastructure/runbooks/native-log-diagnostics.md) |
 | Qualify future product-native conversation export | [Native support readiness contract](docs/native-conversation-support.md) |
 | Review native/plugin/importer boundaries | [Telemetry contract](application-infrastructure/runbooks/telemetry.md) |
 | Build/review Tokscale | [Tokscale contract](application-infrastructure/tokscale/README.md) |

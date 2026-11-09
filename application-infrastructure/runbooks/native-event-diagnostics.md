@@ -33,8 +33,8 @@ the diagnostic role, zero event count and an empty timeline.
 - Exact approved source versions only. This is not a wildcard product-version policy.
 
 The sanitized timeline is JSON metadata rather than a full Langfuse child-event
-hierarchy. Logs-only native events, metrics, media and full tool/conversation
-content are outside this path. No historical files are scanned. Existing exact
+hierarchy. Logs-only native events use the separate [numeric log projection](native-log-diagnostics.md).
+Metrics, media and full tool/conversation content are outside this path. No historical files are scanned. Existing exact
 session content admission and permanent exclusions remain separate and unchanged.
 
 ## Render and deploy
@@ -61,8 +61,8 @@ all existing logs. Deployment and security changes still require current approva
 
 ## Validation
 
-The committed Docker application workflow passed 265 tests plus pinned Collector,
-Helm and schema checks. Seven real-Collector event tests cover numeric summaries,
+The committed Docker application workflow passed 282 tests plus pinned Collector,
+Helm and schema checks. Eight real-Collector event tests cover numeric summaries,
 unknown names, invalid values, wrong source, bounded timelines, forged central
 metadata, linked spans, compact zero-event spans and four-span payload budgets.
 Synthetic private-text canaries do not appear in projected output.
