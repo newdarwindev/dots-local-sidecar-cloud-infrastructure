@@ -96,6 +96,16 @@ The scripts implement installation and service scaffolding. Owner-held TLS,
 unseal/root handling, policy setup and backup destination enrollment deliberately
 remain explicit steps; none is silently executed by a bootstrap script.
 
+For an **already initialized deployment**, the owner can use the
+[manual MacBook Pro terminal unseal runbook](runbooks/manual-openbao-unseal-macos.md).
+It uses the existing in-pod CLI and hidden share prompts, without exporting a
+kubeconfig, opening a port-forward, or putting recovery material in shell
+arguments. Preparing this procedure does not execute or authorize an unseal.
+
+The separate [auto-unseal design draft](runbooks/auto-unseal-draft.md) evaluates
+an independent seal provider, migration, recovery and approval gates. It is not
+an activation procedure and makes no change to the current Shamir configuration.
+
 ## Access and persistence
 
 Lima SSH uses host loopback 60022, without host SSH agent or public-key loading.
