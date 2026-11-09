@@ -1,16 +1,19 @@
 # OpenTelemetry setup
 
-**Current Codex route:** [native exporters and supported upstream connectors](codex-native-monitoring.md),
-with direct native trace export to private Langfuse as the initial plan.
-No custom receiver, source adapter, reconstruction service or delivery queue is
-selected. The standard Collector is optional for routing/fan-out.
+Start with the [native integration matrix](codex-native-monitoring.md) for the
+selected signal routes and their runbooks. Use supported Codex exporters and
+standard upstream Collector components; no custom source adapter or delivery
+queue is selected.
+
+The [base Collector values](../application-infrastructure/values/collector.yaml)
+are a staged private mTLS trace-only example, not the current configuration of
+any host. Separate runbooks cover numeric log projection, bounded message
+conversion and CLI batching. Do not replace an existing multi-pipeline Collector
+with the base example. No general metrics backend or durable delivery ledger is
+established by these files.
 
 Use the [telemetry contract](../application-infrastructure/runbooks/telemetry.md)
-for scope and acceptance. The [earlier native boundary prototype](../application-infrastructure/runbooks/native-otlp-boundary.md)
-is historical work, not a prerequisite or selected rollout path.
-The [Collector values](../application-infrastructure/values/collector.yaml) stage
-private mTLS trace-only diagnostics. Logs/metrics remain disabled; no production
-source adapter, exporter or durable delivery ledger is claimed.
-
-Cluster configuration, validation and activation gates live in the
-[operator setup guide](../application-infrastructure/README.md).
+for source/content scopes and the [operator guide](../application-infrastructure/README.md)
+for configuration, validation and activation. The earlier
+[native boundary prototype](../application-infrastructure/runbooks/native-otlp-boundary.md)
+is historical work, not a rollout prerequisite.

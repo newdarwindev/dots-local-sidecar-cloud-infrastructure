@@ -10,13 +10,14 @@ configuration and upstream components. Existing prototypes remain preserved.
 
 | Selected path | Destination / ownership | Still required |
 | --- | --- | --- |
-| Native Codex OTel traces | Direct OTLP/HTTP → separate private Langfuse diagnostic project; noncanonical usage | Installed-version field review, supported TLS/auth configuration and persisted readback; optional standard Collector for routing |
+| Native Codex diagnostics | Standard Collector projection → separate private Langfuse diagnostic project; noncanonical usage | Installed-version gates, exact privacy configuration, TLS/auth and persisted readback; see the native matrix for trace and converted-log runbooks |
 | Official Codex plugin | Supported Langfuse path; canonical for explicitly assigned future rich sessions | Pinned hook/config review, content consent and effective-config validation before activation |
 | Community historical importer | Earlier optional history proposal; outside the initial native rollout | Keep inactive; do not develop a custom importer to fill native coverage gaps |
 
 Do not assume plugin/importer exporters support the Collector; verify their actual
-transport/auth interface. Native logs and metrics remain **disabled** until their
-own backends/security/retention are approved. Langfuse accepts OTLP HTTP traces,
+transport/auth interface. Raw logs and metrics remain disabled unless separately qualified. The selected
+numeric-log route converts approved logs to traces before export; it does not
+make Langfuse a raw-log or metrics backend. Langfuse accepts OTLP HTTP traces,
 not arbitrary logs/metrics or gRPC. No debug/stdout fallback for source content.
 
 ## Source and privacy gates
@@ -43,8 +44,8 @@ not arbitrary logs/metrics or gRPC. No debug/stdout fallback for source content.
 
 Use Codex's built-in trace exporter with the destination's supported transport.
 The [native matrix](../../docs/codex-native-monitoring.md) gives endpoint, signal
-and compatibility details. Native logs and metrics require their own backends;
-neither is routed into Langfuse's trace endpoint. Do not add synthetic desktop
+and compatibility details. Raw logs and metrics are not sent to Langfuse's trace endpoint. The separate
+[numeric-log projection](native-log-diagnostics.md) exports reconstructed traces. Do not add synthetic desktop
 health spans as a substitute for actual Codex telemetry.
 
 The [whole-envelope prototype](native-otlp-boundary.md) is preserved historical

@@ -1,92 +1,84 @@
-# Codex monitoring through supported integrations
+# Codex monitoring through native integrations
 
-**Plan revised 2026-11-06: configuration and upstream integrations only.**
-The owner rejected custom Codex relays. Do not build or extend a receiver,
-transcript parser, privacy reconstruction service, queue, uploader or wrapper
-for this integration. Existing prototypes are preserved as prior work, outside
-the selected rollout. This document changes the plan, not live services.
+Use supported Codex settings and upstream components. Custom receivers, transcript
+parsers, reconstruction services, queues, uploaders and wrappers are outside this
+rollout. Preserve earlier prototypes as historical work. This public plan does not
+activate services or establish coverage on a particular host.
 
-## Native conversation direction
+## Selected routes
 
-The selected next step is **product-native/upstream support**, not a custom host
-workaround. See the [readiness contract and acceptance matrix](native-conversation-support.md).
-Current native content log flags and the bounded upstream plugin do not qualify
-all-session capture. No supported implementation date is established.
+| Signal or service | Route | Boundary and runbook |
+| --- | --- | --- |
+| Native trace diagnostics | Codex `otel.trace_exporter` → standard Collector projection → private Langfuse diagnostic project | [Safe span events](../application-infrastructure/runbooks/native-event-diagnostics.md); exact producer/version gates, bounded numeric metadata, no conversation text |
+| Native log diagnostics | Codex `otel.exporter` → standard Collector filter/transform/`otlp_json` → Langfuse traces | [Numeric-only logs](../application-infrastructure/runbooks/native-log-diagnostics.md); separate projection and privacy settings, not raw-log ingestion |
+| Bounded message events | Native OTLP logs → standard Collector conversion → separate Langfuse content project | [Message conversion](../application-infrastructure/runbooks/native-message-conversion.md); only explicitly qualified fresh sessions, not blanket capture |
+| CLI batching and host labels | Codex startup dotenv and bounded Collector statements | [Formation settings](../application-infrastructure/native-monitoring/formation-settings.md); new processes only, exact trace readback required |
+| Tokscale | Upstream Codex reader, `submit` and `autosubmit` | [Private-hub contract](../application-infrastructure/tokscale/README.md); separate usage accounting, OAuth and scheduled endpoint checks; not an OTLP destination |
+| Homarr | Native Apps/Bookmarks and optional iFrame | Links to existing UIs only; no receiver or custom widget |
+| AgentsView | Upstream local session reader/watcher | Separately approved workstation roots; not Codex OTLP or cloud/private-endpoint capture |
 
-## Integration matrix
+The base [Collector values](../application-infrastructure/values/collector.yaml)
+remain a staged trace-only example. They are not a replacement for a live
+multi-pipeline configuration. Apply only reviewed changes to recognized shapes,
+preserving authentication, privacy gates, endpoints and unrelated pipelines.
 
-| System | Supported route without custom application code | What it supplies | Qualification still needed |
-| --- | --- | --- | --- |
-| Langfuse: operational traces | Codex built-in `otel.trace_exporter` using OTLP/HTTP to the private Langfuse trace endpoint | Native spans; treat as operational diagnostics | Installed-version field/privacy review, authenticated endpoint and persisted trace readback; full LLM replay/token mapping is not established |
-| Langfuse: bounded native message events | Native Codex OTLP logs → standard Collector filter/transform/`otlp_json` → Langfuse traces | Independent user-prompt and final-answer events grouped by session | [Implemented and backend-verified](../application-infrastructure/runbooks/native-message-conversion.md) for explicitly qualified fresh sessions; alpha connector, no blanket enrollment or UI success claim |
-| Langfuse: bounded plugin transcript capture | Install the upstream Langfuse Codex tracing plugin through Codex's plugin system | Session/turn, model and tool tracing | This is a vendor plugin, not the built-in exporter. It uploads transcript content; content consent, pinned plugin review and hook trust remain separate; [all-session blockers](native-conversation-support.md) prevent blanket enablement |
-| OpenTelemetry Collector | Optional upstream Collector configured through its standard receivers/processors/exporters | Routing or fan-out when needed | No custom source adapter. Current trace-only values do not configure metrics/log pipelines; a running Collector is not established by this plan |
-| Tokscale | Upstream Codex reader, `submit` and `autosubmit` | Aggregate usage reporting | Vendor integration, not a Codex OTLP destination. Private hub/OAuth/token and scheduled endpoint checks remain; no custom reporter |
-| Homarr | Native App/Bookmarks shortcuts and optional iFrame widget | Access to existing monitoring UIs | Presentation only; no Codex telemetry receiver or new custom widget |
-| AgentsView | Upstream local Codex session reader/watcher | Local searchable session archive | Vendor integration on the separately selected workstation, not Codex OTLP. Approved local source roots required; cloud/private-endpoint capture remains excluded |
-| Prometheus + Grafana | Candidate expansion: Codex native `otel.metrics_exporter` to Prometheus's OTLP/HTTP receiver; Grafana reads Prometheus | Operational metric counters and histograms | Backend installation/authentication, histogram compatibility and readback; not subscription billing or complete token accounting |
-| Loki + Grafana | Candidate expansion: Codex native log `otel.exporter` to Loki OTLP/HTTP, directly or through the standard Collector | Structured operational logs | Keep disabled initially; content review and backend configuration required |
-| Tempo + Grafana | Candidate alternative: Codex native trace exporter to Tempo OTLP | General distributed tracing | Not an installed stack. Use an upstream Collector for fan-out if both Tempo and Langfuse are selected |
+## Optional routes, not blanket enrollment
 
-Prometheus/Grafana, Loki and Tempo are options evaluated here, **not approved
-deployments or previously verified live systems**. Do not add them merely to
-complete this table. Keep the selected-cluster and separate workstation placement.
+- **Langfuse's upstream Codex plugin:** vendor hooks can capture session/turn,
+  model and tool content. Pinned code review, hook trust and bounded content
+  consent are separate. Keep disabled until qualified.
+- **Product-native full conversations:** the selected direction, but current
+  content flags and the bounded plugin do not qualify all-session capture.
+  See the [readiness contract](native-conversation-support.md); no supported
+  implementation date is established.
+- **Prometheus/Grafana, Loki and Tempo:** candidate metrics/log/trace backends,
+  not installed or approved by this plan. Verify native exporter compatibility,
+  backend authentication and readback before selecting them. Do not install them
+  just to fill a dashboard table.
 
-## Selected initial route
+## Transport and configuration
 
-Start with **Codex native traces directly to the existing private Langfuse**.
-Use `otel.trace_exporter`, not the log exporter `otel.exporter`; retain native
-metrics/log export as separate decisions. Langfuse's signal endpoint is
-`/api/public/otel/v1/traces`, with project Basic authentication and
-`x-langfuse-ingestion-version: 4`. It accepts HTTP JSON/protobuf, not gRPC.
-This is protocol compatibility, not proof that the installed Codex emissions
-already form rich Langfuse generations. [Codex settings][codex-config],
+Langfuse accepts HTTP JSON/protobuf traces at `/api/public/otel/v1/traces`, with
+project Basic authentication and `x-langfuse-ingestion-version: 4`. It does not
+accept gRPC or raw logs/metrics at that endpoint. Converting qualified logs to
+traces is distinct from sending raw logs. Protocol compatibility alone does not
+prove rich generations, token accounting or delivery. [Codex settings][codex-config],
 [Langfuse OTLP][langfuse-otel].
 
-Configure supported clients through their documented user/admin configuration.
-Track CLI, IDE/app-server and hosted surfaces separately; do not claim all
-sessions are covered from one successful CLI test. Do not kill existing sessions
-or modify provider authentication to turn monitoring on.
+Configure clients through supported user/admin settings. Track CLI, IDE/app-server
+and hosted surfaces separately. Do not kill active sessions or alter provider
+authentication to enable monitoring. Test the installed version, not just upstream
+main or a current web guide. The plugin guide's Node.js 22+/Codex 0.143+ requirements
+do not qualify an older repository pin.
 
-## Privacy, delivery and cutover
+## Privacy and acceptance
 
-Keep prompts, agent responses and automatic-review text export off; leave log
-export disabled in the initial trace rollout. Native prompt redaction does not
-establish a whole-envelope metadata allowlist or eliminate tool/path/error
-content. Review actual installed-version fields before enrollment. If a required
-privacy property cannot be achieved through supported settings or standard
-Collector configuration, record that feature as unavailable; **do not invent
-another relay**. [Codex telemetry][codex-otel].
+Use the exact privacy settings and projections in each selected runbook. Prompt
+redaction alone does not sanitize tool/path/error metadata or the whole envelope.
+If supported settings and standard Collector components cannot satisfy a required
+boundary, leave that feature unavailable; do not add a custom relay.
 
-Do not promise durable replay, complete delivery, pseudonymization or canonical
-cost accounting from native export. Accept upstream behavior and state its
-limits. Keep diagnostic traces, rich-plugin accounting and Tokscale totals
-separate; never add overlapping totals. Preserve histories, existing queues,
-credentials, databases and receipts when retiring an earlier path.
+Before cutover, verify effective configuration, TLS/auth denial, shutdown/flush,
+backend-unavailable behavior and an approved test's exact persisted IDs. Record
+which clients passed and what remains unverified. Backend readback is not an
+authenticated UI test; a running service is not proof of restart persistence.
 
-The rich plugin is optional and off until its transcript scope is approved.
-Langfuse currently documents Node.js 22+ and Codex 0.143+; verify the selected
-release rather than treating a current web guide as the repository's old pin.
-Use upstream installation/configuration, with no locally authored hook.
-[Langfuse Codex integration][langfuse-codex].
+Native export does not promise complete delivery, durable replay, pseudonymization
+or canonical cost accounting. Keep trace diagnostics, rich-plugin accounting and
+Tokscale totals separate; never sum overlapping totals. Preserve source histories,
+queues, credentials, databases and receipts. Publishing this plan does not enroll
+sources, install plugins, deploy backends or shut down legacy services.
 
-Before cutover, verify effective endpoint/configuration, TLS/auth denial and a
-small approved session's persisted records through the backend UI/API. Observe
-shutdown/flush and backend-unavailable behavior using upstream tools. Record
-each supported client and remaining gaps. Publication of this plan performs no
-enrollment, plugin installation, backend deployment or legacy service shutdown.
+## References
 
-## References reviewed 2026-11-06
-
-- [Codex configuration reference][codex-config] and [telemetry guide][codex-otel].
-- [Langfuse native OTLP][langfuse-otel] and [upstream Codex plugin][langfuse-codex].
-- [Tokscale upstream documentation](https://github.com/junhoyeo/tokscale); retain
-  [the pinned private-endpoint/scheduler audit](../application-infrastructure/tokscale/contract-audit.md).
-- [AgentsView source configuration](https://www.agentsview.io/docs/configuration/).
-- [Homarr Apps](https://homarr.dev/docs/management/apps/) and
-  [iFrame widget](https://homarr.dev/docs/widgets/iframe/).
-- [Prometheus OTLP receiver](https://prometheus.io/docs/guides/opentelemetry/),
-  [Loki OTLP](https://grafana.com/docs/loki/latest/send-data/otel/), and
+- [Codex configuration][codex-config] and [telemetry][codex-otel].
+- [Langfuse OTLP][langfuse-otel] and [upstream Codex integration][langfuse-codex].
+- [Tokscale](https://github.com/junhoyeo/tokscale) and its
+  [pinned private-endpoint/scheduler audit](../application-infrastructure/tokscale/contract-audit.md).
+- [AgentsView](https://www.agentsview.io/docs/configuration/),
+  [Homarr Apps](https://homarr.dev/docs/management/apps/) and [iFrame](https://homarr.dev/docs/widgets/iframe/).
+- [Prometheus OTLP](https://prometheus.io/docs/guides/opentelemetry/),
+  [Loki OTLP](https://grafana.com/docs/loki/latest/send-data/otel/) and
   [Tempo OTLP](https://grafana.com/docs/tempo/latest/api_docs/pushing-spans-with-http/).
 
 [codex-config]: https://learn.chatgpt.com/docs/config-file/config-reference
