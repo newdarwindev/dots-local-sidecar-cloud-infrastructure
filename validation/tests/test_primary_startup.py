@@ -176,7 +176,7 @@ esac
             result = self.run_forward(name)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(self.calls()[-1], str(self.guest.parents[1]) +
-                             f'|shell primary -- sudo k3s kubectl -n {namespace} '
+                             f'|shell primary -- sudo -n k3s kubectl -n {namespace} '
                              f'port-forward {target} {ports} --address=127.0.0.1')
         self.assertEqual(len(self.calls()), 6)
 

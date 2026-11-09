@@ -12,4 +12,4 @@ case "$1" in
 esac
 [ -x "$LIMA" ] && [ -f "$LIMA_HOME/primary/lima.yaml" ] || { echo 'Existing primary guest/runtime missing; refusing forward.' >&2; exit 1; }
 [ "$("$LIMA" list primary --format '{{.Status}}')" = Running ] || { echo 'Primary is not running; refusing forward.' >&2; exit 1; }
-exec "$LIMA" shell primary -- sudo k3s kubectl -n "$namespace" port-forward "$target" "$ports" --address=127.0.0.1
+exec "$LIMA" shell primary -- sudo -n k3s kubectl -n "$namespace" port-forward "$target" "$ports" --address=127.0.0.1
