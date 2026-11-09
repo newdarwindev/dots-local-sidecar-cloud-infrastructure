@@ -11,3 +11,10 @@
 - [OpenBao Kubernetes authentication](https://openbao.org/docs/auth/kubernetes/): service-account based authentication.
 - [External Secrets Operator support](https://external-secrets.io/latest/introduction/stability-support/): provider stability varies; pin and validate.
 - [NVIDIA GPU Operator platform support](https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/platform-support.html): GPU/OS/runtime compatibility must be checked against actual hardware.
+
+- [Kubernetes Secrets](https://kubernetes.io/docs/concepts/configuration/secret/):
+  base64 encoding needs separate encryption and access controls.
+
+These references describe mechanisms, not deployment evidence. Recheck the
+applicable versions before implementation; source-contract checks do not prove
+host, cluster or recovery readiness.

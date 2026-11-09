@@ -19,3 +19,13 @@ apply only to a separately approved future platform stage.
 For AWS, Google Cloud, and Azure, maintain independent cluster enrollment, provider configuration, identity federation where available, and composition implementations behind a small common claim vocabulary (for example `ComputeEnvironment` and `AppEndpoint`). A claim describes desired capability and a placement target; provider-specific compositions map it to resources. Keep storage and networking provider-specific. Argo CD targets each cluster explicitly and reports drift. Use quotas, budget alerts, and default deny policies. Test one disposable environment and teardown per provider before expanding.
 
 Cloud capacity can absorb chosen workloads when artifacts, identity, network, data access, and architecture are compatible. Stateful migration and failover need application-specific procedures and recovery objectives; they are not provided by Crossplane or Argo CD alone.
+
+## Future credential and session boundaries
+
+[Issue #2](https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure/issues/2)
+remains a separate credential proposal, not an implemented fleet service. Any
+later authorized implementation must test namespace isolation, denied unauthorized
+decryption and rotation after the documented refresh/restart using synthetic
+secrets. Kubernetes Secret base64 data is encoding, not encryption. Revoking
+future secret retrieval does not invalidate an existing website session; session
+revocation needs a separate explicitly authorized mechanism and verification.
