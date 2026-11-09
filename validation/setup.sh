@@ -5,7 +5,7 @@ blocked() { echo "BLOCKED: ${1:-invalid setup action or nonsecret input file; no
 [ "$#" -eq 2 ] || blocked
 ACTION=$1
 case "$ACTION" in
-  cluster-assess|cluster-packet|plugin-render|plugin-check|conversation-render|native-message-render|native-event-render) ;;
+  cluster-assess|cluster-packet|plugin-render|plugin-check|conversation-render|native-message-render|native-event-render|native-log-diagnostic-render) ;;
   *) blocked ;;
 esac
 INPUT=$2

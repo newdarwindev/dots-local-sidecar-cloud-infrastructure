@@ -46,3 +46,22 @@ class NativeEventRenderTests(unittest.TestCase):
             self.assertEqual(SETUP.main('native-event-render', io.BytesIO(json.dumps(value).encode()), stdout, stderr), 2)
             self.assertEqual(stdout.getvalue(), '')
             self.assertEqual(stderr.getvalue(), SETUP.ERROR)
+
+
+class NativeLogDiagnosticRenderTests(unittest.TestCase):
+    def test_generic_components_only(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        self.assertEqual(SETUP.main('native-log-diagnostic-render', io.BytesIO(b'{}'), stdout, stderr), 0)
+        config = json.loads(stdout.getvalue())
+        self.assertIn('filter/content_parser_guard', config['processors'])
+        self.assertEqual(set(config['pipelines']), {'logs/native_diagnostic', 'traces/native_diagnostic'})
+        self.assertNotIn('receivers', config)
+        self.assertNotIn('exporters', config)
+        self.assertNotIn('extensions', config)
+        self.assertNotIn('enrolled', stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), '')
+        for value in ([], {'secret': 'PRIVATE_CANARY'}, {'enrolled': {}, 'denied': []}):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            self.assertEqual(SETUP.main('native-log-diagnostic-render', io.BytesIO(json.dumps(value).encode()), stdout, stderr), 2)
+            self.assertEqual(stdout.getvalue(), '')
+            self.assertEqual(stderr.getvalue(), SETUP.ERROR)

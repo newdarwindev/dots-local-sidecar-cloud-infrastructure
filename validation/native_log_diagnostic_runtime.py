@@ -174,7 +174,7 @@ class DiagnosticTests(NativeMessageTests):
             self.assertNotIn('langfuse.observation.input', json.dumps(attrs))
 
     def test_invalid_shapes_and_auth(self):
-        for key, value in [('event.timestamp', CANARY), ('event.timestamp', '2026-99-99T99:99:99.000Z'), ('event.timestamp', None), ('event.timestamp', []), ('event.name', CANARY), ('conversation.id', CANARY), ('app.version', CANARY)]:
+        for key, value in [('event.timestamp', CANARY), ('event.timestamp', '2026-99-99T99:99:99.000Z'), ('event.timestamp', None), ('event.timestamp', []), ('event.name', []), ('conversation.id', CANARY), ('app.version', CANARY)]:
             self.assertEqual(self.collect(fixture(**{key: value}))[2], [])
         self.assertEqual(self.collect(fixture(), authenticated=False)[2], [])
         self.assertEqual(self.collect('{"' + CANARY + '":')[2], [])
@@ -219,6 +219,16 @@ class DiagnosticTests(NativeMessageTests):
         self.assertEqual(len(spans), 1)
         self.assertNotIn("a" * 32, json.dumps(docs))
         self.assertNotIn("b" * 16, json.dumps(docs))
+
+    def test_unknown_named_events_are_fixed_unclassified(self):
+        _, docs, spans = self.collect(fixture(event=CANARY, **{"duration_ms": "123", "input_token_count": "456", "event.kind": "response.completed"}))
+        self.assertEqual(len(spans), 1)
+        timeline = json.loads(next(a["value"]["stringValue"] for a in spans[0]["attributes"] if a["key"].endswith("timeline_json")))
+        self.assertEqual(set(timeline[0]), {"name", "time_unix_nano"})
+        self.assertEqual(timeline[0]["name"], "codex.event.unclassified")
+        self.assertNotIn(CANARY, json.dumps(docs))
+        for value in (None, [], "", "x" * 257):
+            self.assertEqual(self.collect(fixture(event=value))[2], [])
 
     def test_numeric_abuse_and_size(self):
         for value in (CANARY, '-1', '10000000000', [], '1.1', '1e2'):

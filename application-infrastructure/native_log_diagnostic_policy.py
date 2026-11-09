@@ -14,6 +14,7 @@ def render():
     a = 'log.attributes'
     raw = lambda key: f'{a}[{json.dumps(key)}]'
     statements = ['set(log.cache["safe"], ParseJSON("{}"))']
+    statements.append('set(log.cache["safe"]["event.name"], "codex.event.unclassified") where IsString(log.attributes["event.name"]) and Len(log.attributes["event.name"]) > 0 and Len(log.attributes["event.name"]) <= 256')
     # Copy only validated finite enums/identifiers and syntax-limited clocks.
     for key, condition in {
         'event.name': f'ContainsValue({json.dumps(events.EVENTS)}, {raw("event.name")})',
