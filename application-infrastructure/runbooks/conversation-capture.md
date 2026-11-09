@@ -108,3 +108,34 @@ Before rollout, separately verify the target private project, authentication,
 mTLS hop, plugin loopback setting, disabled media upload and preserved private
 denial lists. Passing these synthetic tests does not enable broad capture or
 establish end-to-end live delivery. Pause rollout on any safety-test failure.
+
+## Safe rendering entrypoint
+
+Use `sh validation/run.sh setup conversation-render /absolute/nonsecret/enrollment.json`.
+The input must be outside the checkout, a regular non-symlink JSON file, at most
+64 KiB, containing exactly these three fields:
+
+```json
+{
+  "enrolled": {"11111111-1111-4111-8111-111111111111": 2000000000},
+  "denied": [],
+  "generations": false
+}
+```
+
+The UUID and cutoff above are synthetic examples, not enrollment guidance.
+`generations` must be an explicit boolean. Unknown fields, malformed UUIDs,
+non-integer cutoffs, duplicates and private endpoint/credential fields are
+rejected. An empty `enrolled` map renders a default-deny configuration.
+The command prints one standard Collector JSON configuration with unresolved
+private environment placeholders. It does not apply the configuration or
+access the target. Keep rendered real IDs private. No host Python import or
+fallback is supported. The existing safe setup workflow pins the local Docker
+endpoint, snapshots input once, suppresses container logs, removes ambient Docker
+configuration and runs with no network, mounts, credentials or account environment.
+
+Sanitized output has scope name `codex.conversation`, scope version `1` and span
+name `codex.conversation`. Resource attributes, including `service.name`, are
+empty. Root thread/turn metadata is validated locally but not retained. A central
+second sanitation stage must validate this reduced output schema; reapplying the
+source-input policy would reject roots because the original metadata is absent.

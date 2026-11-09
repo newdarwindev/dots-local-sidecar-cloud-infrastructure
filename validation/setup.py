@@ -7,7 +7,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 MAX_BYTES = 64 * 1024
-ACTIONS = ('cluster-assess', 'cluster-packet', 'plugin-render', 'plugin-check')
+ACTIONS = ('cluster-assess', 'cluster-packet', 'plugin-render', 'plugin-check', 'conversation-render')
 ERROR = 'BLOCKED: invalid setup input; no configuration applied.\n'
 
 
@@ -47,6 +47,8 @@ def review(action, stream):
             return contract.assess(config)
         return {'schemaVersion': 1, 'mode': 'review-only', 'deploymentAllowed': False,
                 'documents': contract.packet_documents(config)}
+    if action == 'conversation-render':
+        return helper('conversation_setup').render(config)
     plugin = helper('plugin_setup')
     return plugin.render(config) if action == 'plugin-render' else plugin.check(config)
 
