@@ -33,3 +33,24 @@ Collector service if authorized. Preserve original files and logs. Do not
 restart Codex, change the conversation project or replace private configuration
 with synthetic fixture values. Read back fresh native metadata traces after
 activation; this helper itself supplies no deployment entrypoint.
+
+
+## Bounded live qualification: 2026-11-09
+
+The exact gate was deployed to both desktop native Collectors after pinned-binary
+validation. Canonical structural hashes confirmed that all configuration outside
+`filter/source`, including the privacy transform, was unchanged. No Codex shared
+daemon was restarted and no conversation policy was altered.
+
+Ordinary default CLI probes used a harmless no-tools prompt and no inherited
+originator override. A temporary append-only file exporter after the existing
+privacy pipeline provided exact trace/span IDs for backend comparison. This
+exporter was a separate bounded diagnostic change, not part of the permanent
+gate patch. Its private output is preserved; the exporter is removed afterward.
+The Linux probe yielded seven startup spans across five traces. All seven exact
+pairs were verified in the original diagnostics project, with canonical span
+names and no input/output. No additional native turn spans were observed in that
+bounded window. The macOS local tee held 448 sanitized spans; five exact sampled
+pairs were separately verified in the diagnostics project, with input/output
+absent. This is not exhaustive verification of all 448 spans. These receipts do
+not establish full shared-daemon turn coverage, token accounting, logs or metrics.
