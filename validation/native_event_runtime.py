@@ -144,6 +144,26 @@ class NativeEventTests(ConversationTests):
         self.assertLess(len(json.dumps(docs).encode()), 1500)
 
 
+    def test_every_catalog_event_and_unknown_preserved_without_canary(self):
+        events = [{'event.name': name, 'prompt': CANARY, 'arguments': CANARY,
+                   'output': CANARY, 'error.message': CANARY, 'source.path': CANARY}
+                  for name in POLICY.EVENTS]
+        events.append({'event.name': CANARY, 'user.email': CANARY})
+        _, docs, spans = self.collect(fixture(events))
+        self.assertEqual(len(POLICY.EVENTS), 18)
+        self.assertEqual(len(spans), 1)
+        self.assertNotIn(CANARY, json.dumps(docs))
+        self.assertNotIn('events', spans[0])
+        values = {a['key']: a['value'] for a in spans[0]['attributes']}
+        self.assertEqual(values[POLICY.PREFIX + 'event_count'], {'intValue': '19'})
+        self.assertEqual(values[POLICY.PREFIX + 'unclassified_event_count'], {'intValue': '1'})
+        for name in POLICY.EVENTS:
+            self.assertEqual(values[POLICY.PREFIX + 'count.' + name], {'intValue': '1'})
+        timeline = json.loads(values[POLICY.PREFIX + 'timeline_json']['stringValue'])
+        self.assertEqual([entry['name'] for entry in timeline], [*POLICY.EVENTS, 'codex.event.unclassified'])
+        self.assertNotIn(POLICY.PREFIX + 'timeline_omitted_count', values)
+
+
 
 if __name__ == '__main__':
     suite = unittest.TestSuite(NativeEventTests(name) for name in NativeEventTests.__dict__ if name.startswith('test_'))
