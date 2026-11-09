@@ -30,3 +30,19 @@ class NativeRenderTests(unittest.TestCase):
         code, output, _ = self.invoke({'enrolled': {}, 'denied': []})
         self.assertEqual(code, 0)
         self.assertIn('not ContainsValue([], log.attributes[\\"conversation.id\\"])', output)
+
+
+class NativeEventRenderTests(unittest.TestCase):
+    def test_fixed_nonsecret_processors(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        self.assertEqual(SETUP.main('native-event-render', io.BytesIO(b'{}'), stdout, stderr), 0)
+        config = json.loads(stdout.getvalue())
+        self.assertEqual(set(config), {'edge_processors', 'central_processors'})
+        self.assertIn('transform/events', config['edge_processors'])
+        self.assertIn('transform/native-event-central', config['central_processors'])
+        self.assertEqual(stderr.getvalue(), '')
+        for value in ([], {'secret': 'PRIVATE_CANARY'}):
+            stdout, stderr = io.StringIO(), io.StringIO()
+            self.assertEqual(SETUP.main('native-event-render', io.BytesIO(json.dumps(value).encode()), stdout, stderr), 2)
+            self.assertEqual(stdout.getvalue(), '')
+            self.assertEqual(stderr.getvalue(), SETUP.ERROR)
