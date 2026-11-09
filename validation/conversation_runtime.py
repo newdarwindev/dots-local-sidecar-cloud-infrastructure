@@ -73,10 +73,11 @@ class ConversationTests(unittest.TestCase):
         if '0.163.2' not in subprocess.check_output(['otelcol-contrib', '--version'], text=True):
             raise RuntimeError('Pinned Collector required')
 
-    def collect(self, payload, generations=False, authenticated=True):
+    def collect(self, payload, generations=False, authenticated=True, enrolled=None, denied=None):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
-            config = POLICY.render({FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY], generations=generations)
+            config = POLICY.render({FRESH: CUTOFF, RECOVERY: CUTOFF} if enrolled is None else enrolled,
+                                   [RECOVERY] if denied is None else denied, generations=generations)
             port = free_port()
             receiver = config['receivers']['otlp/conversation']['protocols']['http']
             receiver['endpoint'] = f'127.0.0.1:{port}'
@@ -213,6 +214,46 @@ class ConversationTests(unittest.TestCase):
         _, docs, spans = self.collect(fixture(**{P + 'input': text, P + 'output': text}))
         self.assertEqual(len(spans), 1)
         self.assertNotIn('SYNTHETIC', json.dumps(docs))
+
+    def test_limitation_arbitrary_fake_secret_text_is_not_detected(self):
+        # Deliberately fake and non-credential values. Never substitute real secrets.
+        samples = ['FAKE ONLY password: violet otter paper lantern',
+                   'FAKE ONLY recovery share: RkFLRS1PTkxZLU5PVC1BLVJFQUwtU0hBUkU=',
+                   'FAKE ONLY arbitrary credential: demo-unusable-314159265358979']
+        text = '\n'.join(samples)
+        _, docs, spans = self.collect(fixture(**{P + 'input': text, P + 'output': text}))
+        self.assertEqual(len(spans), 1)
+        for sample in samples:
+            self.assertIn(sample, json.dumps(docs))
+        _, docs, spans = self.collect(fixture(kind='generation', **{
+            P + 'output': json.dumps({'content': text, 'reasoning': CANARY})}), generations=True)
+        self.assertEqual(len(spans), 1)
+        for sample in samples:
+            self.assertIn(sample, json.dumps(docs))
+        print('LIMITATION VERIFIED: nonpattern fake credentials/recovery-share text survives root and generation filters.')
+
+    def test_optout_replay_requires_persistent_denial_not_renderer_memory(self):
+        # No hook is run: these envelopes model a later transcript replay.
+        for start in (CUTOFF - 1, CUTOFF, CUTOFF + 1):
+            _, _, spans = self.collect(fixture(RECOVERY, start=start))
+            self.assertEqual(spans, [])
+        _, _, spans = self.collect(fixture(UNKNOWN, start=CUTOFF + 1))
+        self.assertEqual(spans, [])
+        # Renderer has no durable state: removing a denial admits replay at cutoff.
+        _, _, spans = self.collect(fixture(RECOVERY), denied=[])
+        self.assertEqual(len(spans), 1)
+        print('LIMITATION VERIFIED: permanent opt-out depends on durable external denial retention.')
+
+    def test_unknown_fork_blocked_but_enrollment_has_no_ancestry_proof(self):
+        payload = fixture(UNKNOWN, start=CUTOFF + 1, **{
+            P + 'metadata.codex.parent_thread_id': RECOVERY,
+            P + 'input': 'FAKE ONLY inherited excluded parent conversation'})
+        _, _, spans = self.collect(payload)
+        self.assertEqual(spans, [])
+        _, docs, spans = self.collect(payload, enrolled={UNKNOWN: CUTOFF}, denied=[RECOVERY])
+        self.assertEqual(len(spans), 1)
+        self.assertIn('FAKE ONLY inherited excluded parent conversation', json.dumps(docs))
+        print('LIMITATION VERIFIED: a newly enrolled fork ID is not denied by its parent ID.')
 
     def test_invalid_enrollment_and_default_deny(self):
         for enrolled, denied in (({'*': 1}, []), ({FRESH: 0}, []), ({FRESH: True}, []), ({}, ['*'])):
