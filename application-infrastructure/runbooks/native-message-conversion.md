@@ -97,9 +97,11 @@ metadata collectors remain separate.
 
 This qualification establishes CLI → authenticated local projection → encrypted
 transport → Langfuse backend persistence. Web UI verification is a separate
-acceptance step and was not completed: the approved UI endpoint is loopback-only
-and no existing trusted browser connection was established. Do not describe the
-API receipts as browser verification.
+acceptance step. A separately approved LAN-only HTTPS listener now serves the
+login page successfully in Safari using narrowly scoped operating-system leaf
+trust. Authenticated observation inspection is still pending user sign-in. Chrome
+does not currently honor that hostname-scoped anchor. Do not describe backend
+receipts or a visible login page as observation verification in the browser.
 
 The full Docker application workflow passed 251 tests before live deployment,
 including six native-conversion runtime cases, plus pinned Collector/Helm/schema
