@@ -50,7 +50,9 @@ gate patch. Its private output is preserved; the exporter is removed afterward.
 The Linux probe yielded seven startup spans across five traces. All seven exact
 pairs were verified in the original diagnostics project, with canonical span
 names and no input/output. No additional native turn spans were observed in that
-bounded window. The macOS local tee held 448 sanitized spans; five exact sampled
-pairs were separately verified in the diagnostics project, with input/output
-absent. This is not exhaustive verification of all 448 spans. These receipts do
-not establish full shared-daemon turn coverage, token accounting, logs or metrics.
+bounded window. The closed macOS local tee held 461 sanitized spans. Ten exact
+sampled pairs were verified in the diagnostics project, with input/output absent:
+five startup samples and five samples during the recorded prompt-to-completion
+interval. Thirteen local spans started within that interval. This is sampled
+during-turn delivery evidence, not exhaustive verification of all 461 spans or
+proof of full shared-daemon turn coverage, token accounting, logs or metrics.
