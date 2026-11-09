@@ -115,9 +115,12 @@ After separate `ui` approval, use a foreground guest port-forward bound to
 
 No forwards are started by repository publication. No LAN/public port, ingress,
 Docker socket, cloud identity, agent fleet, browser session or demo service exists
-in this plan. No launchd item or Mac power setting change is included. K3s resumes
-inside an explicitly started VM; automatic VM launch and host uptime are separate
-later approvals. Sleep makes this host unavailable; until power/startup and
+in the baseline plan. For an existing primary with explicit owner approval, see
+[optional login startup and existing UI recovery](startup/README.md). That opt-in
+path resumes the existing guest after GUI login, preserves boot-scoped locks and
+recovers only the three existing loopback routes. It does not run before login or
+FileVault unlock, change Mac power settings, or unseal OpenBao. K3s resumes through
+its existing guest unit; host uptime and live reboot acceptance remain separate. Sleep makes this host unavailable; until power/startup and
 restore are validated, call it a local bootstrap, not a production primary.
 
 ## Validation and rollback
