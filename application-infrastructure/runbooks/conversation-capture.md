@@ -1,9 +1,11 @@
 # Bounded conversation-capture policy
 
-Status: staged only. No live service, credential, project, enrollment, receiver,
-or exporter is changed by this repository. Broad capture is **not enabled**.
-This is a standard upstream Collector configuration generator, not a custom
-hook, relay, receiver, or ingestion service.
+Status: a bounded deployment was qualified on 2026-11-09 on the two approved
+desktop sources and the internal collector. Broad capture is **not enabled**.
+This repository supplies a standard upstream Collector configuration generator,
+not a custom hook, relay, receiver, or ingestion service. Rendering alone changes
+no live service, credential, project, enrollment, receiver, or exporter. Target
+provisioning and live verification are separate operator-authorized actions.
 
 ## Pinned source and architecture
 
@@ -165,3 +167,44 @@ belongs exclusively to the central exporter on kali-6. Local plugin-to-Collector
 Basic authentication is independently provisioned and must not reuse that
 central project credential. Edge placeholders cover only the mTLS destination,
 CA, client certificate/key and local htpasswd file.
+
+
+## Bounded live qualification: 2026-11-09
+
+The actual installed pinned plugin was exercised through separate authenticated
+loopback Collectors on macOS and Linux, the existing encrypted mTLS ingress, and
+a separate private Langfuse project. The project has one effective owner, no
+pending organization invitations, and no retention limit selected. Its scoped
+project credential stays exclusively on the central host; desktop sources use
+independent local Basic credentials and their existing mTLS identity.
+
+Both installed-plugin synthetic integrations produced exactly one root AGENT
+and one GENERATION in the backend. Explicit observation IO reads verified the
+visible user/final text, content-only generation output, and absence of fake
+credential, internal-instruction and developer-instruction canaries. The Linux
+source also exercised denied and unknown sessions: both had zero backend
+observations. Unauthenticated loopback ingestion returned HTTP 401; central
+ingestion rejected a missing mTLS client certificate.
+
+Fresh macOS and Linux CLI sessions, started with `--no-daemon` and media uploads
+disabled, were enrolled before their first harmless prompts. Each actual Stop
+hook produced two backend observations with the expected reply. This is stronger
+than manually invoking the plugin, but it does not prove the ordinary shared-
+daemon conversation path or automatic enrollment. Both isolated test directories
+were disabled after completion; global conversation capture remains disabled.
+
+Existing metadata-only delivery was rechecked after central routing deployment
+using a content-free probe and remained in its original project. The existing
+central Deployment uses Recreate, so route updates cause a brief restart, not
+overlapping rolling pods. No firewall or project-membership relaxation occurred.
+
+The central request limit remains 64 KiB. This is best-effort filtered capture,
+not an archival or exactly-once system: a large batch, exporter failure, unknown
+session, unsupported shape, or failed privacy gate may yield no observations.
+The plugin sidecar can mark attempted turns processed, so endpoint success and
+plugin exit zero are insufficient; use explicit backend receipt checks. Do not
+remove sidecar state or resume history to force a replay.
+
+Machine-specific enrollment IDs, trace IDs, credentials, certificates, runtime
+paths and service state remain outside Git. Never infer global production
+readiness from these bounded receipts.
