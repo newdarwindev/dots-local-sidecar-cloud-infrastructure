@@ -102,7 +102,7 @@ class ConversationTests(unittest.TestCase):
                     headers = {'Content-Type': 'application/json'}
                     if authenticated:
                         headers['Authorization'] = 'Basic dGVzdDp0ZXN0'
-                    connection.request('POST', '/api/public/otel/v1/traces', json.dumps(payload), headers)
+                    connection.request('POST', '/api/public/otel/v1/traces', payload if isinstance(payload, str) else json.dumps(payload), headers)
                     response = connection.getresponse()
                     status = response.status
                     response.read()
@@ -117,6 +117,11 @@ class ConversationTests(unittest.TestCase):
             documents = [json.loads(line) for line in output.read_text().splitlines()] if output.exists() else []
             spans = [span for doc in documents for resource in doc.get('resourceSpans', [])
                      for scope in resource.get('scopeSpans', []) for span in scope.get('spans', [])]
+            for canary in getattr(self, 'forbidden_canaries', ()):
+                self.assertNotIn(canary, (directory / 'log').read_text())
+                self.assertNotIn(canary, json.dumps(documents))
+            if getattr(self, 'forbidden_canaries', ()):
+                print('Synthetic qualification Collector stdout/stderr:', (directory / 'log').read_text(), flush=True)
             return status, documents, spans
 
     def test_fresh_root_sanitized_entire_envelope(self):
