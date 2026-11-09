@@ -59,6 +59,69 @@ def render():
         'filter/shape': {'error_mode': 'propagate', 'logs': {'log_record': [f'{raw(k)} == nil' for k in ('event.name', 'event.timestamp', 'conversation.id')] + ['UnixNano(log.observed_time) <= 0']}},
         'transform/encode': {'error_mode': 'propagate', 'log_statements': [{'context': 'log', 'statements': output}]}}
     config['service']['pipelines']['logs/native_messages']['processors'] = list(config['processors'])
+    config['processors']['batch/native_diagnostic'] = {'timeout': '100ms', 'send_batch_size': 4, 'send_batch_max_size': 4}
+    config['service']['pipelines']['traces/native_messages']['processors'] = ['batch/native_diagnostic']
     # Default production informational diagnostics, not suppression to pass canaries.
     config['service']['telemetry']['logs']['level'] = 'info'
     return config
+
+
+def merge(config, enrolled, denied):
+    """Add independent diagnostic fan-out only to the exact known content graph.
+
+    Explicit enrollment reproduces the expected content processors for comparison,
+    never changes them. Existing transport/auth/telemetry objects are untouched.
+    Refuses unknown structure and collisions instead of guessing an update.
+    """
+    import copy
+    expected = BASE_RENDER(enrolled, denied)
+    try:
+        if set(config) != set(expected):
+            raise ValueError('Unrecognized configuration keys')
+        for key in ('processors', 'connectors'):
+            if config[key] != expected[key]:
+                raise ValueError('Unrecognized existing content graph')
+        if config['service']['pipelines'] != expected['service']['pipelines']:
+            raise ValueError('Unrecognized existing content pipelines')
+        if (set(config['receivers']) != set(expected['receivers'])
+                or set(config['exporters']) != set(expected['exporters'])
+                or set(config['extensions']) != set(expected['extensions'])
+                or config['service']['extensions'] != expected['service']['extensions']):
+            raise ValueError('Unrecognized transport components')
+        http = config['receivers']['otlp/native_messages']['protocols']['http']
+        if (http.get('auth') != {'authenticator': 'basicauth/native_messages'}
+                or http.get('endpoint') != '127.0.0.1:17449'
+                or not isinstance(config['extensions']['basicauth/native_messages']['htpasswd']['file'], str)):
+            raise ValueError('Expected existing loopback authentication')
+        exporter = config['exporters']['otlphttp/rich']
+        endpoint = exporter.get('traces_endpoint')
+        if not isinstance(endpoint, str) or not (endpoint.startswith('https://') or endpoint == '${env:CONVERSATION_MTLS_TRACES_ENDPOINT}'):
+            raise ValueError('Expected existing secure exporter destination')
+        if (exporter.get('retry_on_failure') != {'enabled': False}
+                or exporter.get('sending_queue') != {'enabled': False}
+                or exporter['tls'].get('min_version') != '1.3'
+                or any(not isinstance(exporter['tls'].get(key), str) or not exporter['tls'][key]
+                       for key in ('ca_file', 'cert_file', 'key_file'))):
+            raise ValueError('Expected existing bounded mTLS exporter')
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError('Unrecognized content configuration') from error
+    result = copy.deepcopy(config)
+    # Existing content predicates remain byte-equivalent. Syntax/type rejection
+    # must precede their Time()/IsMatch() calls to avoid raw-value error messages.
+    result['processors']['filter/content_parser_guard'] = {'error_mode': 'propagate', 'logs': {'log_record': [
+        'not IsString(log.attributes["event.timestamp"])',
+        'not IsMatch(log.attributes["event.timestamp"], "^20[0-9]{2}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$")',
+        'log.attributes["event.name"] == "codex.agent_response" and not IsString(log.attributes["item.id"])']}}
+    result['service']['pipelines']['logs/native_messages']['processors'].insert(0, 'filter/content_parser_guard')
+    diagnostic = render()
+    names = {key: key if key.startswith('batch/') else key + '_diagnostic' for key in diagnostic['processors']}
+    result['processors'].update({names[key]: value for key, value in diagnostic['processors'].items()})
+    result['processors']['batch/native_diagnostic'] = {'timeout': '100ms', 'send_batch_size': 4, 'send_batch_max_size': 4}
+    result['connectors']['otlp_json/native_diagnostic'] = {}
+    result['service']['pipelines']['logs/native_diagnostic'] = {
+        'receivers': ['otlp/native_messages'], 'processors': [names[key] for key in diagnostic['service']['pipelines']['logs/native_messages']['processors']],
+        'exporters': ['otlp_json/native_diagnostic']}
+    result['service']['pipelines']['traces/native_diagnostic'] = {
+        'receivers': ['otlp_json/native_diagnostic'], 'processors': ['batch/native_diagnostic'],
+        'exporters': ['otlphttp/rich']}
+    return result
