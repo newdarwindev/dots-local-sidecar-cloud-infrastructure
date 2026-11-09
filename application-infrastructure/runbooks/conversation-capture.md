@@ -17,7 +17,7 @@ provisioning and live verification are separate operator-authorized actions.
 - Plugin `base_url` points only to an authenticated loopback Collector. Its
   receiver accepts `/api/public/otel/v1/traces`. Set
   `LANGFUSE_MEDIA_UPLOAD_ENABLED=false`; media uploads otherwise bypass tracing.
-- Local sanitization precedes the existing authenticated mTLS hop to kali-6 and
+- Local sanitization precedes the existing authenticated mTLS hop to the internal collector and
   a separate private rich-content project. Existing metadata-only routing is
   unchanged. Never point the rich plugin directly at the remote project.
 - Private URLs, target identifiers, credentials and certificate/key paths stay
@@ -161,9 +161,9 @@ Actual installed-plugin integration is a separate bounded acceptance check and
 must pass before any live activation; no global capture is enabled by this fix.
 
 The desktop edge exporter authenticates solely with its existing mTLS client
-certificate to the kali-6 ingress. It sends **no Authorization header** and has
+certificate to the the internal collector ingress. It sends **no Authorization header** and has
 no Langfuse project credential. The new private Langfuse project credential
-belongs exclusively to the central exporter on kali-6. Local plugin-to-Collector
+belongs exclusively to the central exporter on the internal collector. Local plugin-to-Collector
 Basic authentication is independently provisioned and must not reuse that
 central project credential. Edge placeholders cover only the mTLS destination,
 CA, client certificate/key and local htpasswd file.
@@ -208,3 +208,38 @@ remove sidecar state or resume history to force a replay.
 Machine-specific enrollment IDs, trace IDs, credentials, certificates, runtime
 paths and service state remain outside Git. Never infer global production
 readiness from these bounded receipts.
+
+
+## All-session activation gate: adversarial results
+
+Do not remove exact session enrollment or enable blanket content capture based
+on the earlier positive canary tests. Additional synthetic tests against the
+pinned Collector demonstrated these limitations:
+
+- Plainly fake passwords, arbitrary credentials and recovery-share strings that
+  do not match selected patterns remain in both root text and generation output.
+  Passing known token-pattern tests is not arbitrary-secret protection.
+- The renderer has no persistent memory. Removing a denial from an operator
+  policy re-admits matching replay; ordinary plugin opt-out does not create a
+  permanent denial or a skipped-turn checkpoint.
+- An unknown fork is blocked, but enrolling its new ID admits it even when a
+  supplied parent ID is denied. The current policy does not validate ancestry.
+
+These tests intentionally pass when the limitations are reproduced; they are
+negative qualification evidence, not authorization or readiness for all-session
+content capture. The full Docker application workflow passed 236 tests after
+adding them, including five test-only lifecycle-model cases.
+
+The lifecycle model specifies monotonic denial, parent denial, original cutoffs,
+corrupt/missing-state refusal and stale-writer rejection. It is not a durable
+ledger, hook integration, storage implementation or crash/concurrency proof.
+Do not deploy it as one. A real implementation must integrate enrollment and
+export in one ordered fail-closed path, preserve denial across restarts and
+resumes, reject unverified lineage and identify protected control-plane sessions.
+Multiple independent hooks must not be assumed to execute in order.
+
+Even a correct lifecycle ledger cannot determine whether arbitrary future prose
+is a password or other secret. Blanket content export therefore cannot be
+qualified by a regex update or session creation timestamp alone. Keep native
+metadata-only collection separate and content collection explicitly bounded
+until the missing source and data-exclusion guarantees are established.
