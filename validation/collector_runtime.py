@@ -26,6 +26,9 @@ CANARY = 'SYNTHETIC_PRIVATE_CANARY'
 SPEC = importlib.util.spec_from_file_location('native_boundary', APP / 'native_otlp.py')
 BOUNDARY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(BOUNDARY)
+GATE_SPEC = importlib.util.spec_from_file_location("native_source_policy", APP / "native_source_policy.py")
+GATE = importlib.util.module_from_spec(GATE_SPEC)
+GATE_SPEC.loader.exec_module(GATE)
 
 
 def fixture():
@@ -120,8 +123,11 @@ class RuntimeTests(unittest.TestCase):
         self.server.server_close()
         self.thread.join(timeout=3)
 
-    def start(self, trust='trusted', hostname='127.0.0.1'):
+    def start(self, trust='trusted', hostname='127.0.0.1', native_gate=False):
         config = yaml.safe_load((APP / 'values/collector.yaml').read_text())['alternateConfig']
+        if native_gate:
+            config['processors']['filter/source'] = GATE.source_gate()
+            config['service']['pipelines']['traces']['processors'].insert(1, 'filter/source')
         self.receiver_port, health = port(), port()
         config['extensions']['health_check']['endpoint'] = f'127.0.0.1:{health}'
         receiver = config['receivers']['otlp']['protocols']['http']
@@ -185,6 +191,43 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(headers.get('Authorization'), AUTH)
         self.assertEqual(headers.get('X-Langfuse-Ingestion-Version'), '4')
         return request
+
+    def test_native_exact_origins_and_privacy(self):
+        self.start(native_gate=True)
+        request = {'resourceSpans': []}
+        expected = []
+        cases = [(name, name, GATE.VERSION) for name in GATE.ORIGINS]
+        cases += [('unknown', 'unknown', GATE.VERSION),
+                  ('codex_cli_rs', 'codex-app-server', GATE.VERSION),
+                  ('codex-app-server', 'codex_cli_rs', GATE.VERSION),
+                  ('codex_cli_rs', 'codex_cli_rs', '0.166.0'),
+                  ('codex_cli_rs', 'codex_cli_rs', None),
+                  (None, 'codex_cli_rs', GATE.VERSION),
+                  ('codex_cli_rs', None, GATE.VERSION)]
+        for index, (service, scope_name, version) in enumerate(cases, 1):
+            resource = fixture()['resourceSpans'][0]
+            resource.pop('schemaUrl')
+            scope = resource['scopeSpans'][0]
+            scope.pop('schemaUrl')
+            scope['scope'] = {} if scope_name is None else {'name': scope_name}
+            resource['resource']['attributes'] = [
+                {'key': key, 'value': {'stringValue': value}}
+                for key, value in [('service.name', service), ('service.version', version)]
+                if value is not None]
+            scope['spans'][0]['spanId'] = format(index, '016x')
+            request['resourceSpans'].append(resource)
+            if index <= len(GATE.ORIGINS):
+                expected.append(format(index, '016x'))
+        self.send(request)
+        actual = self.capture()
+        exported = [span for resource in actual['resourceSpans']
+                    for scope in resource['scopeSpans'] for span in scope['spans']]
+        self.assertEqual(sorted(span['spanId'] for span in exported), expected)
+        self.assertNotIn(CANARY, json.dumps(actual))
+        for span in exported:
+            self.assertEqual(span['name'], 'diagnostic.operation')
+            self.assertEqual(span['attributes'], [{'key': 'dots.accounting.role',
+                              'value': {'stringValue': 'diagnostic-noncanonical'}}])
 
     def test_direct_schema_urls_remain_a_blocker(self):
         self.start()
