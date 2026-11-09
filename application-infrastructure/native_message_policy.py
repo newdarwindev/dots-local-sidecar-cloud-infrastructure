@@ -79,7 +79,7 @@ def render(enrolled, denied):
             'exporters': {'otlphttp/rich': {'traces_endpoint': '${env:CONVERSATION_MTLS_TRACES_ENDPOINT}',
                 'tls': {'ca_file': '${env:CONVERSATION_CA_FILE}', 'cert_file': '${env:CONVERSATION_CERT_FILE}',
                         'key_file': '${env:CONVERSATION_KEY_FILE}', 'min_version': '1.3'},
-                'retry_on_failure': {'enabled': False}}},
+                'retry_on_failure': {'enabled': False}, 'sending_queue': {'enabled': False}}},
             'service': {'extensions': ['basicauth/native_messages'], 'telemetry': {'logs': {'level': 'error'}, 'metrics': {'level': 'none'}}, 'pipelines': {
                 'logs/native_messages': {'receivers': ['otlp/native_messages'], 'processors': ['filter/native_messages', 'transform/native_messages'], 'exporters': ['otlp_json/native_messages']},
                 'traces/native_messages': {'receivers': ['otlp_json/native_messages'], 'exporters': ['otlphttp/rich']}}}}

@@ -19,6 +19,8 @@ class NativeRenderTests(unittest.TestCase):
         self.assertEqual(config['receivers']['otlp/native_messages']['protocols']['http']['endpoint'], '127.0.0.1:17449')
         self.assertEqual(config['exporters']['otlphttp/rich']['tls']['min_version'], '1.3')
         self.assertNotIn('headers', config['exporters']['otlphttp/rich'])
+        self.assertEqual(config['exporters']['otlphttp/rich']['sending_queue'], {'enabled': False})
+        self.assertEqual(config['exporters']['otlphttp/rich']['retry_on_failure'], {'enabled': False})
         self.assertIn('${env:CONVERSATION_HTPASSWD_FILE}', output)
         for invalid in ({}, [], {**value, 'endpoint': 'PRIVATE_CANARY'}, {'enrolled': {'*': 1}, 'denied': []},
                         {'enrolled': {FRESH: True}, 'denied': []}, {'enrolled': {}, 'denied': ['PRIVATE_CANARY']}):
