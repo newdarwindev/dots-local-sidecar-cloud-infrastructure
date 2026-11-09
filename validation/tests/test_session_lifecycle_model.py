@@ -120,5 +120,111 @@ class LifecycleSpecificationTests(unittest.TestCase):
         self.assertFalse(allowed({'revision': 2}, 'new', 200))
 
 
+class ProductTurnDecisionModel:
+    """Hypothetical product-owned facts only; NOT producer-trust verification.
+
+    A fixture category is an assumption about an upstream product decision, not
+    a telemetry claim, attestation, parsed label, or API accepting real input.
+    Original identities and starts are likewise assumed trusted. Publication and
+    release below are serialized ideal steps, not implemented concurrency safety.
+    """
+    def __init__(self, lifecycle):
+        self.lifecycle = lifecycle
+        self.decisions = {}
+        self.next_sequence = {}
+
+    def prepare(self, original_session, original_turn, original_start,
+                hypothetical_product_fact, protected=False):
+        # User/Heartbeat/role/source/originator labels are never admission facts.
+        permitted = (hypothetical_product_fact in ('human_visible_text', 'assistant_visible_text')
+                     and protected is False
+                     and allowed(self.lifecycle.state, original_session, original_start))
+        return {'key': (original_session, original_turn), 'start': original_start,
+                'revision': self.lifecycle.state['revision'], 'permit': permitted}
+
+    def commit(self, proposal):
+        key = proposal['key']
+        if proposal['revision'] != self.lifecycle.state['revision'] or key in self.decisions:
+            raise ValueError('stale or already decided original turn')
+        self.decisions[key] = copy.deepcopy(proposal)
+        self.next_sequence[key] = 1
+
+    def release(self, original_session, original_turn, original_start, sequence):
+        key = (original_session, original_turn)
+        decision = self.decisions.get(key)
+        if (decision is None or not decision['permit'] or decision['start'] != original_start
+                or sequence != self.next_sequence[key]
+                or not allowed(self.lifecycle.state, original_session, original_start)):
+            return False
+        self.next_sequence[key] += 1
+        return True
+
+
+class ProductProvenanceSpecificationTests(unittest.TestCase):
+    def setUp(self):
+        self.lifecycle = AtomicPublicationModel()
+        state = self.lifecycle.candidate()
+        state['sessions']['fresh'] = {'birth': 101, 'parent': None}
+        self.lifecycle.commit(0, state)
+        self.turns = ProductTurnDecisionModel(self.lifecycle)
+
+    def test_source_role_originator_and_unclassified_labels_never_admit(self):
+        for label in (None, 'unknown', 'User', 'user', 'Heartbeat', 'heartbeat',
+                      'role=user', 'role=assistant', 'agent.type=main',
+                      'source=cli', 'originator=codex_cli_rs', 'codex_work_desktop'):
+            with self.subTest(label=label):
+                turn = str(label)
+                self.turns.commit(self.turns.prepare('fresh', turn, 102, label))
+                self.assertFalse(self.turns.release('fresh', turn, 102, 1))
+
+    def test_hypothetical_product_facts_need_committed_decision(self):
+        for fact in ('human_visible_text', 'assistant_visible_text'):
+            proposal = self.turns.prepare('fresh', fact, 102, fact)
+            self.assertFalse(self.turns.release('fresh', fact, 102, 1))
+            self.turns.commit(proposal)
+            self.assertTrue(self.turns.release('fresh', fact, 102, 1))
+
+    def test_protected_control_plane_is_denied_even_if_marked_visible(self):
+        for turn, fact in [('system', 'human_visible_text'),
+                           ('developer', 'assistant_visible_text'),
+                           ('tool_internal', 'human_visible_text')]:
+            self.turns.commit(self.turns.prepare('fresh', turn, 102, fact, protected=True))
+            self.assertFalse(self.turns.release('fresh', turn, 102, 1))
+            with self.assertRaises(ValueError):
+                self.turns.commit(self.turns.prepare('fresh', turn, 102, fact))
+
+    def test_decisions_bind_original_turn_and_start_not_replay_time(self):
+        self.turns.commit(self.turns.prepare('fresh', 'turn-a', 102, 'human_visible_text'))
+        self.assertFalse(self.turns.release('fresh', 'turn-b', 102, 1))
+        self.assertFalse(self.turns.release('fresh', 'turn-a', 999, 1))
+        self.assertFalse(self.turns.release('unknown', 'turn-a', 102, 1))
+        self.assertTrue(self.turns.release('fresh', 'turn-a', 102, 1))
+        self.turns.commit(self.turns.prepare('fresh', 'old-turn', 99, 'human_visible_text'))
+        self.assertFalse(self.turns.release('fresh', 'old-turn', 99, 1))
+
+    def test_ordered_release_rejects_gap_duplicate_and_out_of_order(self):
+        self.turns.commit(self.turns.prepare('fresh', 'turn', 102, 'assistant_visible_text'))
+        for sequence, expected in [(2, False), (1, True), (1, False),
+                                    (3, False), (2, True), (2, False), (3, True)]:
+            self.assertEqual(self.turns.release('fresh', 'turn', 102, sequence), expected)
+
+    def test_committed_deny_beats_queued_release_and_stale_decision(self):
+        self.turns.commit(self.turns.prepare('fresh', 'turn', 102, 'human_visible_text'))
+        queued = self.turns.prepare('fresh', 'later', 103, 'assistant_visible_text')
+        state = self.lifecycle.candidate()
+        state['denied'].add('fresh')
+        self.lifecycle.commit(1, state)
+        self.assertFalse(self.turns.release('fresh', 'turn', 102, 1))
+        with self.assertRaises(ValueError):
+            self.turns.commit(queued)
+        self.turns.commit(self.turns.prepare('fresh', 'later', 103, 'assistant_visible_text'))
+        self.assertFalse(self.turns.release('fresh', 'later', 103, 1))
+
+    def test_missing_corrupt_lifecycle_blocks_previously_approved_release(self):
+        self.turns.commit(self.turns.prepare('fresh', 'turn', 102, 'human_visible_text'))
+        for broken in (None, {}, {'revision': 1}):
+            self.lifecycle.state = broken
+            self.assertFalse(self.turns.release('fresh', 'turn', 102, 1))
+
 if __name__ == '__main__':
     unittest.main()
