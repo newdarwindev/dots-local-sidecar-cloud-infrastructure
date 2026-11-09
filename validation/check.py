@@ -43,6 +43,7 @@ def main():
     if args.stage == 'collector-runtime':
         run(ROOT, sys.executable, 'validation/collector_runtime.py')
         run(ROOT, sys.executable, 'validation/conversation_runtime.py')
+        run(ROOT, sys.executable, 'validation/native_message_runtime.py')
         return
     # Bundle tests cache public archives; writes stay in ephemeral container tmpfs.
     with tempfile.TemporaryDirectory(prefix='infra-contracts-') as directory:
