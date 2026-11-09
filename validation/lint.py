@@ -4,6 +4,7 @@ import configparser
 import hashlib
 import json
 import math
+import plistlib
 from pathlib import Path
 import re
 import shlex
@@ -93,6 +94,8 @@ def file_kind(path):
         return 'yaml'
     if path.name in {'.gitignore', '.dockerignore'} or path.name.startswith('LICENSE'):
         return 'text'
+    if path.name == 'local.dots.primary-start.plist.template':
+        return 'plist'
     return {'.py': 'python', '.sh': 'shell', '.ts': 'typescript', '.tsx': 'typescript',
             '.json': 'json', '.md': 'markdown', '.hcl': 'hcl', '.service': 'systemd',
             '.toml': 'toml', '.txt': 'text', '.fixture': 'fixture'}.get(path.suffix)
@@ -324,6 +327,8 @@ def main():
         strict_yaml(path.read_text())
         if path.parent == ROOT / '.github/workflows' or path.name.endswith('.yml.disabled'):
             check_workflow_pins(path)
+    for path in files.get('plist', []):
+        plistlib.loads(path.read_bytes())
     for path in files.get('toml', []):
         tomllib.loads(path.read_text())
     for path in files.get('hcl', []):
