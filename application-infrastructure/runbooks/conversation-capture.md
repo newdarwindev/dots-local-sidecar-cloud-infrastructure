@@ -139,3 +139,29 @@ name `codex.conversation`. Resource attributes, including `service.name`, are
 empty. Root thread/turn metadata is validated locally but not retained. A central
 second sanitation stage must validate this reduced output schema; reapplying the
 source-input policy would reject roots because the original metadata is absent.
+
+## Producer-schema compatibility correction
+
+The pinned plugin's `plugins/tracing/src/trace.ts` creates roots with observation
+`asType: agent` and name `Codex Turn`, not observation type `span`. Only that exact
+pair is accepted. Optional generations must have type `generation` and name
+`LLM`. `Codex Subagent Turn`, `LLM Subagent`, tool/internal spans, unknown names,
+and mismatched type/name pairs are rejected even when the session is enrolled.
+Outgoing root observation type remains `agent`; generations remain `generation`.
+Both outgoing span names are normalized to `codex.conversation` as before.
+Central sanitized-output validation must accept those two observation types.
+
+The initial synthetic suite used the wrong root type and therefore did not prove
+compatibility with actual plugin roots. Its passing counts are not evidence of
+that compatibility. The corrected synthetic fixtures model the inspected pinned
+producer's type/name pairs and explicitly assert retained root user/final text.
+Actual installed-plugin integration is a separate bounded acceptance check and
+must pass before any live activation; no global capture is enabled by this fix.
+
+The desktop edge exporter authenticates solely with its existing mTLS client
+certificate to the kali-6 ingress. It sends **no Authorization header** and has
+no Langfuse project credential. The new private Langfuse project credential
+belongs exclusively to the central exporter on kali-6. Local plugin-to-Collector
+Basic authentication is independently provisioned and must not reuse that
+central project credential. Edge placeholders cover only the mTLS destination,
+CA, client certificate/key and local htpasswd file.

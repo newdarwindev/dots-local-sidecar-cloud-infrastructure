@@ -29,7 +29,9 @@ def attributes(values):
             for key, value in values.items()]
 
 
-def fixture(session=FRESH, start=CUTOFF, kind='span', **overrides):
+def fixture(session=FRESH, start=CUTOFF, kind='agent', name=None, **overrides):
+    # Pinned plugin trace.ts: root asType agent / Codex Turn; generations LLM.
+    # These are public-producer-shaped synthetic envelopes, not recorded histories.
     values = {'session.id': session, P + 'type': kind,
               P + 'metadata.codex.thread_id': session, P + 'metadata.codex.turn_id': FRESH,
               P + 'input': 'hello ' + CANARY, P + 'output': 'answer ' + CANARY,
@@ -42,11 +44,13 @@ def fixture(session=FRESH, start=CUTOFF, kind='span', **overrides):
                                           'reasoning': CANARY, 'tool_calls': [{'name': CANARY}]})
     values.update(overrides)
     values = {key: value for key, value in values.items() if value is not None}
-    span = {'traceId': '1' * 32, 'spanId': '2' * 16, 'name': CANARY,
+    span = {'traceId': '1' * 32, 'spanId': '2' * 16, 'name': name if name is not None else ('LLM' if kind == 'generation' else 'Codex Turn'),
             'startTimeUnixNano': str(start), 'endTimeUnixNano': str(start + 100),
             'attributes': attributes(values), 'traceState': 'x=' + CANARY,
             'status': {'code': 2, 'message': CANARY},
             'events': [{'name': CANARY, 'attributes': attributes({'secret': CANARY})}]}
+    if kind == 'generation':
+        span.update(spanId='3' * 16, parentSpanId='2' * 16)
     return {'resourceSpans': [{'schemaUrl': 'https://invalid.example/' + CANARY,
                               'resource': {'attributes': attributes({'identity': CANARY})},
                               'scopeSpans': [{'schemaUrl': 'https://invalid.example/' + CANARY,
@@ -121,7 +125,7 @@ class ConversationTests(unittest.TestCase):
         self.assertNotIn('schemaUrl', encoded)
         self.assertNotIn('events', encoded)
         attrs = {item['key']: item['value']['stringValue'] for item in spans[0]['attributes']}
-        self.assertEqual(attrs, {'session.id': FRESH, P + 'type': 'span',
+        self.assertEqual(attrs, {'session.id': FRESH, P + 'type': 'agent',
                                  P + 'input': 'hello <secret excluded>', P + 'output': 'answer <secret excluded>'})
 
     def test_session_exclusion_and_original_cutoff(self):
@@ -138,6 +142,31 @@ class ConversationTests(unittest.TestCase):
             with self.subTest(name=name):
                 _, _, spans = self.collect(payload)
                 self.assertEqual(spans, [])
+
+    def test_exact_plugin_names_reject_subagents_tools_and_internal_spans(self):
+        for kind, name in [('agent', 'Codex Subagent Turn'), ('generation', 'LLM Subagent'),
+                           ('span', 'Codex Turn'), ('tool', 'LLM'), ('agent', 'LLM'),
+                           ('generation', 'Codex Turn'), ('agent', ''), ('generation', 'internal')]:
+            with self.subTest(kind=kind, name=name):
+                _, _, spans = self.collect(fixture(kind=kind, name=name), generations=True)
+                self.assertEqual(spans, [])
+
+
+    def test_plugin_turn_batch_retains_user_final_and_intermediate(self):
+        payload = fixture()
+        generation = fixture(kind='generation')['resourceSpans'][0]['scopeSpans'][0]['spans'][0]
+        payload['resourceSpans'][0]['scopeSpans'][0]['spans'].append(generation)
+        status, documents, spans = self.collect(payload, generations=True)
+        self.assertEqual(status, 200)
+        self.assertEqual(len(spans), 2)
+        values = [{item['key']: item['value']['stringValue'] for item in span['attributes']} for span in spans]
+        self.assertEqual([value[P + 'type'] for value in values], ['agent', 'generation'])
+        self.assertEqual(values[0][P + 'input'], 'hello <secret excluded>')
+        self.assertEqual(values[0][P + 'output'], 'answer <secret excluded>')
+        self.assertEqual(values[1][P + 'output'], 'intermediate <secret excluded>')
+        self.assertNotIn(P + 'input', values[1])
+        self.assertNotIn(CANARY, json.dumps(documents))
+
 
     def test_generation_explicit_option(self):
         for session in (UNKNOWN, RECOVERY):

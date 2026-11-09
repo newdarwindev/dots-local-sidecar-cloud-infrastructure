@@ -31,8 +31,9 @@ class ConversationRenderTests(unittest.TestCase):
         self.assertEqual(output, SETUP.helper('conversation_setup').POLICY.render(
             value['enrolled'], value['denied'], generations=True))
         self.assertNotIn('PRIVATE_CANARY', stdout)
-        self.assertEqual(output['exporters']['otlphttp/rich']['headers']['Authorization'],
-                         '${env:CONVERSATION_UPSTREAM_AUTHORIZATION}')
+        self.assertNotIn('headers', output['exporters']['otlphttp/rich'])
+        self.assertEqual(output['exporters']['otlphttp/rich']['tls']['cert_file'],
+                         '${env:CONVERSATION_CERT_FILE}')
 
     def test_empty_enrollment_is_default_deny(self):
         code, stdout, _ = self.invoke({'enrolled': {}, 'denied': [], 'generations': False})

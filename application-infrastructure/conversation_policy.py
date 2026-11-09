@@ -32,13 +32,15 @@ def render(enrolled, denied, *, generations=False):
     a = 'span.attributes'
     kind = f'{a}["{PREFIX}type"]'
     session = f'{a}["session.id"]'
-    root = f'{kind} == "span"'
+    root = f'{kind} == "agent"'
     generation = f'{kind} == "generation"'
     input_ = f'{a}["{PREFIX}input"]'
     output = f'{a}["{PREFIX}output"]'
     drop = [f'not ContainsValue({json.dumps(sorted(enrolled))}, {session})',
             f'ContainsValue({json.dumps(sorted(set(denied)))}, {session})',
-            f'{kind} != "span" and {kind} != "generation"',
+            f'{kind} != "agent" and {kind} != "generation"',
+            f'{root} and span.name != "Codex Turn"',
+            f'{generation} and span.name != "LLM"',
             'Len(span.links) > 0',
             f'{root} and {a}["{PREFIX}metadata.codex.thread_id"] != {session}',
             f'{root} and not IsString({a}["{PREFIX}metadata.codex.turn_id"])',
@@ -61,8 +63,8 @@ def render(enrolled, denied, *, generations=False):
                   'set(span.status.code, 0)',
                   'set(span.kind, 1)',
                   f'set({kind}, span.cache["kind"])',
-                  f'set({input_}, span.cache["input"]) where span.cache["kind"] == "span"',
-                  f'set({output}, span.cache["output"]) where span.cache["kind"] == "span"']
+                  f'set({input_}, span.cache["input"]) where span.cache["kind"] == "agent"',
+                  f'set({output}, span.cache["output"]) where span.cache["kind"] == "agent"']
     if generations:
         statements += [
             'set(span.cache["parsed"], ParseJSON(span.cache["output"])) where span.cache["kind"] == "generation"',
@@ -85,7 +87,6 @@ def render(enrolled, denied, *, generations=False):
                 f'not IsString({output})', f'IsMatch({output}, "^[[:space:]]*[\\\\[{{]")']}}},
         'exporters': {'otlphttp/rich': {
             'traces_endpoint': '${env:CONVERSATION_MTLS_TRACES_ENDPOINT}',
-            'headers': {'Authorization': '${env:CONVERSATION_UPSTREAM_AUTHORIZATION}'},
             'tls': {'ca_file': '${env:CONVERSATION_CA_FILE}', 'cert_file': '${env:CONVERSATION_CERT_FILE}',
                     'key_file': '${env:CONVERSATION_KEY_FILE}', 'min_version': '1.3'},
             'retry_on_failure': {'enabled': False}}},
