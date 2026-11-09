@@ -16,13 +16,16 @@ Load the plist in that user's GUI domain only after approval.
 
 The script pins the dedicated Lima home and exact existing `primary` guest.
 It refuses absent guest/runtime, unknown/broken/transitional status, and existing
-locks. A running guest is a no-op; a stopped guest is resumed with unchanged
+same-boot locks. The lock name includes the validated macOS `kern.bootsessionuuid`;
+missing or malformed boot identity refuses startup. Prior-boot locks are preserved
+and do not block a new login after restart. A running guest is a no-op; a stopped guest is resumed with unchanged
 resources. It never creates, provisions, downloads, restores, unseals, changes
 network/security, or touches recovery guests. Normal completion and handled
 failures/signals release the acquired lock. A lock
 left by an unhandled termination needs inspection before manual removal; do not
-automatically clear stale locks. There are no retries or watchdog, and the launcher
-does not impose a timeout on Lima; a hung operation requires owner inspection.
+automatically clear stale locks. There are no retries or watchdog. Start uses Lima's native `--timeout=180s`
+readiness bound, supported by the installed Lima 2.2.1; it is not a whole-process
+kill deadline. A hung status query or same-boot lock still needs owner inspection.
 
 This runs **after GUI login**, not before login or FileVault unlock. K3s starts
 inside the guest through its existing unit. OpenBao Shamir unseal remains an

@@ -17,7 +17,8 @@ class PrimaryStartupTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name) / 'home with spaces'
         self.base = self.home / 'Library/Application Support/dots-primary-infrastructure'
-        self.lock = self.base / 'startup/start.lock'
+        self.boot_id = '11111111-2222-3333-4444-555555555555'
+        self.lock = self.base / f'startup/start.{self.boot_id}.lock'
         self.lock.parent.mkdir(parents=True)
         self.guest = self.home / '.local/share/dots-primary-lima/primary/lima.yaml'
         self.guest.parent.mkdir(parents=True)
@@ -35,12 +36,22 @@ case "$*" in
       while [ ! -f "$HOME/release" ]; do sleep 0.05; done
     fi
     printf '%s\\n' "$STATUS" ;;
-  "start primary") [ "$MODE" != start-failure ] || exit 8 ;;
+  "start --timeout=180s primary") [ "$MODE" != start-failure ] || exit 8 ;;
   *) exit 99 ;;
 esac
 ''')
         self.runtime.chmod(0o700)
-        self.env = {'HOME': str(self.home), 'PATH': '/usr/bin:/bin',
+        self.bin = self.home / 'bin'
+        self.bin.mkdir()
+        sysctl = self.bin / 'sysctl'
+        sysctl.write_text('''#!/bin/sh
+[ "$*" = "-n kern.bootsessionuuid" ] || exit 99
+[ "$MODE" != boot-failure ] || exit 9
+printf '%s\\n' "$BOOT_ID"
+''')
+        sysctl.chmod(0o700)
+        self.env = {'HOME': str(self.home), 'PATH': str(self.bin) + ':/usr/bin:/bin',
+                    'BOOT_ID': self.boot_id,
                     'MODE': 'normal', 'STATUS': 'Running', 'LIMA_HOME': '/not-the-guest'}
 
     def run_start(self, **env):
@@ -63,7 +74,7 @@ esac
         result = self.run_start(STATUS='Stopped')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual([line.split('|')[1] for line in self.calls()],
-                         ['list primary --format {{.Status}}', 'start primary'])
+                         ['list primary --format {{.Status}}', 'start --timeout=180s primary'])
         self.assertFalse(self.lock.exists())
 
     def test_absent_guest_runtime_and_nonexecutable_fail_without_lima(self):
@@ -98,6 +109,24 @@ esac
         self.assertNotEqual(self.run_start().returncode, 0)
         self.assertEqual(marker.read_text(), 'preserve')
         self.assertEqual(self.calls(), [])
+
+    def test_previous_boot_lock_is_preserved_and_does_not_block(self):
+        previous = self.lock.parent / 'start.aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee.lock'
+        previous.mkdir()
+        marker = previous / 'owner-marker'
+        marker.write_text('preserve')
+        self.assertEqual(self.run_start(STATUS='Stopped').returncode, 0)
+        self.assertEqual(marker.read_text(), 'preserve')
+        self.assertFalse(self.lock.exists())
+        self.assertEqual(len(self.calls()), 2)
+
+    def test_unavailable_or_malformed_boot_identity_refuses_without_lima(self):
+        for boot_id in ('', 'unknown', '../unsafe', 'x' * 36, '-------- ---- ---- ---- ------------'.replace(' ', '-'),
+                        '11111111-2222-3333-4444-55555555555z', self.boot_id + '\n' + self.boot_id):
+            self.assertNotEqual(self.run_start(BOOT_ID=boot_id).returncode, 0)
+        self.assertNotEqual(self.run_start(MODE='boot-failure').returncode, 0)
+        self.assertEqual(self.calls(), [])
+        self.assertFalse(self.lock.exists())
 
     def test_concurrent_invocation_rejected_and_original_completes(self):
         first = subprocess.Popen(['/bin/sh', str(STARTUP / 'start-primary.sh')],
