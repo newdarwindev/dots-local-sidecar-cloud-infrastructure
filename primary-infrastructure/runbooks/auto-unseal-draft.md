@@ -14,6 +14,18 @@ These are repository facts, not a claim about any host's current state. Before
 execution, verify the running image/digest, storage identity and seal status
 privately. Keep host inventory, account IDs and recovery locations out of Git.
 
+Read-only inspection on 2026-11-09 verified FileVault **On**, the dedicated
+`primary` Lima guest **Running**, K3s **enabled/active**, and `openbao-0` on the
+2.7.2 image (digest inspected privately). A token-free, CA-verified `bao status`
+reported `initialized: true`, `sealed: true`, `type: shamir`, `t: 2`, `n: 3`,
+`progress: 0`, `migration: false`, `recovery_seal: false`, and Raft. Sealed status
+returned exit code 2. The installed `local.dots.primary-start` user LaunchAgent
+starts the existing VM at login; K3s starts inside it. This is a
+point-in-time observation, not a reboot test. Process names and launchd labels
+showed no independent local seal provider, but absence is not conclusively
+established by that inventory. The provider's binary, storage, identity, key,
+credential, TLS and recovery path remain unverified.
+
 Goal: after a separately approved migration, an ordinary OpenBao process restart
 can unlock the same stored data through a trusted seal provider without an
 operator submitting shares. This does not start a stopped Mac/VM, survive Mac
@@ -21,27 +33,100 @@ sleep, make a one-node cluster highly available, or establish application health
 
 ## Proposed direction and alternatives
 
-**First candidate: a dedicated Transit seal on an independently operated
-OpenBao provider.** Transit is built into 2.7.2. This is a candidate, not evidence
-that such a provider already exists. Do not create one as part of documentation.
-Its host, storage, initial unlock, DNS, network, authentication and recovery must
-not depend on this primary OpenBao instance or services that need its secrets.
-Another pod in the same VM does not satisfy this design's independence goal.
+**Recommended future auto-unseal candidate: built-in Transit against a second,
+dedicated OpenBao in a separate local Lima guest with its own persistent disk.**
+Transit is built into 2.7.2. Give the provider its own Shamir seal and recovery
+holders; an owner unlocks it privately before starting the primary guest after
+each full host/guest restart. The provider must have no dependency on primary
+OpenBao, its K3s, Argo CD, ESO, credentials, DNS, or application services. A
+second pod in the primary VM would not meet this independence test. This design
+uses supported OpenBao components and no cloud or second computer for normal
+startup, but adds a service and moves the human unlock to that service. **It
+does not offer unattended recovery after a Mac reboot.** If that is a firm
+requirement, retain Shamir pending approval and proof of a genuinely independent
+automatic key source. No such source has been verified on this Mac.
 
 - **External KMS/HSM:** evaluate if an already approved service and suitable
   machine identity exist. Several formerly built-in seals became external
   plugins in 2.7; select and checksum-pin the exact compatible ARM64 plugin and
   image before proposing installation. No cloud resource, paid service or new
   access grant is approved here. See [2.7 seal configuration][seal-config].
-- **Static seal:** built in, but consider it only with an independently
-  controlled secret source and an explicit threat-model review. A seal key next
-  to the encrypted data is not equivalent to an independent KMS. Do not replace
-  Shamir shares with a plaintext key in this repository, chart values, a local
-  script or a launchd job. See [static seal guidance][static-seal].
+- **Static seal fed by macOS Keychain:** built in and has no second server. It
+  needs a separately designed and reviewed Keychain-to-guest delivery bridge,
+  a reliable noninteractive access policy, memory-only guest/pod delivery, and
+  ordering before K3s/OpenBao starts. None exists or is verified here. The
+  current Lima guest has no host mounts. A key stored as a chart value,
+  Kubernetes Secret or ordinary file alongside the Raft disk would collapse
+  the offline theft boundary; K3s secrets encryption alone is insufficient if
+  its key is recoverable from the same guest disk. FileVault helps while locked,
+  but a logged-in host administrator or compromised host can access the bridge.
+  Login Keychain availability before GUI login and unattended access after a
+  reboot are **not assumed**. See [static seal guidance][static-seal].
+- **Local PKCS#11 HSM:** may provide stronger key separation, but 2.7 requires
+  an external KMS plugin, compatible ARM64 packaging, HSM and PIN custody,
+  device availability through the guest, and tested cold-boot behavior. A
+  software HSM on this same disk does not create an independent boundary. No
+  suitable local device or plugin installation was verified.
 - **Remain on Shamir:** the default if independent custody, bootstrap, recovery
   or recurring availability cannot be demonstrated. The
   [manual terminal procedure](manual-openbao-unseal-macos.md) remains valid for
   the existing Shamir state, not as a bypass for a failed auto-seal provider.
+
+| Option | Cold boot after FileVault unlock | Custody and main failure | Other computer |
+|---|---|---|---|
+| Current Shamir | Owner logs in, primary VM starts, owner supplies two distinct shares | No provider dependency; share loss or unavailable holders blocks unlock | Not required for normal start; independent recovery copies are prudent |
+| Separate local Transit provider (recommendation) | Owner logs in, starts provider guest, privately unseals it, then starts primary guest | Provider disk, key/version, TLS, token or availability failure blocks primary restart; Mac remains one physical failure domain | Not required for normal start; off-Mac recovery is prudent |
+| Keychain-fed static | Could start after login if a new bridge and ordering pass tests | Static key exposure/lockout and custom delivery; no server outage | Not inherently required; independent key recovery still needed |
+| Local PKCS#11 device | Only if device, plugin and PIN are ready before primary | Hardware loss, PIN lockout, plugin/device pass-through failure | Not inherently required; spare/recovery path needed |
+
+Apple documents LaunchAgents as user-login jobs and LaunchDaemons as system
+startup jobs; FileVault requires a human unlock at boot. The current primary
+LaunchAgent therefore cannot establish pre-login service availability. A Mac
+screen lock after a running login session is different from reboot or logout:
+it should not itself restart the guests, but this must be tested. Sleep/power
+loss still interrupts both guests. No option here makes this single Mac highly
+available. See [Apple launchd][apple-launchd] and [FileVault][filevault].
+
+## Concrete local Transit dependency and custody proposal
+
+This is the **review target**, not an installed configuration:
+
+1. Separately approve a pinned provider OpenBao release in a distinct Lima
+   guest and storage directory. Size it against host memory and verify that its
+   data and audit storage, TLS CA, and service identity remain recoverable if
+   the primary guest/disk is lost. FileVault protects both guests at rest on
+   this Mac; it does not separate them from a compromised logged-in host.
+2. Keep the provider manually Shamir-sealed, with a dedicated Transit key and
+   scoped encrypt/decrypt identity. Its shares, root administration and key
+   version recovery must be held independently of primary. The primary's old
+   shares must never unlock the provider or become its sole recovery path.
+3. Choose a private guest-to-guest route and TLS name/CA that work before K3s,
+   Argo CD, ESO and primary OpenBao. No primary-issued DNS, certificate, token,
+   or secret may be needed. Verify route, host exposure and certificate renewal
+   in an isolated rehearsal. Do not add public/listening host forwards by
+   default.
+4. Decide and review how the primary seal token is delivered. A namespace
+   Secret is the simplest Kubernetes path but is readable by sufficiently
+   privileged cluster/guest administrators and may be present in K3s storage;
+   approve that exposure explicitly, including K3s encryption-key custody.
+   A memory-only delivery design reduces persistence but adds startup machinery
+   and must be proven before adoption. Neither route is selected yet. Token
+   renewal and replacement must work while primary is sealed; the replacement
+   authority must belong to the provider's independent administrators.
+5. Replace the current login startup sequence only in a separately approved
+   change: after FileVault unlock and GUI login, start/verify provider guest;
+   authorized holder unlocks provider privately; prove Transit encrypt/decrypt
+   with the scoped identity and trusted TLS; then start primary guest and let
+   K3s/OpenBao start. The existing `local.dots.primary-start` auto-starts the
+   primary guest at login, so it must be disabled or made dependent on a
+   verified provider-ready gate **before** the production cutover. Merely
+   launching the provider later fails the requested boot ordering. Use a bounded
+   retry/stop policy, not an unverified race or a loop that hides lockout.
+
+The exact provider image/digest, separate guest resources, route, certificate
+authority, token delivery, startup change, recovery store and owner identities
+are **open decisions** requiring a private implementation patch and rehearsal.
+Do not infer that a login LaunchAgent alone solves unattended boot.
 
 ## Threat model and dependency review
 
@@ -133,11 +218,19 @@ populated local approval file does not itself authorize its implementation.
   recovery access have independent custody and deletion protections.
 - **Rehearsal:** demonstrate the exact 2.7.2 single-node Raft migration, restart
   and restore process in an approved isolated environment using synthetic data
-  and synthetic credentials. Do not test failures against production first.
+  and synthetic credentials. Include provider-first cold boot and reverse
+  migration. Do not test failures against production first.
 - **Change window:** owner approves the exact configuration diff, credential
   delivery, service interruption/restarts, bounded tests and recovery plan.
   Do not let GitOps revert the seal configuration; agree the controller plan
   without enabling sync or broadening controller permissions as a side effect.
+
+Separate approvals are needed for installing/starting the provider guest,
+initializing it, creating its shares and Transit key, issuing the scoped
+credential, changing host/login startup and guest/network/security settings,
+creating or testing a backup, changing the primary seal configuration, and the
+production outage/share-entry/migration. The owner must review the exact patch,
+target identities, custodians, timing and stop conditions before each action.
 
 ## Proposed migration sequence after those gates
 
@@ -152,7 +245,9 @@ to guess or execute from this design draft.
    manual unlock needed for recovery preparation is a separate owner-run step.
 2. Complete the approved recovery point and prove the independent provider is
    reachable and usable with the intended least-privilege identity. Verify the
-   original seal material remains available. Do not create new primary storage.
+   original seal material remains available. Confirm the provider key version,
+   provider's own recovery path, token expiry/renewal path and TLS origin without
+   printing credentials. Do not create new primary storage.
 3. In the approved outage, stop the sole OpenBao process safely, retain both
    PVCs, install only the reviewed seal configuration/credential references and
    restart the same deployment on the same Raft data. Do not run initialization,
@@ -180,8 +275,20 @@ to guess or execute from this design draft.
    evidence privately; do not paste complete logs into Git or chat.
 6. Treat the original Shamir shares as recovery shares after successful
    migration; retain their protected custody and verify the resulting threshold.
-   They are not a provider-independent fallback. Only after acceptance, perform
-   the separately approved ordinary restart test without entering shares.
+   Confirm availability with the existing authorized holders out of band,
+   without reading or copying shares into tooling. Keep their existing
+   owner-controlled encrypted/offline custody, holder separation and access
+   controls; do not put them into the provider, Kubernetes, the Mac startup
+   path, Git, CI or agent logs. They are not a provider-independent fallback.
+   Only after acceptance, perform the separately approved ordinary restart
+   test without entering shares.
+
+The pre-cutover record must identify the same Raft PVC/storage identity,
+OpenBao image digest, chart revision, seal status/threshold, approved recovery
+point and startup configuration. The implementation patch must show the exact
+old/new seal stanzas, delivery reference and rollout diff. Reconcile GitOps
+intent before stopping the sole pod. A successful CLI command or ready pod alone
+does not establish that the intended data and audit trail survived.
 
 Upstream requires an outage, both seal mechanisms during migration and a
 pre-migration backup; it converts old Shamir shares into recovery shares and
@@ -200,7 +307,18 @@ successful rendering and a healthy current pod do not prove auto-unseal.
   approved synthetic canary and existing audit behavior, not private secrets.
 - **Cold-start independence:** rehearsal starts from all intended components
   stopped and proves the dependency order, including provider bootstrap and
-  credentials. A live primary must not be required to retrieve them.
+  credentials. A live primary must not be required to retrieve them. On the
+  actual Mac, use an owner-approved reboot test after FileVault unlock: before
+  GUI login record that no user LaunchAgent/primary VM startup is expected;
+  after login verify the provider guest is available first, holder unlocks it,
+  scoped Transit access succeeds, and only then the primary guest starts.
+  Record whether any step needed a second computer or interactive login.
+- **Screen lock, logout and power behavior:** lock/unlock the Mac during an
+  approved test and confirm neither process is unexpectedly resealed or
+  restarted. Test logout and Mac sleep/wake separately; do not treat either as
+  a cold boot. An owner-approved power-loss rehearsal must start from the
+  FileVault prompt and repeat the provider-first sequence. Keep the screen-lock
+  result separate from FileVault unlock.
 - **Provider/TLS/authorization failures:** synthetic provider outage, invalid
   certificate, wrong key, expired/revoked token and insufficient policy must
   fail closed and produce actionable, sanitized diagnostics without fallback to
@@ -213,6 +331,13 @@ successful rendering and a healthy current pod do not prove auto-unseal.
 - **Recovery:** restore the approved recovery point in isolation with its
   matching seal dependencies; prove the planned reverse migration separately.
   Never delete the real key or revoke the only live credential as a test.
+- **Lockout:** in the synthetic rehearsal, withhold the provider guest, deny
+  Transit, expire a test credential, and make a test key/version unavailable.
+  Verify primary stays sealed after restart, no share-only bypass succeeds,
+  diagnostics identify the failed dependency without leaking secrets, and
+  restoring the dependency permits unseal. For production, simulate only a
+  bounded, approved provider-unavailable condition with a proved recovery
+  route; do not intentionally destroy or revoke live keys.
 - **Telemetry boundary:** record only approved status, timings and error
   categories. Keep shares, tokens, headers, full environment, secret values and
   terminal input out of Langfuse, OpenTelemetry, audit exports and CI artifacts.
@@ -220,14 +345,31 @@ successful rendering and a healthy current pod do not prove auto-unseal.
 
 ## Stop, rollback and lockout handling
 
-**Before changing storage seal state:** preserve evidence and use only the
-rehearsed rollback plan. Do not assume a failed process made no state changes.
+**Before changing storage seal state:** if preflight, provider, credential,
+startup ordering, recovery point or TTY checks fail, do not submit `-migrate`
+shares. Stop the rollout, restore the reviewed Shamir configuration and
+login-startup arrangement if they were changed, and verify the same Raft data
+remains sealed in Shamir mode. A clean config rollback is valid only when
+evidence confirms migration never began. Preserve evidence and do not assume a
+failed process made no storage changes.
 
-**After migration starts or completes:** a Git revert alone is not rollback.
-The stored key wrapping may already have changed. Preserve data, both applicable
-seal dependencies, recovery shares and logs; stop for an approved reverse
-migration or isolated restore. Returning from auto-seal to Shamir requires the
-old provider to work during migration, not simply deleting the seal stanza.
+**During partial migration:** stop further share submissions and rollout. Keep
+the provider and its key/version/credential available, retain both PVCs and the
+pre-migration recovery point, and record sanitized status. The owner follows
+the rehearsed version-specific completion or restore branch; do not reset
+progress, switch stanzas blindly, initialize or create a new Raft cluster.
+
+**After migration completes:** a Git revert alone is not rollback. The stored
+key wrapping has changed. For a planned reverse migration, retain the working
+Transit provider and recovery shares, schedule another single-replica outage,
+set the old Transit seal `disabled = "true"` in a reviewed config, restart the
+same storage, and have authorized holders submit the required distinct recovery
+shares with `bao operator unseal -migrate` in private terminals. Verify Shamir
+seal type, threshold, data, audit and a separately approved restart/unseal
+before retiring the provider. This path must first pass the synthetic rehearsal;
+do not use these outline steps as production commands. If provider access is
+permanently lost, reverse migration may be impossible. Use only a matching,
+independently tested restore path; do not delete the provider or old key versions.
 
 If the provider is unavailable, restore its approved access/availability first.
 Recovery shares authorize recovery operations but cannot decrypt the root key
@@ -241,11 +383,21 @@ dependency. See [seal lifecycle and migration requirements][seal-concepts].
 - Reviewed reference values and version-pinned upstream 2.7.2 documentation.
 - Read-only status was inspected privately; this public draft contains no host
   inventory, secret material, private endpoints or recovery locations.
-- `sh validation/run.sh primary`: **blocked**, Docker daemon unavailable during
-  draft preparation. No daemon was started and no host-tool fallback was used.
+- `git diff --check`: passed for this revision.
+- `sh validation/run.sh primary`: **blocked** on 2026-11-09 because the Docker
+  daemon was unavailable. No daemon was started and no host-tool fallback was
+  used.
 - No provider selected/provisioned, no credentials created, no deployment edits,
   no migration/share submission, no restart/failure test, and no restore performed.
   Runtime acceptance is **unrun**. Workflows remain unchanged.
+
+Nonsecret rechecks before implementation: `fdesetup status`, selected Lima
+`list primary`, `launchctl list` for startup labels, K3s service enabled/active
+state, `kubectl get` of the intended pod and StatefulSet (no Secret output),
+and the manual runbook's isolated, CA-verified `bao status`. Record only seal
+type, initialized/sealed, threshold, migration flag, version and exit code;
+avoid full environment, manifests with Secret data, raw logs or credentials.
+These read-only checks do not prove successful reboot ordering or migration.
 
 Next decision: select an independently recoverable provider and credential
 bootstrap design, or retain manual Shamir. Then commission the isolated rehearsal
@@ -255,3 +407,5 @@ and exact implementation patch. Do not treat this draft as deployment readiness.
 [transit]: https://github.com/openbao/openbao/blob/v2.7.2/website/content/docs/configuration/seal/transit.mdx
 [seal-config]: https://openbao.org/docs/configuration/seal/
 [static-seal]: https://openbao.org/docs/configuration/seal/static/
+[apple-launchd]: https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingLaunchdJobs.html
+[filevault]: https://support.apple.com/en-euro/guide/mac-help/mh11785/27/mac/27
