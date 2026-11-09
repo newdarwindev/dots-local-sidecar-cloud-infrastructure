@@ -6,12 +6,20 @@ transcript parser, privacy reconstruction service, queue, uploader or wrapper
 for this integration. Existing prototypes are preserved as prior work, outside
 the selected rollout. This document changes the plan, not live services.
 
+## Native conversation direction
+
+The selected next step is **product-native/upstream support**, not a custom host
+workaround. See the [readiness contract and acceptance matrix](native-conversation-support.md).
+Current native content log flags and the bounded upstream plugin do not qualify
+all-session capture. No supported implementation date is established.
+
 ## Integration matrix
 
 | System | Supported route without custom application code | What it supplies | Qualification still needed |
 | --- | --- | --- | --- |
 | Langfuse: operational traces | Codex built-in `otel.trace_exporter` using OTLP/HTTP to the private Langfuse trace endpoint | Native spans; treat as operational diagnostics | Installed-version field/privacy review, authenticated endpoint and persisted trace readback; full LLM replay/token mapping is not established |
-| Langfuse: full session tracing | Install the upstream Langfuse Codex tracing plugin through Codex's plugin system | Session/turn, model and tool tracing | This is a vendor plugin, not the built-in exporter. It uploads transcript content; content consent, pinned plugin review and hook trust remain separate |
+| Langfuse: bounded native message events | Native Codex OTLP logs → standard Collector filter/transform/`otlp_json` → Langfuse traces | Independent user-prompt and final-answer events grouped by session | [Implemented and backend-verified](../application-infrastructure/runbooks/native-message-conversion.md) for explicitly qualified fresh sessions; alpha connector, no blanket enrollment or UI success claim |
+| Langfuse: bounded plugin transcript capture | Install the upstream Langfuse Codex tracing plugin through Codex's plugin system | Session/turn, model and tool tracing | This is a vendor plugin, not the built-in exporter. It uploads transcript content; content consent, pinned plugin review and hook trust remain separate; [all-session blockers](native-conversation-support.md) prevent blanket enablement |
 | OpenTelemetry Collector | Optional upstream Collector configured through its standard receivers/processors/exporters | Routing or fan-out when needed | No custom source adapter. Current trace-only values do not configure metrics/log pipelines; a running Collector is not established by this plan |
 | Tokscale | Upstream Codex reader, `submit` and `autosubmit` | Aggregate usage reporting | Vendor integration, not a Codex OTLP destination. Private hub/OAuth/token and scheduled endpoint checks remain; no custom reporter |
 | Homarr | Native App/Bookmarks shortcuts and optional iFrame widget | Access to existing monitoring UIs | Presentation only; no Codex telemetry receiver or new custom widget |
