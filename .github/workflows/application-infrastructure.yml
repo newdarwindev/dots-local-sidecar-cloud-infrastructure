@@ -1,0 +1,24 @@
+name: Staged application bundle validation
+on:
+  push:
+    paths: ['application-infrastructure/**', 'primary-infrastructure/validation/install_helm.py', 'primary-infrastructure/artifacts.lock.json', 'validation/**', '.dockerignore', 'README.md', 'docs/**', '.github/workflows/application-infrastructure.yml']
+  pull_request:
+    paths: ['application-infrastructure/**', 'primary-infrastructure/validation/install_helm.py', 'primary-infrastructure/artifacts.lock.json', 'validation/**', '.dockerignore', 'README.md', 'docs/**', '.github/workflows/application-infrastructure.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      # Repository workflow remains disabled in GitHub. Editing is not enablement.
+      - name: Lint full repository and validate application contracts and schemas
+        run: sh validation/run.sh application
+      - name: Build locked Tokscale image without credentials or activation
+        env:
+          VALIDATION_IMAGE: infrastructure-validation:local
+        run: sh application-infrastructure/tokscale/ci-build.sh

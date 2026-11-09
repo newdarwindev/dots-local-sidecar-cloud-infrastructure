@@ -1,0 +1,54 @@
+{
+  "reviewed": "2026-11-01",
+  "kubernetesVersion": "1.37.1",
+  "artifacts": {
+    "lima": {
+      "version": "v2.2.1",
+      "url": "https://github.com/lima-vm/lima/releases/download/v2.2.1/lima-2.2.1-Darwin-arm64.tar.gz",
+      "sha256": "9e9eacce88f37e185c346bad73aa6136f738d8cdf8c3bb23cd42b071824bc66e",
+      "filename": "lima-2.2.1-Darwin-arm64.tar.gz"
+    },
+    "k3s": {
+      "version": "v1.37.1+k3s1",
+      "url": "https://github.com/k3s-io/k3s/releases/download/v1.37.1%2Bk3s1/k3s-arm64",
+      "sha256": "a1561ca4aef8b99f5588a840d4468ac39c8c1cd92470bbcb9634823fa221741a",
+      "filename": "k3s-arm64"
+    },
+    "openbao": {
+      "version": "openbao-0.30.6",
+      "url": "https://github.com/openbao/openbao-helm/releases/download/openbao-0.30.6/openbao-0.30.6.tgz",
+      "sha256": "76e90c2315a4922b4b0c6c63fd8a00b9f4bdf0cffda160664f8ea5762d59911c",
+      "filename": "openbao-0.30.6.tgz"
+    },
+    "external-secrets": {
+      "version": "helm-chart-2.14.0",
+      "url": "https://github.com/external-secrets/external-secrets/releases/download/helm-chart-2.14.0/external-secrets-2.14.0.tgz",
+      "sha256": "0a6d9e91b1ff50adfdbf24b50b582babfa7c5b7df42b21974ca4b3fb88ee5e34",
+      "filename": "external-secrets-2.14.0.tgz"
+    },
+    "homarr": {
+      "version": "homarr-8.40.1",
+      "url": "https://github.com/homarr-labs/charts/releases/download/homarr-8.40.1/homarr-8.40.1.tgz",
+      "sha256": "84ca9fcbc9a4fc059823ec8fbee9afd0427d0d06289672093d90360e16d17a72",
+      "filename": "homarr-8.40.1.tgz"
+    },
+    "argocd": {
+      "version": "argo-cd-10.11.6",
+      "url": "https://github.com/argoproj/argo-helm/releases/download/argo-cd-10.11.6/argo-cd-10.11.6.tgz",
+      "sha256": "d8f096d87513b41ff754053a7f9604c943bf29c15436a79226fd51595ea67d05",
+      "filename": "argo-cd-10.11.6.tgz"
+    },
+    "helm": {
+      "version": "v3.22.1",
+      "url": "https://get.helm.sh/helm-v3.22.1-linux-amd64.tar.gz",
+      "sha256": "896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea",
+      "filename": "helm-v3.22.1-linux-amd64.tar.gz"
+    },
+    "helm-darwin": {
+      "version": "v3.22.1",
+      "url": "https://get.helm.sh/helm-v3.22.1-darwin-arm64.tar.gz",
+      "sha256": "e73da8a0b0d5193774fdff17ce6319c7436bb22ee229b45fd64f3c40368c753a",
+      "filename": "helm-v3.22.1-darwin-arm64.tar.gz"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "target": {
+    "base_url": "https://langfuse.example.invalid",
+    "user_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "max_history_chars": 20000
+  }
+}

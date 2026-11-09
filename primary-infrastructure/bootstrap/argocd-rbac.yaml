@@ -1,0 +1,377 @@
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "primary-reconciler",
+    "namespace": "homarr"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "services",
+        "serviceaccounts",
+        "configmaps",
+        "persistentvolumeclaims"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments",
+        "statefulsets",
+        "replicasets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "policy"
+      ],
+      "resources": [
+        "poddisruptionbudgets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods",
+        "events"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "primary-reconciler",
+    "namespace": "homarr"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "primary-reconciler"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "argocd-application-controller",
+      "namespace": "argocd"
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "primary-reconciler",
+    "namespace": "openbao"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "services",
+        "serviceaccounts",
+        "configmaps",
+        "persistentvolumeclaims"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments",
+        "statefulsets",
+        "replicasets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "policy"
+      ],
+      "resources": [
+        "poddisruptionbudgets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch",
+        "create",
+        "update",
+        "patch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods",
+        "events"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "primary-reconciler",
+    "namespace": "openbao"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "primary-reconciler"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "argocd-application-controller",
+      "namespace": "argocd"
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "primary-reader",
+    "namespace": "homarr"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "services",
+        "serviceaccounts",
+        "configmaps",
+        "persistentvolumeclaims"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments",
+        "statefulsets",
+        "replicasets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "policy"
+      ],
+      "resources": [
+        "poddisruptionbudgets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods",
+        "events"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "primary-reader",
+    "namespace": "homarr"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "primary-reader"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "argocd-server",
+      "namespace": "argocd"
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "Role",
+  "metadata": {
+    "name": "primary-reader",
+    "namespace": "openbao"
+  },
+  "rules": [
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "services",
+        "serviceaccounts",
+        "configmaps",
+        "persistentvolumeclaims"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "apps"
+      ],
+      "resources": [
+        "deployments",
+        "statefulsets",
+        "replicasets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        "policy"
+      ],
+      "resources": [
+        "poddisruptionbudgets"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    },
+    {
+      "apiGroups": [
+        ""
+      ],
+      "resources": [
+        "pods",
+        "events"
+      ],
+      "verbs": [
+        "get",
+        "list",
+        "watch"
+      ]
+    }
+  ]
+}
+---
+{
+  "apiVersion": "rbac.authorization.k8s.io/v1",
+  "kind": "RoleBinding",
+  "metadata": {
+    "name": "primary-reader",
+    "namespace": "openbao"
+  },
+  "roleRef": {
+    "apiGroup": "rbac.authorization.k8s.io",
+    "kind": "Role",
+    "name": "primary-reader"
+  },
+  "subjects": [
+    {
+      "kind": "ServiceAccount",
+      "name": "argocd-server",
+      "namespace": "argocd"
+    }
+  ]
+}

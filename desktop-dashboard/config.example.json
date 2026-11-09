@@ -1,0 +1,24 @@
+{
+  "start": "home",
+  "forwards": [],
+  "links": [
+    {
+      "id": "homarr",
+      "name": "Homarr",
+      "status": "Not configured",
+      "description": "Add an explicitly authorized, identity-pinned local service connection."
+    },
+    {
+      "id": "langfuse",
+      "name": "Langfuse",
+      "status": "Not configured",
+      "description": "Existing account and service access remain separate."
+    },
+    {
+      "id": "tokscale",
+      "name": "Tokscale",
+      "status": "Staged",
+      "description": "No deployment or source enrollment is performed."
+    }
+  ]
+}

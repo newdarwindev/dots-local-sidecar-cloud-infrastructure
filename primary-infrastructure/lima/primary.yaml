@@ -1,0 +1,35 @@
+minimumLimaVersion: 2.2.1
+vmType: vz
+arch: aarch64
+cpus: 2
+memory: 4GiB
+disk: 40GiB
+images:
+  - location: https://cloud-images.ubuntu.com/releases/noble/release-20260926/ubuntu-24.04-server-cloudimg-arm64.img
+    arch: aarch64
+    digest: sha256:1d6bffe64b848468ac97f821d369a4846d983de1800ccf6b5ec8853e85cefc55
+mounts: []
+networks: []
+containerd:
+  system: false
+  user: false
+ssh:
+  localPort: 60022
+  loadDotSSHPubKeys: false
+  forwardAgent: false
+  overVsock: false
+upgradePackages: false
+propagateProxyEnv: false
+portForwards:
+  - guestPort: 17575
+    hostPort: 17575
+    hostIP: 127.0.0.1
+  - guestPort: 18443
+    hostPort: 18443
+    hostIP: 127.0.0.1
+  - guestPort: 18200
+    hostPort: 18200
+    hostIP: 127.0.0.1
+  - guestIP: 0.0.0.0
+    proto: any
+    ignore: true

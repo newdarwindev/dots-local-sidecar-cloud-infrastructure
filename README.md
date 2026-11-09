@@ -1,65 +1,42 @@
-# DRAFT: dots-local-sidecar-cloud-infrastructure
+# dots-local-sidecar-cloud-infrastructure
 
-Fleet product brief · 2026-11-01 · [Issue #1](https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure/issues/1)
+Public, staged infrastructure for a private application cluster. **Nothing is
+deployed or enrolled by this repository.** Start with the
+[operator setup guide](application-infrastructure/README.md): prerequisites →
+configuration → validation → deployment gates → recovery.
 
-## Purpose and evidence
+The selected bundle is Langfuse and its databases/queue/S3 storage, a diagnostic
+OpenTelemetry Collector, Tokscale with a separate PostgreSQL database, and
+`homarr-workload`. Design assumes an eventually compatible cluster; actual host
+identity, measurements and access remain in the private operational overlay.
 
-The proposed fleet layer coordinates **existing, individually authorized computers** through manual workload placement. Native macOS, Windows and Linux agents can perform supported host tasks. An optional Linux host or Linux VM can run container workloads. This independent layer does not change the native platform's one-personal-computer connection limit. Each host, identity and action needs its own authorization.
+**Validation status:** the full Docker entrypoint passed locally on 2026-11-05:
+lint, 54 validator tests, 7 primary tests, application tests, Helm renders and
+strict Kubernetes schemas. This verifies source contracts; live cluster acceptance
+remains separate. GitHub workflows remain owner-paused. The production deployment
+gate is disabled; the separate [synthetic lab](application-infrastructure/lab/README.md)
+provides an explicit bounded setup path.
 
-This repository contains drafts only. It has **no** enrollment service, agent controller, cluster manifests, backups, credential service, deployment or runtime test evidence. Machine count and specifications are unverified here. No capability has a verified **working**, **tested** or **prototype** status in this repository.
+## Use only the references needed for your stage
 
-| Capability | Status | Evidence or gap |
-| --- | --- | --- |
-| Fleet architecture and inventory template | Draft | This brief and [blank inventory](docs/inventory-template.md) |
-| Native execution on enrolled macOS, Windows and Linux hosts | Planned | No enrollment or execution test here |
-| Manual placement and recovery | Planned | Procedure below; no restore drill |
-| Optional K3s, Argo CD and Homarr | Planned | No installation or integration test |
-| OpenBao delivery, rotation and encrypted profiles | Planned, separate [issue #2](https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure/issues/2) | No implementation or test |
+| Task | Reference |
+| --- | --- |
+| Set up/review the selected application bundle | [Operator setup](application-infrastructure/README.md) |
+| Run authorized Docker checks | [Validation](validation/README.md) |
+| Connect Codex without custom relay code | [Native monitoring integration matrix](docs/codex-native-monitoring.md) |
+| Review native/plugin/importer boundaries | [Telemetry contract](application-infrastructure/runbooks/telemetry.md) |
+| Build/review Tokscale | [Tokscale contract](application-infrastructure/tokscale/README.md) |
+| Inspect immutable dependencies | [Image evidence](application-infrastructure/image-lock-evidence.md), [ClickHouse candidate](application-infrastructure/clickhouse-operator-contract.md) |
+| Consider the deferred management bootstrap | [Primary reference](primary-infrastructure/README.md), [action-time approval](primary-infrastructure/APPROVAL.md) |
+| Consider later shared identity, secrets or domains | [Deferred platform boundaries](docs/auth-domain-plan.md) |
+| Record private target evidence | [Inventory template](docs/inventory-template.md), [fleet rules](docs/fleet-alignment.md) |
+| Install an optional X11 desktop dashboard beside Conky | [Desktop launcher](desktop-dashboard/README.md) |
 
-## Smallest useful architecture
+Primary management, Authentik, OpenBao/ESO, shared ingress/domains, Crossplane and
+cloud expansion are **later proposals, not application-setup prerequisites**.
+Co-located services share a failure domain; no HA or full-fleet coverage is claimed.
 
-```mermaid
-flowchart LR
-  H[Owner authorization and manual placement] --> M[Existing macOS host: native agent]
-  H --> W[Existing Windows host: native agent]
-  H --> L[Existing Linux host: native agent]
-  H --> K[Optional Linux host or Linux VM: K3s]
-  K --> A[Optional Argo CD and Homarr]
-  M -. optional Linux VM .-> K
-  W -. optional Linux VM .-> K
-```
-
-K3s runs on Linux. A Linux VM on macOS or Windows is a **Linux guest**, not a native macOS or Windows Kubernetes node; it shares its physical host's power and availability. Argo CD could reconcile reviewed configuration; Homarr could show approved service links. Neither is required to start with native agents. No automatic scheduler, high availability layer or cloud expansion is assumed.
-
-| Target | Native tasks | Optional containers | Prerequisites before use |
-| --- | --- | --- | --- |
-| macOS host | Planned, subject to agent support and authorization | Eligible Linux VM only | Supported OS/architecture, identity, consent and local resources |
-| Windows host | Planned, subject to agent support and authorization | Eligible Linux VM only | Supported OS/architecture, identity, consent and local resources |
-| Linux host | Planned, subject to agent support and authorization | K3s after validation | Supported distro/architecture, stable power, network, storage and recovery plan |
-| Linux VM | Linux guest tasks after separate authorization | K3s after validation | Compatible image, virtualization, reserved RAM/disk, networking and host uptime |
-
-This is a planning matrix, not a claim that actual devices passed prerequisites. Keep inventory private; use the [blank template](docs/inventory-template.md).
-
-## Decisions for owner review
-
-No option has been selected. Recommendations are discussion starters, not deployment approvals.
-
-| Decision | A: recommended draft | B: alternative | Trade-off and gate |
-| --- | --- | --- | --- |
-| D1 execution | Native agents on supported macOS/Windows/Linux; Linux-only K3s workloads | Add Linux VMs on non-Linux hosts for containers | VMs add capacity and resource cost. Verify OS, architecture and authorization per machine. |
-| D2 footprint | Document optional small K3s, Argo CD and Homarr stack | Begin with host services, no Kubernetes | Stack adds reconciliation and a dashboard with operational cost. Inventory first. |
-| D3 recovery | Manual placement plus backup and restore plan | Export configuration snapshots before stateful workloads | A enables a restore drill; B limits early state. Neither gives automatic failover. |
-
-Record one selected option per decision before implementation. A documentation choice does not authorize access, installation, spending or publication.
-
-## Proposed acceptance procedure (not executed)
-
-Use synthetic tasks and data. Record dated observations without hostnames, addresses, tokens, sessions or private links in this public repository.
-
-1. **Authorization:** Given two individually authorized test hosts, manually choose one for a harmless task. Expect execution only there; an unapproved host request is denied and logged. An unauthorized cross-host action fails.
-2. **OS boundary:** On each supported test OS, run a harmless native task and identify host OS and agent version. A container task on macOS/Windows must run only in an explicitly configured Linux guest. Report unsupported architecture or sleep as a placement failure, never silent migration.
-3. **Optional stack:** If D2-A is chosen and separately authorized, check K3s health, Argo CD's approved scope and Homarr's approved links on one eligible Linux host/VM. Opening Homarr must not create a workload or secret. If D2-B is chosen, this step is inapplicable.
-4. **Recovery:** Before stateful work, name data, backup destination class, encryption key custody and acceptable data loss. Restore a synthetic backup to a disposable target, compare checksums and measure elapsed time. Missing backup material or failed verification fails the gate.
-5. **Evidence:** Record date, decision, prerequisites, expected and observed result, sanitized evidence and failure/rollback. Leave gates open until actually run.
-
-There are no measured results or completed gates. See [trust and recovery boundaries](docs/boundaries-and-cloud.md), [sources](docs/sources.md) and the separate [credential proposal](https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure/issues/2).
+Keep generic reviewed code here; host details, private endpoints and recovery
+records stay outside this public repository. Secret values do not belong in Git,
+including private overlays. Publication, approval files and green checks are not activation
+consent. Preserve original histories, data, keys and receipts throughout changes.

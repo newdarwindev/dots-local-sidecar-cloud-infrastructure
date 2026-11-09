@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: primary-homarr
+  namespace: argocd
+spec:
+  project: primary
+  sources:
+    - repoURL: https://homarr-labs.github.io/charts/
+      chart: homarr
+      targetRevision: 8.40.1
+      helm:
+        releaseName: homarr
+        skipTests: true
+        valueFiles:
+          - $values/primary-infrastructure/values/homarr.yaml
+    - repoURL: https://github.com/newdarwindev/dots-local-sidecar-cloud-infrastructure.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: homarr
+  syncPolicy:
+    automated:
+      enabled: false
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - Prune=false

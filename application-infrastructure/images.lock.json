@@ -1,0 +1,469 @@
+{
+  "schemaVersion": 1,
+  "kind": "public-registry-image-index-lock",
+  "verificationBoundary": "Registry manifest bytes and advertised platforms only; no image layers pulled or executed; deployment compatibility remains untested. Attestation unknown/unknown descriptors are not runnable platforms.",
+  "images": {
+    "langfuse-web": {
+      "tagReference": "docker.langfuse.com/langfuse/langfuse:4.70.1",
+      "source": "https://docker.langfuse.com/v2/langfuse/langfuse/manifests/4.70.1",
+      "observedAt": "2026-11-02T21:07:42.304663+00:00",
+      "status": "resolved",
+      "digest": "sha256:71b04842ecff8fe0dd15c7bbb1acd6e0555735e393a8108c43feb4b8d0adf9e6",
+      "registryDigestHeader": "sha256:71b04842ecff8fe0dd15c7bbb1acd6e0555735e393a8108c43feb4b8d0adf9e6",
+      "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "platforms": [
+        {
+          "digest": "sha256:047d9fba24ae98628d488f9978229815758901e72f45d409fc79909b3050f99b",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:b75de98b146db05484c178268d409913d1cec7298d474b9b4ff757c096e6c3d2",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "langfuse-worker": {
+      "tagReference": "docker.langfuse.com/langfuse/langfuse-worker:4.70.1",
+      "source": "https://docker.langfuse.com/v2/langfuse/langfuse-worker/manifests/4.70.1",
+      "observedAt": "2026-11-02T21:07:42.306562+00:00",
+      "status": "resolved",
+      "digest": "sha256:3976a73de84a29999ff4573398e240127b8a92012421ce5eec61cd57f087d8ca",
+      "registryDigestHeader": "sha256:3976a73de84a29999ff4573398e240127b8a92012421ce5eec61cd57f087d8ca",
+      "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "platforms": [
+        {
+          "digest": "sha256:f0e5a5bfed00c54862568aced6c36eae83d4e33b40074b3a2e928a5854b05929",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:b0eeff86b1c72a1e375b0b6197b9fc15e9ebabcbfa869bc711b1d2b7ff955817",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "collector": {
+      "tagReference": "registry-1.docker.io/otel/opentelemetry-collector-contrib:0.163.2",
+      "source": "https://registry-1.docker.io/v2/otel/opentelemetry-collector-contrib/manifests/0.163.2",
+      "observedAt": "2026-11-02T21:07:42.307130+00:00",
+      "status": "resolved",
+      "digest": "sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849",
+      "registryDigestHeader": "sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849",
+      "mediaType": "application/vnd.docker.distribution.manifest.list.v2+json",
+      "platforms": [
+        {
+          "digest": "sha256:bd0aac7fc525d8016b7bba1e35287b1f3a43c1e2d52e2426e2496d8d45668784",
+          "platform": {
+            "architecture": "386",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:989669581ee1f89184f3fd9dd5adfc6615ed6c9692c026aaea89e07a20dfb177",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:36ec8a5b77a11cb6d359378ef6103ce852fd82becec77a3bf5bb92eab5a818bf",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:6e4636b3b1b1c01992362d3ed4b1640865418048a1537b208cb812d98e0c9308",
+          "platform": {
+            "architecture": "arm",
+            "os": "linux",
+            "variant": "v7"
+          }
+        },
+        {
+          "digest": "sha256:6f5d445805335e180bb1cc0b5f9728aba33cbde4a711be3814bb2686827f67e2",
+          "platform": {
+            "architecture": "ppc64le",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:93d5c361b810d9c8578b1f5123ba6a3855add77e4035f644abb1367e6aa98686",
+          "platform": {
+            "architecture": "riscv64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:7ac007e760cd8ef66ef0d0c5f2f253eda2371ea99474abb203fc729278685a6e",
+          "platform": {
+            "architecture": "s390x",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "postgresql": {
+      "tagReference": "registry-1.docker.io/library/postgres:18",
+      "source": "https://registry-1.docker.io/v2/library/postgres/manifests/18",
+      "observedAt": "2026-11-02T21:07:42.307662+00:00",
+      "status": "resolved",
+      "digest": "sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81",
+      "registryDigestHeader": "sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:f4b419e350fd98d4a8429603295208976dea4c8fb8326d818d346d3e29f1db6f",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:a95058d8f8ca336b1316fc5d759f482bbe7d3abe300b0b844c2af3dc0d661c06",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:8a97b339bd4371586d1bf3ff650f10f37a4897056ba8e8456f4d36576b74a87b",
+          "platform": {
+            "architecture": "arm",
+            "os": "linux",
+            "variant": "v5"
+          }
+        },
+        {
+          "digest": "sha256:8769e2bda085a24ad270946a2ee409fbfd893e961c842bb411e3630abc5c5ed6",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:f43742786609d7d67a9646a9d5c8dd6cf809d6745aa9f949b165f30e46d2a8a3",
+          "platform": {
+            "architecture": "arm",
+            "os": "linux",
+            "variant": "v7"
+          }
+        },
+        {
+          "digest": "sha256:68e3cbccf9ebb9ba969ff9dbc74d4e118f73bbda5b45a0dad9bc09d1dac6eac9",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:9a74990a5c776ff210361b67616b347750c66c36ea0dfbb4f575d19fcc3d8437",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux",
+            "variant": "v8"
+          }
+        },
+        {
+          "digest": "sha256:316659847625da3b939ed0f6b76847f78e87a1fb3df901943147e1ccab52030f",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:a7026df7681ce3d59a682ccf6155cf94ca377615c0170012dac2d6ce1e3fd22c",
+          "platform": {
+            "architecture": "386",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:1c050325e7f74bc306911a4f500685680df9d8018583058ac3bebbdfd2f5f332",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:aa3d38a0d475996221327e363c4b9a1cbdfc895512793129de7589f2f3560d03",
+          "platform": {
+            "architecture": "ppc64le",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:3e3cc88c051e58c233f26aac7b6b8e6d6bf2d8368975eaa4d50c9d27721c66bd",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:9b81e779bd80a6d03443d159399af9f6135a59320707db32dd5cf54f6fa53d25",
+          "platform": {
+            "architecture": "riscv64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:79a9d0323abbb96edf76cf6031fb6ab436a2997af2b9c56a2aaa39e8c321ea0e",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:a06f308845c73aa6203c1f3f054aece0b8ea1e2f084921d0038ceac9970fed0d",
+          "platform": {
+            "architecture": "s390x",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:c8123f8c5158973268d47f4c79c5ca1a44ed712ff3e9658ad9d6ee9985b1b917",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        }
+      ]
+    },
+    "valkey": {
+      "tagReference": "registry-1.docker.io/valkey/valkey:8.0",
+      "source": "https://registry-1.docker.io/v2/valkey/valkey/manifests/8.0",
+      "observedAt": "2026-11-02T21:07:42.308339+00:00",
+      "status": "resolved",
+      "digest": "sha256:04b9002ae24bbe66687fb025052ed9bcebb54f8da3937338eb718d98d362887f",
+      "registryDigestHeader": "sha256:04b9002ae24bbe66687fb025052ed9bcebb54f8da3937338eb718d98d362887f",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:ed10b4cba1f833b0c36995a5c6894de1ba291f2c39f5e9f0737fc7330e717781",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:cf7afeb5fb48d3a8deff4516bda445b56e996b0960f494e985f6b4259bb90afa",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:fd4c5c7f28d06e3a9683145bc15f1328a95c74e32002c3067e5d53da709b207b",
+          "platform": {
+            "architecture": "arm",
+            "os": "linux",
+            "variant": "v7"
+          }
+        },
+        {
+          "digest": "sha256:d5e719ebccd25212f1fd0b6e679d9eed5029241a4bececfe39c5d3f556e3d083",
+          "platform": {
+            "architecture": "ppc64le",
+            "os": "linux"
+          }
+        }
+      ]
+    },
+    "seaweedfs": {
+      "tagReference": "registry-1.docker.io/chrislusf/seaweedfs:4.23",
+      "source": "https://registry-1.docker.io/v2/chrislusf/seaweedfs/manifests/4.23",
+      "observedAt": "2026-11-02T21:07:42.309388+00:00",
+      "status": "resolved",
+      "digest": "sha256:c6d6fb84b081f1f09bb089184ff4b45d2f163a1bfa8b354d04cf400c6e06f242",
+      "registryDigestHeader": "sha256:c6d6fb84b081f1f09bb089184ff4b45d2f163a1bfa8b354d04cf400c6e06f242",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:5189cf43bced06e1e64ec704170e11a93a005d36e9e833f9ac5e99c4c15947ff",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:769bdc886b38c6a978a1207f976de9f59b71886798d8b9636b150bbddb4d705b",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:85866f3ddeac621d18908a57a723d55ce3e84ec4dea966b567410a0b06520acf",
+          "platform": {
+            "architecture": "arm",
+            "os": "linux",
+            "variant": "v7"
+          }
+        },
+        {
+          "digest": "sha256:b2208269d9fe14c9e4f24930ea38603e3de48b421294690b1cc28538c4056dc2",
+          "platform": {
+            "architecture": "386",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:0ae4e04e6ececd414237795cc38761363295c9bffee5eec5b5af5aa763f2bbfa",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:b893d65e77503313d7c485356d11cb007f558a666c07ea7763f48f1fb820db2e",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:f79fd63875b8a7704adc4e37aba447602e10a3ed949fb7c5567c2a02b612ef89",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:f4e4f506e81f165b45d544ebeb411cd5133ae127589878cfc539aeca07797abb",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        }
+      ]
+    },
+    "clickhouse": {
+      "tagReference": "registry-1.docker.io/clickhouse/clickhouse-server:26.8.36.3",
+      "source": "https://registry-1.docker.io/v2/clickhouse/clickhouse-server/manifests/26.8.36.3",
+      "observedAt": "2026-11-02T21:07:42.311561+00:00",
+      "status": "resolved",
+      "digest": "sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7",
+      "registryDigestHeader": "sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:0805f9f529673d2a68d1fb50dfef90f30f1710bb1b62d4c3f1d1a99d37459ecc",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:46ec9b0b588c2c37ca091e0d636c54db0740f9a9c936ad950dc28c2b552ed7cb",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:cf649e974a7bf95bc549f82a5eb6e9e28133e64dab75332bcf888caf64a7a34b",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:edb4aab00e29e01d7191388a410c593c1a65d18f18e7d2aa61f54c84f394a40a",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        }
+      ]
+    },
+    "keeper": {
+      "tagReference": "registry-1.docker.io/clickhouse/clickhouse-keeper:26.8.36.3",
+      "source": "https://registry-1.docker.io/v2/clickhouse/clickhouse-keeper/manifests/26.8.36.3",
+      "observedAt": "2026-11-02T21:07:42.312706+00:00",
+      "status": "resolved",
+      "digest": "sha256:a847f2f30ac6950828d6f2413828adeeee4c9d261cb88f88eb6f1606a5f5a062",
+      "registryDigestHeader": "sha256:a847f2f30ac6950828d6f2413828adeeee4c9d261cb88f88eb6f1606a5f5a062",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:13ffbc02f13166efb9168d0ae441b1d13c39b7a286027e9b83d59c31abf82cec",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:ac2afdd7a566434fc1f973c06cc6a0afecd6d736090f858ee246bf60bf395ae9",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:8660c200b22345e06f0aea7b53c456e766810807805aafcaa3b4dae9ee2b3260",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:254e07a7fa2472494432f2c3571045df48464ab93f014862d3bf602bb7a6c4e3",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        }
+      ]
+    },
+    "homarr": {
+      "tagReference": "ghcr.io/homarr-labs/homarr:v2.10.1",
+      "source": "https://ghcr.io/v2/homarr-labs/homarr/manifests/v2.10.1",
+      "observedAt": "2026-11-02T21:07:42.313351+00:00",
+      "status": "resolved",
+      "digest": "sha256:2844201f11ce28b98183728dea2261de2b4fd8ed5480a4eef0b7977cc1a08dc0",
+      "registryDigestHeader": "sha256:2844201f11ce28b98183728dea2261de2b4fd8ed5480a4eef0b7977cc1a08dc0",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "platforms": [
+        {
+          "digest": "sha256:cd27bcf82f27038e5110da16af4e419ab47f1e2c73b574f8598865b714eaa0de",
+          "platform": {
+            "architecture": "amd64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:091a4d29f949fa766dc946e8205c4846200ba9cc47e6e674a7a8b2685b211584",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        },
+        {
+          "digest": "sha256:2a7af0b6c04ad4b45b7f35b6d6ed91e02b05e6fe1176b371b04f32d35e750e55",
+          "platform": {
+            "architecture": "arm64",
+            "os": "linux"
+          }
+        },
+        {
+          "digest": "sha256:0e340c7f1050feaaa9095c5634519a51261ec5e4f3cd3fb55cfed63799e49bfc",
+          "platform": {
+            "architecture": "unknown",
+            "os": "unknown"
+          }
+        }
+      ]
+    }
+  }
+}

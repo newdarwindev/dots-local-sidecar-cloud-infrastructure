@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dots-synthetic-lab
+  labels:
+    dots.example/purpose: synthetic-lab
+    pod-security.kubernetes.io/enforce: baseline

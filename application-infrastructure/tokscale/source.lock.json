@@ -1,0 +1,90 @@
+{
+  "repository": "https://github.com/junhoyeo/tokscale",
+  "commit": "b26c433d03f23a2255ad9f212512ce83ede83da3",
+  "reviewed": "2026-11-02",
+  "files": {
+    "Dockerfile": "6cb5daa1542bd9e2a4c158eaf8c49ac26ac831114db2e402ea7da097306592f3",
+    "docker-compose.yml": "ca46fe80536f41c1abbc6f1e947408cd21091b8c76258c1b6dbebf04c9d47956",
+    "docker-entrypoint.sh": "74595339b67cacbc852e825c5288670c2eb5c3238f8914e41a7a0c055099a60e",
+    "packages/frontend/.env.example": "05b92e8f454cccc13a0f91ad49eaa9524fa5bbe3798ca38afd0f52b5847bc6bd",
+    "packages/frontend/src/lib/db/index.ts": "7296c6ff8f9a9d8aea3bf4d9fbc6580ec1986dc8765c87c2f0792243622f581e",
+    "packages/frontend/src/app/api/submit/route.ts": "c489bf3bf09d538f7267262ec965c09cf7a8793e17206ef09637f262267e6589",
+    "packages/frontend/scripts/migrate-docker.ts": "9b2da4ae77203422295378a248622ac715888bb5b2dc756a8d4801cd1a1ce5af",
+    "LICENSE": "24a794f325f7625b5f124945dedb6dcec8188f88e76bf4b99557b52d6cc77be9",
+    "packages/frontend/src/app/layout.tsx": "c17f186deaf97dc4615b2876359e9f66c1fecab347d9b5c714a68f06f441050c"
+  },
+  "unresolved": [
+    "built application image digest and SBOM",
+    "authenticated browser/read gateway with tested direct-origin denial",
+    "database certificate verification and migrations on isolated restore",
+    "approved capacity, storage, OAuth and independent secret custody"
+  ],
+  "archive": {
+    "url": "https://codeload.github.com/junhoyeo/tokscale/tar.gz/b26c433d03f23a2255ad9f212512ce83ede83da3",
+    "sha256": "0b7591496b81bccfed44d2b740c8619f213eb10dcf11d28e39c1d8536627c2a9",
+    "root": "tokscale-b26c433d03f23a2255ad9f212512ce83ede83da3"
+  },
+  "privacyPatch": {
+    "path": "packages/frontend/src/app/layout.tsx",
+    "removeExactlyOnce": [
+      "import { Analytics } from \"@vercel/analytics/next\";\n",
+      "        <Analytics />\n"
+    ]
+  },
+  "preparedTreeSha256": "872f0424d40400ad9f856656422de9baa5f476f3126a6a95ca17a938226c4500",
+  "tlsPatches": [
+    {
+      "path": "packages/frontend/src/lib/db/index.ts",
+      "replacements": [
+        {
+          "old": "export function getDatabaseSslMode(): \"require\" | false {\n  const configured = process.env.DATABASE_SSL?.trim().toLowerCase();\n\n  if (configured === \"false\" || configured === \"disable\") {\n    return false;\n  }\n  if (configured === \"true\" || configured === \"require\") {\n    return \"require\";\n  }\n\n  // Preserve the existing managed-production default while allowing local\n  // container deployments to opt out explicitly via DATABASE_SSL=false.\n  return process.env.NODE_ENV === \"production\" ? \"require\" : false;\n}\n\n",
+          "new": ""
+        },
+        {
+          "old": "import * as schema from \"./schema\";",
+          "new": "import * as schema from \"./schema\";\nimport { getDatabaseTlsOptions } from \"./tls\";"
+        },
+        {
+          "old": "ssl: getDatabaseSslMode(),",
+          "new": "ssl: getDatabaseTlsOptions(getConnectionString()),"
+        }
+      ],
+      "originalSha256": "7296c6ff8f9a9d8aea3bf4d9fbc6580ec1986dc8765c87c2f0792243622f581e"
+    },
+    {
+      "path": "packages/frontend/scripts/migrate-core.ts",
+      "replacements": [
+        {
+          "old": "import { getDatabaseSslMode } from \"../src/lib/db\";",
+          "new": "import { getDatabaseTlsOptions } from \"../src/lib/db/tls\";"
+        },
+        {
+          "old": "  const ssl = getDatabaseSslMode();\n  const migrationUrl = new URL(opts.databaseUrl);\n  migrationUrl.searchParams.set(\"sslmode\", ssl === false ? \"disable\" : \"require\");\n  const databaseUrl = migrationUrl.toString();",
+          "new": "  const databaseUrl = opts.databaseUrl;\n  const ssl = getDatabaseTlsOptions(databaseUrl);"
+        }
+      ],
+      "originalSha256": "d728227a9840c8fdd551f31346c42ddfbcddb83c327e3c2ffe5fe452874babbf"
+    },
+    {
+      "path": "packages/frontend/drizzle.config.ts",
+      "originalSha256": "84b063f5fbbe93466de22b4df069f2a60db4becb47909d8ef1a2a58663cc4105",
+      "replacements": [
+        {
+          "old": "import { defineConfig } from \"drizzle-kit\";",
+          "new": "import { defineConfig } from \"drizzle-kit\";\nimport { getDatabaseCredentials } from \"./src/lib/db/tls\";"
+        },
+        {
+          "old": "  dbCredentials: {\n    url: process.env.DATABASE_URL!,\n  },",
+          "new": "  dbCredentials: getDatabaseCredentials(process.env.DATABASE_URL!),"
+        }
+      ]
+    }
+  ],
+  "overlayFiles": [
+    {
+      "source": "overlays/tls.ts",
+      "path": "packages/frontend/src/lib/db/tls.ts",
+      "sha256": "aa5caf4383bcbf1cb2991f1b414db40f5b4c6fec95cc84a225f356e9c3195315"
+    }
+  ]
+}

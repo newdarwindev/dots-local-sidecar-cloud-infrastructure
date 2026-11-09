@@ -1,0 +1,20 @@
+# NOT an active GitHub Actions workflow. No schedules, credentials or deployment.
+# A future separately reviewed enablement must bind:
+# 1. protected environment + exact owner-approved initial manifest/revision digest;
+# 2. deployment target context AND immutable namespace UID;
+# 3. least-privilege credentials provisioned through the approved custody route;
+# 4. fresh capacity/restore/access/image validation evidence;
+# 5. approved resource-level change list, including storage/network/RBAC actions;
+# 6. CI artifact provenance and digest matching the reviewed manifest;
+# 7. upgrade/rollback preserving histories, database versions and all PVCs.
+# Do not simply rename this file and add kubectl apply.
+name: Deployment intentionally unavailable
+on: workflow_dispatch
+permissions: {}
+jobs:
+  blocked:
+    # This file remains outside .github/workflows with a .disabled suffix.
+    # If copied there accidentally, fail visibly without any deployment step.
+    runs-on: ubuntu-24.04
+    steps:
+      - run: exit 1

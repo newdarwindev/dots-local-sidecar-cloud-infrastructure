@@ -1,0 +1,7 @@
+runtime/
+artifacts/
+rendered/
+approval*.json
+*.key
+*.pem
+kubeconfig*

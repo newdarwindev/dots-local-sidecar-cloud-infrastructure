@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "synthetic": true,
+  "producer": "native",
+  "signal": "traces",
+  "project_role": "diagnostic",
+  "canonical": false,
+  "usage": null,
+  "request": {
+    "resourceSpans": [
+      {
+        "resource": {},
+        "scopeSpans": [
+          {
+            "scope": {"name": "dots.synthetic.diagnostics", "version": "1"},
+            "spans": [
+              {
+                "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "spanId": "1111111111111111",
+                "parentSpanId": "",
+                "name": "diagnostic.operation",
+                "kind": 1,
+                "startTimeUnixNano": "1793577600000000000",
+                "endTimeUnixNano": "1793577600200000000",
+                "status": {"code": 1},
+                "attributes": [{"key": "dots.accounting.role", "value": {"stringValue": "diagnostic-noncanonical"}}]
+              },
+              {
+                "traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "spanId": "2222222222222222",
+                "parentSpanId": "1111111111111111",
+                "name": "diagnostic.operation",
+                "kind": 3,
+                "startTimeUnixNano": "1793577600100000000",
+                "endTimeUnixNano": "1793577600180000000",
+                "status": {"code": 2},
+                "attributes": [{"key": "dots.accounting.role", "value": {"stringValue": "diagnostic-noncanonical"}}]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "report": {
+    "input_span_count": 2,
+    "output_span_count": 2,
+    "batch_duplicate_count": 0,
+    "discarded_event_count": 1,
+    "discarded_link_count": 1,
+    "external_parent_count": 0,
+    "cross_batch_delivery_verified": false,
+    "transmitted": false
+  }
+}
