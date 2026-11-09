@@ -126,3 +126,21 @@ def merge(config, enrolled, denied):
         'receivers': ['otlp_json/native_diagnostic'], 'processors': ['batch/native_diagnostic'],
         'exporters': ['otlphttp/rich']}
     return result
+
+
+def source_privacy_ready(otel):
+    """Check explicit effective source options, never infer defaults as disabled.
+
+    Pinned Codex 0.167.0 core/src/config/otel.rs defaults log_sse_deltas to
+    TRUE. The exact keys are singular log_user_prompt, log_agent_responses,
+    log_guardian_assessments and log_sse_deltas. A missing key or misspelling
+    such as log_sse_events is not evidence of privacy readiness. Tool previews
+    additionally require integer tool_result.max_bytes = 0. This check does
+    not prove a running daemon reloaded its config, nor suppress tool arguments;
+    projection remains mandatory. No source settings or runtime are changed.
+    """
+    flags = ('log_user_prompt', 'log_agent_responses', 'log_guardian_assessments', 'log_sse_deltas')
+    if not isinstance(otel, dict) or any(otel.get(key) is not False for key in flags):
+        return False
+    tool = otel.get('tool_result')
+    return isinstance(tool, dict) and type(tool.get('max_bytes')) is int and tool['max_bytes'] == 0
