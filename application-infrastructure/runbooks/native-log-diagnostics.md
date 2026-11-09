@@ -93,13 +93,40 @@ project retained only its four earlier bounded test events.
 The numeric-only exporter was then configured globally with the exact privacy
 settings above and owner-only configuration permissions. Fresh default-config,
 no-daemon processes again produced 32 verified observations per source. Existing
-native trace export and authentication remain unchanged. Warm background servers
-were not restarted. Explicit ordinary-client probes on both hosts produced no
+native trace export and authentication remain unchanged. Initial ordinary-client probes on existing warm background servers produced no
 numeric records after more than 20 seconds idle, despite successful replies.
-Configuration changes therefore do not establish adoption by those existing
-providers. Restart/auth-refresh behavior remains a separate approved acceptance
-step. Some earlier native trace probes also lacked receipts; do not assign a
-root cause or claim complete delivery from the successful fresh-process tests.
+Configuration changes alone therefore did not establish provider adoption.
+
+A subsequent explicitly approved, idle-checked stop/start on each host resolved
+that observed adoption gap. Ordinary default CLI sessions then produced 32 of 32
+verified numeric observations per source. Their original native trace IDs were
+also independently found in the backend. Input/output and authored text markers
+remained absent, and the separate content project retained its four earlier
+bounded test events. These receipts do not prove complete or exactly-once archival
+delivery, or establish the cause of every earlier missing trace.
+
+## Restart and log-preservation acceptance
+
+Loaded-thread count alone is insufficient for an idle check: unloaded,
+nonarchived threads may retain queued submissions. The qualified checks enumerate
+all supported source kinds/providers and attached threads, project only IDs,
+status/active flags and queue counts, and repeat immediately before stopping.
+Unknown, active or queued state blocks the operation. The supported control socket
+uses WebSocket framing; the proxy is a raw byte relay, not newline-JSON RPC.
+
+The pinned PID backend has destructive log rotation at startup: it replaces the
+previous stderr file with a capped tail and truncates the current file. During
+this approved operation, full owner-only copies of both existing files were
+verified before stopping and again after successful stop and file stability,
+before starting. No conversation files were copied. The daemon's normal logger
+can also prune during shutdown, so post-stop-only copying is not sufficient for
+strict preservation. No inherited writer was found before final copies/start.
+
+Only the existing daemon was stopped and started, using the supported commands;
+there was no host reboot, manual kill, credential change or network-policy change.
+Temporary post-projection tees were removed from configuration and all resulting
+logs retained. Production privacy and transport configuration hashes stayed
+unchanged during this restart acceptance.
 
 Backend receipts are not authenticated Web UI verification. The separately
 approved LAN HTTPS UI serves a secure login page, but authenticated observation
