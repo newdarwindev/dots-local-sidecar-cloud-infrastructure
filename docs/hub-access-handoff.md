@@ -33,24 +33,51 @@ Only loopback exists in this container. Certificates and queue files are ephemer
 This qualifies process-crash replay in the test, not a live PVC, disk/power loss,
 peer source buffering, indefinite no-loss delivery or independent recovery.
 
+## Validation through an isolated Docker CLI
+
 The committed Dockerfile retains its BuildKit read-only lock mount because the
 installer uses that mount as a Docker-build guard when `.dockerenv` is absent.
-Do not remove it simply to work around missing Buildx. The earlier dirty-checkout
-validation result is separate from this clean-source handoff. Run
-`sh validation/run.sh` with an already available compatible builder; no host
-validator fallback, daemon startup or CI activation is authorized by this file.
+The host's missing Buildx was resolved for validation by using the official Docker
+CLI image, pinned below, against the already running local daemon. No host plugin
+installation, daemon start, credential mount or CI enablement is needed.
+
+From this repository root, with existing permission to the local Docker socket:
+
+```sh
+docker run --rm --network none --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --user "$(id -u):$(id -g)" \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  --cpus 2 --memory 768m --pids-limit 256 \
+  --tmpfs /tmp:rw,nosuid,nodev,size=256m \
+  -e DOCKER_CONFIG=/tmp/docker -e DOCKER_BUILDKIT=1 \
+  -e BUILDKIT_PROGRESS=plain \
+  --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock \
+  --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+  -w /workspace --entrypoint sh \
+  docker:29.9.3-cli@sha256:2357639ad1ea7d0194134bf3292622fd4e562483966ed674e5d7c945b5f3b28d \
+  validation/run.sh
+```
+
+The outer container is trusted orchestration with Docker-socket authority, not
+an untrusted test sandbox. It runs the unchanged committed entrypoint. The inner
+validation containers retain its original non-root, resource, capability and
+network boundaries, and receive no daemon socket or host credentials. The daemon
+performs authorized public image/build downloads; `--network none` on the outer
+CLI does not make the build or networked contract stages offline. Use `lint`
+after `validation/run.sh` for the documented lint-only scope.
 
 ## Handoff validation
 
-The added persistent replay test passed in a Docker build snapshot using the
-legacy-compatible build recipe evaluated during this handoff. That snapshot
-completed the full runner: 316 tests and 184 schema-valid resources, with no
-invalid resources, schema errors or skips. The temporary Dockerfile change was
-withdrawn after reviewing the BuildKit-specific installer guard; it is not part
-of this commit. The final committed `sh validation/run.sh lint` attempt stopped
-at the existing `RUN --mount` because BuildKit/Buildx is unavailable. Therefore
-final-revision validation is **blocked**, not passed. Preserve the guard and use
-an already authorized compatible builder for the next exact-source run.
+At the original handoff, a temporary legacy-build snapshot passed 316 tests and
+184 schema-valid resources; that temporary Dockerfile change was withdrawn to
+preserve the installer guard. The later exact-source BuildKit run and final
+documentation checks are distinct from that snapshot. The unmodified committed
+entrypoint with BuildKit passed **316 tests and 184 strict-schema resources** on
+November 11, 2026, with zero invalid resources, errors or skips. This covers the
+executable source at `8e6c08d`; the subsequent changes document the validated CLI
+route only. Final documentation is checked with the same entrypoint's `lint`
+scope before publication. No live cluster or peer acceptance follows.
 
 ## Resume checklist
 
