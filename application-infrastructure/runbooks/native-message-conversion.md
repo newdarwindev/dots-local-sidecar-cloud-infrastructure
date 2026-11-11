@@ -141,6 +141,26 @@ an explicit 1-MiB **test-only** cap. This does not change deployment defaults or
 qualify every batch, serialization or hop. Review actual encoded maximum batches
 at every receiver before a separately coordinated cap change.
 
+`validation/native_serial_runtime.py` adds a three-Collector synthetic route:
+authenticated loopback native logs plus independent diagnostics → outer mTLS
+forwarder → inner mTLS native routing/filter → authenticated HTTPS capture sink.
+It runs only through the committed Docker entrypoint with network disabled,
+temporary certificates and isolated fsync queues. No live config or queue is read.
+The outer fixture stays synchronous; local and inner exporters use single-item
+queue batches. Queue capacities are reduced for the fixture, not changed in source
+deployment defaults. The final sink is a test server, not Langfuse storage.
+
+The serial cases cover escaped maximum prompt/response and tool input/output
+fields, exact content IDs, denied/unknown/old/parent-linked records, diagnostic
+fan-out, local authentication and missing mTLS clients. Both JSON and protobuf
+are exercised between Collectors; final sink export remains JSON, compression
+is disabled, and tool metadata is small. Each 64-KiB hop is tested separately
+with oversized content, rejection evidence and healthy controls before/after it.
+The 1-MiB candidate passes these envelopes, not every possible native producer
+batch or compressed-wire combination. Real producer batching, client versions,
+private policy provenance, production queues, Langfuse persistence and lifecycle
+acceptance still require their own coordinated evidence.
+
 Keep source tests, installed configuration, publication, backend persistence and
 lifecycle acceptance separate. Render inert candidates, compare structural
 changes without dumping private configurations, and recheck live hashes and
