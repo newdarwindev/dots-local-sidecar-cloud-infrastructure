@@ -28,7 +28,17 @@ command -v docker >/dev/null 2>&1 || blocked 'Docker CLI unavailable; no host fa
 # any long Docker operation. Never reopen the caller's path after this point.
 # This assumes a caller-controlled file, not a hostile same-user filesystem.
 { exec 3< "$INPUT"; } 2>/dev/null || blocked
-[ -f /dev/fd/3 ] && [ ! -L "$INPUT" ] && [ "$INPUT" -ef /dev/fd/3 ] || blocked
+[ -f /dev/fd/3 ] && [ ! -L "$INPUT" ] || blocked
+case "$(uname -s)" in
+  Darwin)
+    # macOS fdescfs stat(/dev/fd/N) substitutes its own device ID. BSD stat
+    # without a pathname uses fstat(stdin), retaining the real device/inode.
+    INPUT_ID=$(stat -f '%d:%i' "$INPUT" 2>/dev/null) || blocked
+    OPEN_ID=$(stat -f '%d:%i' <&3 2>/dev/null) || blocked
+    [ -n "$INPUT_ID" ] && [ "$INPUT_ID" = "$OPEN_ID" ] || blocked
+    ;;
+  *) [ "$INPUT" -ef /dev/fd/3 ] || blocked ;;
+esac
 umask 077
 STAGING=$(mktemp -d /tmp/infra-setup.XXXXXXXX 2>/dev/null) || blocked
 trap 'rm -rf -- "$STAGING"' EXIT
@@ -48,10 +58,18 @@ if [ -z "$ENDPOINT" ]; then
   ENDPOINT=$(docker context inspect "$CONTEXT" --format '{{.Endpoints.docker.Host}}' 2>/dev/null) || blocked 'Docker endpoint unavailable; no configuration applied.'
 fi
 case "$ENDPOINT" in unix:///*) ;; *) blocked 'Setup requires an already authorized local Unix Docker endpoint.' ;; esac
-# Empty transient CLI configuration prevents automatic proxy/environment/header
+# Transient CLI configuration prevents automatic proxy/environment/header
 # injection from the user's Docker config. No credentials are copied or changed.
 CLI_CONFIG="$STAGING/docker"
 mkdir "$CLI_CONFIG" 2>/dev/null || blocked 'Temporary Docker configuration unavailable.'
+# Docker Desktop's macOS buildx plugin is normally discovered through the user's
+# config directory. Reference only its already-installed executable, never the
+# ambient config.json or other plugins; no download or persistent install occurs.
+if [ "$(uname -s)" = Darwin ] && [ -x /Applications/Docker.app/Contents/Resources/cli-plugins/docker-buildx ]; then
+  mkdir "$CLI_CONFIG/cli-plugins" 2>/dev/null || blocked 'Temporary Docker plugin directory unavailable.'
+  ln -s /Applications/Docker.app/Contents/Resources/cli-plugins/docker-buildx \
+    "$CLI_CONFIG/cli-plugins/docker-buildx" 2>/dev/null || blocked 'Installed Docker build plugin unavailable.'
+fi
 unset DOCKER_HOST DOCKER_CONTEXT DOCKER_TLS_VERIFY DOCKER_CERT_PATH DOCKER_CUSTOM_HEADERS BUILDX_BUILDER BUILDKIT_HOST
 docker --config "$CLI_CONFIG" --host "$ENDPOINT" info >/dev/null 2>&1 || blocked 'Docker daemon unavailable; do not start it for this operation.'
 cd "$ROOT"

@@ -249,6 +249,32 @@ else:
             self.input.unlink()
             self.input.write_bytes(original)
 
+    def test_darwin_compares_real_descriptor_identity_not_fdescfs_device(self):
+        # Exercise the BSD stat command contract inside Docker. Actual macOS
+        # acceptance is separately established by the inert setup operation.
+        binary = self.root / 'bin'
+        uname = binary / 'uname'
+        uname.write_text('#!/bin/sh\nprintf "Darwin\\n"\n')
+        uname.chmod(0o700)
+        stat = binary / 'stat'
+        stat.write_text('#!' + sys.executable + '\n' + '''import os, sys
+assert sys.argv[1:3] == ['-f', '%d:%i']
+assert not any('/dev/fd/' in arg for arg in sys.argv)
+value = os.stat(sys.argv[3]) if len(sys.argv) == 4 else os.fstat(0)
+inode = value.st_ino
+if len(sys.argv) == 3 and os.environ.get('FAKE_FSTAT_MISMATCH'):
+    inode += 1
+print(f'{value.st_dev}:{inode}')
+''')
+        stat.chmod(0o700)
+        result = self.run_setup('plugin-render', self.input)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / 'received').read_bytes(), self.input.read_bytes())
+        self.log.unlink()
+        self.env['FAKE_FSTAT_MISMATCH'] = '1'
+        self.assert_blocked('plugin-render', self.input)
+        self.assertEqual(self.calls(), [])
+
     def test_runtime_errors_are_stage_specific_and_do_not_disclose_values(self):
         for stage, message in [('build', 'image build failed'), ('run', 'rejected JSON')]:
             self.env['FAKE_FAILURE'] = stage
