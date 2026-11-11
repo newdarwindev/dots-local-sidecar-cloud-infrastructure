@@ -36,6 +36,9 @@ job can coexist with a subsequently healthy guest. A TLS address route can work
 while an mDNS hostname fails certificate verification. A bound durable-queue
 volume does not prove replay or complete delivery. Report each separately.
 
+See the [hub access and recovery handoff](hub-access-handoff.md) for the
+current continuation gates and isolated replay test.
+
 ## Safe refresh and maintenance
 
 Use bounded read-only inspection first. Preserve unknown/offline states rather

@@ -80,6 +80,8 @@ class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.received = queue.Queue()
         records = self.received
+        self.destination_status = 200
+        owner = self
 
         class Capture(BaseHTTPRequestHandler):
             def log_message(self, *_args):
@@ -90,7 +92,7 @@ class RuntimeTests(unittest.TestCase):
                 if self.headers.get('Content-Encoding') == 'gzip':
                     payload = gzip.decompress(payload)
                 records.put((self.path, dict(self.headers), json.loads(payload)))
-                self.send_response(200)
+                self.send_response(owner.destination_status)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', '2')
                 self.end_headers()
@@ -123,7 +125,7 @@ class RuntimeTests(unittest.TestCase):
         self.server.server_close()
         self.thread.join(timeout=3)
 
-    def start(self, trust='trusted', hostname='127.0.0.1', native_gate=False):
+    def start(self, trust='trusted', hostname='127.0.0.1', native_gate=False, durable=False):
         config = yaml.safe_load((APP / 'values/collector.yaml').read_text())['alternateConfig']
         if native_gate:
             config['processors']['filter/source'] = GATE.source_gate()
@@ -145,6 +147,27 @@ class RuntimeTests(unittest.TestCase):
         exporter['retry_on_failure']['enabled'] = False
         exporter['timeout'] = '1s'
         config['processors']['batch']['timeout'] = '100ms'
+        if durable:
+            # Exercise persistent queue settings; synthetic TLS,
+            # destination and privacy fixture remain isolated in this container.
+            storage = self.directory / self._testMethodName
+            config['extensions']['file_storage/queues'] = {
+                'directory': str(storage), 'create_directory': True,
+                'directory_permissions': '0700', 'fsync': True,
+                'max_size': 134217728, 'recreate': False,
+                'compaction': {'on_start': False, 'on_rebound': False,
+                               'cleanup_on_start': False}}
+            config['service']['extensions'].append('file_storage/queues')
+            for pipeline in config['service']['pipelines'].values():
+                pipeline['processors'] = [item for item in pipeline['processors'] if item != 'batch']
+            exporter['sending_queue'] = {
+                'enabled': True, 'queue_size': 67108864, 'sizer': 'bytes',
+                'storage': 'file_storage/queues', 'num_consumers': 2,
+                'batch': {'sizer': 'items', 'flush_timeout': '2s',
+                          'min_size': 4, 'max_size': 4}}
+            exporter['retry_on_failure'] = {'enabled': True, 'initial_interval': '1s',
+                                            'max_interval': '10s', 'max_elapsed_time': '0s'}
+            self.queue_directory = storage
         path = self.directory / 'config.yaml'
         path.write_text(yaml.safe_dump(config))
         self.log_path = self.directory / (self._testMethodName + '.log')
@@ -191,6 +214,46 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(headers.get('Authorization'), AUTH)
         self.assertEqual(headers.get('X-Langfuse-Ingestion-Version'), '4')
         return request
+
+    def test_durable_outage_crash_replay_exact_ids(self):
+        self.destination_status = 503
+        self.start(durable=True)
+        request = fixture()
+        scope = request['resourceSpans'][0]['scopeSpans'][0]
+        original = scope['spans'][0]
+        scope['spans'] = [dict(original, spanId=f'{index:016x}') for index in range(1, 4)]
+        expected = {(original['traceId'], f'{index:016x}') for index in range(1, 4)}
+        self.send(request)
+        # A receiver ACK is insufficient: observe attempted export during outage
+        # and real queue files before crashing the ephemeral Collector process.
+        failed = self.capture()
+        attempted = {(span['traceId'], span['spanId'])
+                     for resource in failed['resourceSpans']
+                     for scope in resource['scopeSpans'] for span in scope['spans']}
+        self.assertEqual(attempted, expected)
+        self.assertTrue(any(item.is_file() and item.stat().st_size > 0
+                            for item in self.queue_directory.iterdir()))
+        self.process.kill()
+        self.process.wait(timeout=5)
+        self.assertEqual(self.process.returncode, -9)
+        # Discard failed attempts only after the old process has exited.
+        while not self.received.empty():
+            self.received.get_nowait()
+        self.destination_status = 200
+        self.process = subprocess.Popen(
+            ['otelcol-contrib', '--config', str(self.directory / 'config.yaml')],
+            stdout=self.log, stderr=subprocess.STDOUT)
+        # No second send: all accepted records must come from retained storage.
+        replayed = self.capture()
+        observed = [(span['traceId'], span['spanId'])
+                    for resource in replayed['resourceSpans']
+                    for scope in resource['scopeSpans'] for span in scope['spans']]
+        self.assertEqual(set(observed), expected)
+        self.assertEqual(len(observed), len(expected))
+        time.sleep(3)
+        self.assertTrue(self.received.empty(), 'Unexpected duplicate after replay drained')
+        print('Durable synthetic outage: 3 admitted IDs; SIGKILL; 3 replayed without '
+              'resubmission; 0 missing/unexpected; no duplicate in 3-second quiet window.')
 
     def test_native_exact_origins_and_privacy(self):
         self.start(native_gate=True)
