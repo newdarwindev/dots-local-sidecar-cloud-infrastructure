@@ -19,6 +19,9 @@ provides an explicit bounded setup path.
 
 ## Use only the references needed for your stage
 
+For day-to-day navigation, use [operating entry points by role](docs/operating-entrypoints.md).
+Keep per-machine deployed software, private endpoints and next steps in the private operational overlay.
+
 | Task | Reference |
 | --- | --- |
 | Set up/review the selected application bundle | [Operator setup](application-infrastructure/README.md) |
