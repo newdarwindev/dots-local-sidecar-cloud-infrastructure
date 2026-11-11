@@ -1,6 +1,10 @@
 #!/bin/sh
 # Install only the authorized desktop launcher, not application services/accounts.
 set -eu
+case "${1:-}" in
+  ''|--desktop-shortcuts) ;;
+  *) echo 'Usage: install.sh [--desktop-shortcuts]' >&2; exit 2 ;;
+esac
 source_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
 command -v surf >/dev/null
 command -v xrandr >/dev/null
@@ -10,6 +14,7 @@ mkdir -p "$app_dir" "$HOME/.local/bin" "$HOME/.local/share/applications" "$HOME/
 install -m 755 "$source_dir/dashboard.py" "$app_dir/dashboard.py"
 install -m 755 "$source_dir/live_status.py" "$app_dir/live_status.py"
 install -m 755 "$source_dir/health_otel.py" "$app_dir/health_otel.py"
+install -m 755 "$source_dir/shortcuts.py" "$app_dir/shortcuts.py"
 if [ ! -f "$HOME/.config/desktop-dashboard/config.json" ]; then
     install -m 600 "$source_dir/config.example.json" "$HOME/.config/desktop-dashboard/config.json"
 fi
@@ -42,4 +47,7 @@ Terminal=false
 StartupNotify=false
 Categories=System;Monitor;
 EOF
+if [ "${1:-}" = --desktop-shortcuts ]; then
+    python3 "$app_dir/shortcuts.py"
+fi
 printf '%s\n' 'Desktop launcher installed. Review private configuration before starting.'

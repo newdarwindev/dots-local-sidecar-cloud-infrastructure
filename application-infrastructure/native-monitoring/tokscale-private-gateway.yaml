@@ -1,0 +1,159 @@
+# Loopback-only host forwarding terminates TLS and protects public upstream
+# pages/API routes. Only exact bearer-authenticated CLI routes bypass BasicAuth.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tokscale-private-gateway
+  namespace: dots-synthetic-lab
+data:
+  Caddyfile: |
+    {
+      admin off
+      auto_https off
+      persist_config off
+      servers {
+        protocols h1 h2
+      }
+    }
+    https://:8445 {
+      tls /tls/tls.crt /tls/tls.key {
+        protocols tls1.3
+      }
+      header -Server
+      @codex_submit {
+        method POST
+        path /api/submit
+      }
+      @bearer_token_check {
+        method GET
+        path /api/auth/token
+      }
+      @github_callback {
+        method GET
+        path /api/auth/github/callback
+      }
+      @local_health {
+        method GET
+        path /healthz
+      }
+      handle @local_health {
+        respond "ok" 200
+      }
+      handle @codex_submit {
+        reverse_proxy http://tokscale-hub:3000
+      }
+      handle @bearer_token_check {
+        reverse_proxy http://tokscale-hub:3000
+      }
+      handle @github_callback {
+        reverse_proxy http://tokscale-hub:3000
+      }
+      handle {
+        basic_auth {
+          owner {$TOKSCALE_GATEWAY_PASSWORD_HASH}
+        }
+        reverse_proxy http://tokscale-hub:3000
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tokscale-gateway
+  namespace: dots-synthetic-lab
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: tokscale-gateway
+  ports:
+    - {name: https, port: 8445, targetPort: 8445}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tokscale-gateway
+  namespace: dots-synthetic-lab
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tokscale-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tokscale-gateway
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: prepare-caddy-binary
+          image: caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
+          command: [/bin/sh, -ec, 'cp /usr/bin/caddy /data/caddy && chmod 0555 /data/caddy']
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1001
+            runAsGroup: 10001
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      containers:
+        - name: caddy
+          image: caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
+          command: [/data/caddy]
+          args: [run, --config, /etc/caddy/Caddyfile, --adapter, caddyfile]
+          env:
+            - name: XDG_DATA_HOME
+              value: /data
+            - name: XDG_CONFIG_HOME
+              value: /data/config
+            - name: TOKSCALE_GATEWAY_PASSWORD_HASH
+              valueFrom:
+                secretKeyRef:
+                  name: tokscale-gateway-auth
+                  key: bcrypt-hash
+          ports:
+            - {name: https, containerPort: 8445}
+          readinessProbe:
+            tcpSocket: {port: https}
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: https}
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - {name: config, mountPath: /etc/caddy, readOnly: true}
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: config
+          configMap:
+            name: tokscale-private-gateway
+            defaultMode: 0444
+        - name: tls
+          secret:
+            secretName: langfuse-native-tls
+            defaultMode: 0440
+        - name: data
+          emptyDir:
+            sizeLimit: 128Mi

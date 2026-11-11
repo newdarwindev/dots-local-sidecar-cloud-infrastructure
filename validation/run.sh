@@ -28,6 +28,9 @@ docker info >/dev/null 2>&1 || {
 # Existing dormant application workflow reuses this image for its build recipe.
 IMAGE=infrastructure-validation:local
 docker build --platform linux/amd64 -f validation/Dockerfile -t "$IMAGE" .
+# Other authorized sessions can rebuild the shared local tag. Keep every stage
+# on this build's immutable image ID instead of resolving that tag repeatedly.
+IMAGE=$(docker image inspect --format '{{.Id}}' "$IMAGE")
 # Runner regressions execute their authored mock Docker CLI from a dedicated
 # tmpfs. Keep general /tmp noexec; setup inputs retain their own noexec tmpfs.
 docker run --rm --network=none --read-only --user 65532:65532 \

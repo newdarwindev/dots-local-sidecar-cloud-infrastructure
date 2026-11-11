@@ -2,10 +2,12 @@
 import importlib.util
 import io
 import json
+import re
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 SPEC = importlib.util.spec_from_file_location(
     'live_status', Path(__file__).resolve().parents[2] / 'desktop-dashboard/live_status.py')
@@ -14,6 +16,29 @@ SPEC.loader.exec_module(status)
 
 
 class LiveStatusContracts(unittest.TestCase):
+    def test_dashboard_scripts_parse_and_all_render_targets_exist(self):
+        scripts = re.findall(r'<script>(.*?)</script>', status.PAGE, re.S)
+        self.assertEqual(len(scripts), 1)
+        parsed = subprocess.run(['biome', 'format', '--stdin-file-path=dashboard.js'],
+                                input=scripts[0], text=True, capture_output=True, check=False)
+        self.assertEqual(parsed.returncode, 0, parsed.stderr)
+        ids = re.findall(r'id="([^"]+)"', status.PAGE)
+        self.assertEqual(len(ids), len(set(ids)))
+        targets = set(re.findall(r"node\('([^']+)'\)", scripts[0]))
+        self.assertFalse(targets - set(ids), targets - set(ids))
+
+    def test_stored_activity_excludes_content_and_unrelated_sources(self):
+        source = {'name': 'Desktop dashboard health', 'environment': 'local-desktop',
+                  'startTime': '2026-11-06T10:00:00Z', 'latency': 0.2, 'level': 'DEFAULT',
+                  'input': 'PRIVATE', 'output': 'PRIVATE', 'metadata': {'secret': 'PRIVATE'}}
+        rows = status.project_health_activity([source, dict(source, environment='production'),
+                                              dict(source, name='private user action'),
+                                              dict(source, startTime='bad')])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(set(rows[0]), {'name', 'startTime', 'latency', 'level'})
+        self.assertNotIn('PRIVATE', json.dumps(rows))
+        self.assertIsNone(status.project_health_activity([dict(source, latency={'secret':'PRIVATE'})])[0]['latency'])
+
     def test_restarting_and_unready_pods_are_not_healthy(self):
         document = {'items': [
             {'metadata': {'name': 'ready'}, 'spec': {'containers': [{}]}, 'status': {
@@ -92,6 +117,29 @@ class LiveStatusContracts(unittest.TestCase):
         with patch.object(status, 'verification_summary', side_effect=AssertionError('Must not authenticate')):
             result = status.collect_snapshot(config, query=lambda *_args: {'items': []}, identity_check=lambda _config: True)
         self.assertFalse(result['verification']['available'])
+
+    def test_owned_https_forward_health_check_uses_localhost_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            state = Path(directory) / 'desktop-dashboard'
+            state.mkdir()
+            (state / 'status.json').write_text(json.dumps({
+                'observed_at': status.datetime.now(status.timezone.utc).isoformat(),
+                'supervisor_running': True,
+                'links': [{'id': 'tokscale', 'status': 'Available locally'}]}))
+            config = {'overview': {'namespace': 'fixture-lab', 'storage': []},
+                      'forwards': [{'id': 'tokscale', 'local_port': 18445, 'scheme': 'https',
+                                    'health_path': '/healthz'}]}
+            opener = Mock()
+            response = MagicMock()
+            response.__enter__.return_value.status = 200
+            opener.open.return_value = response
+            with patch.dict(status.os.environ, {'XDG_STATE_HOME': directory}), \
+                    patch.object(status, 'build_opener', return_value=opener):
+                result = status.collect_snapshot(config, query=lambda *_args: {'items': []},
+                                                  identity_check=lambda _config: True)
+            opener.open.assert_called_once_with('https://localhost:18445/healthz', timeout=2)
+        self.assertTrue(result['services'][0]['healthy'])
+        self.assertTrue(result['services'][0]['owned'])
 
     def test_diagnostic_response_never_contains_keys_or_payloads(self):
         with tempfile.TemporaryDirectory() as directory:

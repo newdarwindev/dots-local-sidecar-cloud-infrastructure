@@ -399,7 +399,7 @@ def tokscale(root, scratch, schemas_lock):
         'appImage': 'example.invalid/synthetic@sha256:' + '0' * 64,
         'postgresImage': 'example.invalid/synthetic@sha256:' + '0' * 64,
         'origin': 'https://synthetic.example.invalid', 'gatewayPodLabel': 'synthetic-gate',
-        'databaseSize': '1Gi',
+        'databaseSize': '1Gi', 'githubCidrs': ['140.82.112.0/20'],
     }
     manifests = renderer.render(config)['items']
     for obj in manifests:

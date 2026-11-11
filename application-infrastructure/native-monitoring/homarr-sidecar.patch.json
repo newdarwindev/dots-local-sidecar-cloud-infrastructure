@@ -1,0 +1,158 @@
+{
+  "spec": {
+    "template": {
+      "spec": {
+        "securityContext": {
+          "fsGroup": 10001
+        },
+        "containers": [
+          {
+            "name": "native-tls",
+            "image": "caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d",
+            "command": [
+              "/usr/bin/caddy"
+            ],
+            "args": [
+              "run",
+              "--config",
+              "/etc/caddy/Caddyfile",
+              "--adapter",
+              "caddyfile"
+            ],
+            "securityContext": {
+              "runAsNonRoot": true,
+              "runAsUser": 10001,
+              "allowPrivilegeEscalation": false,
+              "readOnlyRootFilesystem": true,
+              "capabilities": {
+                "drop": [
+                  "ALL"
+                ],
+                "add": [
+                  "NET_BIND_SERVICE"
+                ]
+              },
+              "seccompProfile": {
+                "type": "RuntimeDefault"
+              }
+            },
+            "ports": [
+              {
+                "name": "native-https",
+                "containerPort": 8444
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": "25m",
+                "memory": "32Mi"
+              },
+              "limits": {
+                "cpu": "250m",
+                "memory": "128Mi"
+              }
+            },
+            "volumeMounts": [
+              {
+                "name": "native-tls-config",
+                "mountPath": "/etc/caddy",
+                "readOnly": true
+              },
+              {
+                "name": "native-tls-cert",
+                "mountPath": "/tls",
+                "readOnly": true
+              },
+              {
+                "name": "native-tls-cache",
+                "mountPath": "/data"
+              }
+            ],
+            "readinessProbe": {
+              "tcpSocket": {
+                "port": 8444
+              },
+              "periodSeconds": 5
+            }
+          },
+          {
+            "name": "homarr",
+            "env": [
+              {
+                "name": "HOSTNAME",
+                "value": "127.0.0.1"
+              },
+              {
+                "name": "NEXTAUTH_URL",
+                "value": "https://localhost:8444"
+              },
+              {
+                "name": "HOMARR_DISABLE_IPV6",
+                "value": "true"
+              }
+            ],
+            "readinessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/api/health/ready",
+                "port": 8444,
+                "scheme": "HTTPS"
+              },
+              "initialDelaySeconds": 10,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "livenessProbe": {
+              "failureThreshold": 3,
+              "httpGet": {
+                "path": "/api/health/live",
+                "port": 8444,
+                "scheme": "HTTPS"
+              },
+              "initialDelaySeconds": 10,
+              "periodSeconds": 10,
+              "successThreshold": 1,
+              "timeoutSeconds": 1
+            },
+            "volumeMounts": [
+              {
+                "name": "loopback-proxy",
+                "mountPath": "/etc/nginx/templates/nginx.conf",
+                "subPath": "nginx.conf",
+                "readOnly": true
+              }
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "native-tls-config",
+            "configMap": {
+              "name": "homarr-native-tls"
+            }
+          },
+          {
+            "name": "native-tls-cert",
+            "secret": {
+              "secretName": "langfuse-native-tls"
+            }
+          },
+          {
+            "name": "native-tls-cache",
+            "emptyDir": {
+              "medium": "Memory",
+              "sizeLimit": "16Mi"
+            }
+          },
+          {
+            "name": "loopback-proxy",
+            "configMap": {
+              "name": "homarr-loopback-proxy"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

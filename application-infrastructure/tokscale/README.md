@@ -1,12 +1,14 @@
-# Tokscale setup reference — activation blocked
+# Tokscale setup reference — activation pending GitHub verification
 
 Use [application setup](../README.md) for target, validation, approval and recovery.
-This directory supplies a **zero-replica review bundle**, not a running hub or a
-published production image. No reporter/scheduler is installed. Python contract
-tests, the AMD64 app build, image smoke check and all 13 TypeScript TLS socket
-tests passed locally on 2026-11-05. Isolated real PostgreSQL TLS, migration, load
-and process-restart checks also passed locally. CI remains owner-paused.
-Encrypted recovery, deployed-platform and browser access acceptance remain pending.
+The hub remains at zero replicas until the registered GitHub OAuth client secret is
+stored. The loopback HTTPS gateway and restrictive NetworkPolicies are deployed and
+validated. The PostgreSQL StatefulSet and its Bound PVC remain intact. No Tokscale
+reporting token or recurring reporter is enrolled. Browser/OAuth acceptance and an
+encrypted recovery archive remain pending. Python contract tests, the AMD64 app
+build, image smoke check and all 13 TypeScript TLS socket tests passed locally on
+2026-11-05. Isolated real PostgreSQL TLS, migration, load and process-restart
+checks also passed locally. CI remains owner-paused.
 
 ## Pinned source and behavior
 
@@ -28,12 +30,16 @@ qualification below is not evidence of deployed service or encrypted recovery.
 ## Configuration and rendering
 
 `render.py` accepts explicit JSON keys: `namespace`, `storageClass`, `appImage`,
-`postgresImage`, `origin`, `gatewayPodLabel`, `databaseSize`. Images require
+`postgresImage`, `origin`, `gatewayPodLabel`, `databaseSize`, and `githubCidrs`.
+The CIDRs are a reviewed IPv4 snapshot from GitHub's `web` and `api` ranges in
+[`github-egress.json`](github-egress.json), dated 2026-11-06; refresh that file
+from `https://api.github.com/meta` before a later rollout. Images require
 `@sha256:` plus 64 lowercase hex characters; origin is HTTPS with no path; database
 size is explicit Gi/Ti. Never guess an image/endpoint/storage class/capacity or use
-floating tags. Keep inputs/output outside Git. This is the renderer's CLI interface,
-not a host run recipe; the current Docker runner accepts synthetic fixtures only,
-and private-input container wiring still needs review:
+floating tags. Keep inputs/output outside Git. The private renderer input was mounted
+read-only into the pinned validation container; only the six reviewed NetworkPolicy
+objects were written to private state. This is the renderer CLI interface, not a host
+run recipe:
 
 ```sh
 python3 application-infrastructure/tokscale/render.py \
@@ -41,10 +47,14 @@ python3 application-infrastructure/tokscale/render.py \
 ```
 
 Output contains app/PostgreSQL Services, zero-replica Deployment/StatefulSet,
-retained PVC template, TLS references and NetworkPolicies. No Namespace, Secret,
-Ingress, CRD or Job is created. Service-account token mounts are off. Requests are
-review starting points, not measured reservations. Even zero-replica apply changes
-storage/network policy and requires approval; rendering authorizes no apply.
+retained PVC template, TLS references and NetworkPolicies. Hub egress is limited
+to PostgreSQL, CoreDNS, and the listed GitHub web/API IPv4 networks on TCP 443.
+The gateway can reach only the hub and CoreDNS; hub ingress accepts the gateway
+label on TCP 3000. No Namespace, Secret, Ingress, CRD or Job is created.
+Service-account token mounts are off. This is a review renderer: never apply the
+whole output to a live namespace because it would scale the existing PostgreSQL
+StatefulSet to zero. Select only the specific NetworkPolicies needed for a
+reviewed policy update.
 
 | Existing Secret | Required keys |
 | --- | --- |
@@ -67,11 +77,14 @@ certificates/keys are test material, never deployment keys.
 
 ## Access and reporters
 
-Protect all browser/read routes with private authenticated access and deny direct
-origins. The gateway pod label/CNI NetworkPolicy is **not authentication**; review
-namespace/label mutation authority. DNS/OAuth egress is absent until exact routes
-are approved. Native `POST /api/submit` bearer auth remains a narrow machine path,
-not a blanket `/api/*` exemption or browser redirect. See the
+Protect all browser/read routes with the loopback-only HTTPS Caddy gateway and
+BasicAuth; deny direct hub ingress except from that gateway. Only exact `POST
+/api/submit` (upstream bearer validation), `GET /api/auth/token` (upstream bearer
+validation), the GitHub OAuth callback (state checked upstream), and `/healthz`
+(returns only `ok`) bypass BasicAuth. No generic `/api/*` exemption is allowed.
+The gateway pod label/CNI NetworkPolicy is **not authentication**; review
+namespace/label mutation authority. GitHub OAuth egress uses only the versioned
+web/API CIDR snapshot on TCP 443 plus CoreDNS. See the
 [exact route and upstream contract audit](contract-audit.md).
 
 Test wrong-user/anonymous reads, direct-origin denial, missing/expired/revoked

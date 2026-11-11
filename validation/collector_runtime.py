@@ -26,6 +26,9 @@ CANARY = 'SYNTHETIC_PRIVATE_CANARY'
 SPEC = importlib.util.spec_from_file_location('native_boundary', APP / 'native_otlp.py')
 BOUNDARY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(BOUNDARY)
+FORMATION_SPEC = importlib.util.spec_from_file_location('formation_settings', APP / 'formation_settings.py')
+FORMATION = importlib.util.module_from_spec(FORMATION_SPEC)
+FORMATION_SPEC.loader.exec_module(FORMATION)
 
 
 def fixture():
@@ -77,6 +80,8 @@ class RuntimeTests(unittest.TestCase):
     def setUp(self):
         self.received = queue.Queue()
         records = self.received
+        self.destination_status = 200
+        owner = self
 
         class Capture(BaseHTTPRequestHandler):
             def log_message(self, *_args):
@@ -87,7 +92,7 @@ class RuntimeTests(unittest.TestCase):
                 if self.headers.get('Content-Encoding') == 'gzip':
                     payload = gzip.decompress(payload)
                 records.put((self.path, dict(self.headers), json.loads(payload)))
-                self.send_response(200)
+                self.send_response(owner.destination_status)
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', '2')
                 self.end_headers()
@@ -120,8 +125,16 @@ class RuntimeTests(unittest.TestCase):
         self.server.server_close()
         self.thread.join(timeout=3)
 
-    def start(self, trust='trusted', hostname='127.0.0.1'):
+    def start(self, trust='trusted', hostname='127.0.0.1', native=False, failure=False,
+              remote_environments=None, durable=False, session_attribution=False):
         config = yaml.safe_load((APP / 'values/collector.yaml').read_text())['alternateConfig']
+        if native:
+            documents = list(yaml.safe_load_all((APP / 'native-monitoring/collector.yaml').read_text()))
+            config = yaml.safe_load(documents[0]['data']['collector.yaml'])
+        if remote_environments is not None:
+            config = FORMATION.attribution_config(config, remote_environments)
+        if session_attribution:
+            config = FORMATION.session_attribution_config(config)
         self.receiver_port, health = port(), port()
         config['extensions']['health_check']['endpoint'] = f'127.0.0.1:{health}'
         receiver = config['receivers']['otlp']['protocols']['http']
@@ -129,16 +142,43 @@ class RuntimeTests(unittest.TestCase):
         receiver['tls'].update(cert_file=str(self.directory / 'trusted.crt'),
                                key_file=str(self.directory / 'trusted.key'),
                                client_ca_file=str(self.directory / 'trusted.crt'))
-        exporter = config['exporters']['otlphttp/diagnostics']
+        exporter = config['exporters']['otlphttp/langfuse' if native else 'otlphttp/diagnostics']
         exporter['traces_endpoint'] = f'https://127.0.0.1:{self.server.server_port}/v1/traces'
         exporter['headers']['Authorization'] = AUTH
         exporter['tls']['ca_file'] = str(self.directory / (trust + '.crt'))
         exporter['tls']['server_name_override'] = hostname
         # JSON capture and short bounded timers only; privacy processors unchanged.
         exporter['encoding'] = 'json'
-        exporter['retry_on_failure']['enabled'] = False
+        if not failure:
+            exporter['retry_on_failure']['enabled'] = False
         exporter['timeout'] = '1s'
         config['processors']['batch']['timeout'] = '100ms'
+        if failure:
+            # One span per batch fills the unchanged 256-request volatile queue
+            # without a large HTTP body. Native retry timings remain unchanged.
+            config['processors']['batch']['send_batch_size'] = 1
+            config['processors']['batch']['send_batch_max_size'] = 1
+        if durable:
+            # Match the live queue's persistence/retry settings; synthetic TLS,
+            # destination and privacy fixture remain isolated in this container.
+            storage = self.directory / self._testMethodName
+            config['extensions']['file_storage/queues'] = {
+                'directory': str(storage), 'create_directory': True,
+                'directory_permissions': '0700', 'fsync': True,
+                'max_size': 134217728, 'recreate': False,
+                'compaction': {'on_start': False, 'on_rebound': False,
+                               'cleanup_on_start': False}}
+            config['service']['extensions'].append('file_storage/queues')
+            for pipeline in config['service']['pipelines'].values():
+                pipeline['processors'] = [item for item in pipeline['processors'] if item != 'batch']
+            exporter['sending_queue'] = {
+                'enabled': True, 'queue_size': 67108864, 'sizer': 'bytes',
+                'storage': 'file_storage/queues', 'num_consumers': 2,
+                'batch': {'sizer': 'items', 'flush_timeout': '2s',
+                          'min_size': 4, 'max_size': 4}}
+            exporter['retry_on_failure'] = {'enabled': True, 'initial_interval': '1s',
+                                            'max_interval': '10s', 'max_elapsed_time': '0s'}
+            self.queue_directory = storage
         path = self.directory / 'config.yaml'
         path.write_text(yaml.safe_dump(config))
         self.log_path = self.directory / (self._testMethodName + '.log')
@@ -255,6 +295,167 @@ class RuntimeTests(unittest.TestCase):
 
     def test_exporter_wrong_hostname(self):
         self.rejected_export('trusted', 'wrong.invalid', 'certificate is valid for')
+
+    def raw_native(self, body):
+        context = ssl.create_default_context(cafile=str(self.directory / 'trusted.crt'))
+        context.load_cert_chain(self.directory / 'trusted.crt', self.directory / 'trusted.key')
+        connection = http.client.HTTPSConnection('127.0.0.1', self.receiver_port,
+                                                 context=context, timeout=5)
+        try:
+            connection.request('POST', '/v1/traces', body, {'Content-Type': 'application/json'})
+            response = connection.getresponse()
+            response.read()
+            return response.status
+        finally:
+            connection.close()
+
+    def test_native_bounded_environment_attribution(self):
+        self.start(native=True, remote_environments=['workstation-a', 'workstation-b'])
+        request = fixture()
+        # The existing native source qualification, not this patch, owns schema metadata.
+        del request['resourceSpans'][0]['schemaUrl']
+        del request['resourceSpans'][0]['scopeSpans'][0]['schemaUrl']
+        original = request['resourceSpans'][0]['scopeSpans'][0]['spans'][0]
+        spans = []
+        cases = [('workstation-a', 'workstation-a'), ('workstation-b', 'workstation-b'),
+                 (CANARY, 'local-codex'), (None, 'local-codex'), (42, 'local-codex')]
+        for index, (label, _) in enumerate(cases, 1):
+            span = copy.deepcopy(original)
+            span['spanId'] = f'{index:016x}'
+            if label is not None:
+                value = {'intValue': str(label)} if isinstance(label, int) else {'stringValue': label}
+                span['attributes'].append({'key': 'langfuse.environment', 'value': value})
+            spans.append(span)
+        request['resourceSpans'][0]['scopeSpans'][0]['spans'] = spans
+        self.send(request)
+        actual = self.capture()
+        self.assertNotIn(CANARY, json.dumps(actual))
+        exported = [span for resource in actual['resourceSpans']
+                    for scope in resource['scopeSpans'] for span in scope['spans']]
+        self.assertEqual(len(exported), len(cases))
+        by_id = {span['spanId']: span for span in exported}
+        for index, (_, expected) in enumerate(cases, 1):
+            attributes = {item['key']: item['value'] for item in by_id[f'{index:016x}']['attributes']}
+            self.assertEqual(attributes['langfuse.environment'], {'stringValue': expected})
+            self.assertEqual(set(attributes), {'langfuse.environment', 'dots.accounting.role', 'langfuse.trace.name'})
+
+    def test_native_empty_boundary_and_malformed(self):
+        self.start(native=True)
+        empty = b'{"resourceSpans":[]}'
+        self.assertEqual(self.raw_native(empty + b' ' * (65536 - len(empty))), 200)
+        self.assertIn(self.raw_native(empty + b' ' * (65537 - len(empty))), (400, 413))
+        self.assertEqual(self.raw_native(b'{invalid-json'), 400)
+        time.sleep(.3)
+        self.assertTrue(self.received.empty(), 'Empty/rejected requests exported spans')
+
+    def test_native_session_uuid_attribution_keeps_content_private(self):
+        self.start(native=True, session_attribution=True)
+        request = fixture()
+        resource = request['resourceSpans'][0]
+        scope = resource['scopeSpans'][0]
+        del resource['schemaUrl']
+        del scope['schemaUrl']
+        original = scope['spans'][0]
+        session = '11111111-2222-4333-8444-555555555555'
+        cases = [(key, session) for key in ('thread_id', 'thread.id', 'conversation.id', 'session.id')]
+        cases += [('session.id', CANARY), ('thread.id', '')]
+        scope['spans'] = []
+        for index, (key, value) in enumerate(cases, 1):
+            span = copy.deepcopy(original)
+            span['spanId'] = f'{index:016x}'
+            span['attributes'].append({'key': key, 'value': {'stringValue': value}})
+            span['events'] = [{'name': CANARY}]
+            scope['spans'].append(span)
+        self.send(request)
+        actual = self.capture()
+        self.assertNotIn(CANARY, json.dumps(actual))
+        spans = [span for resource in actual['resourceSpans']
+                 for scope in resource['scopeSpans'] for span in scope['spans']]
+        self.assertEqual(len(spans), 6)
+        for span in spans:
+            attributes = {item['key']: item['value'] for item in span['attributes']}
+            if int(span['spanId'], 16) <= 4:
+                self.assertEqual(attributes['session.id'], {'stringValue': session})
+            else:
+                self.assertNotIn('session.id', attributes)
+            self.assertFalse(span.get('events'))
+
+    def test_durable_outage_crash_replay_exact_ids(self):
+        self.destination_status = 503
+        self.start(native=True, durable=True)
+        request = fixture()
+        scope = request['resourceSpans'][0]['scopeSpans'][0]
+        original = scope['spans'][0]
+        scope['spans'] = [dict(original, spanId=f'{index:016x}') for index in range(1, 4)]
+        expected = {(original['traceId'], f'{index:016x}') for index in range(1, 4)}
+        self.send(request)
+        # A receiver ACK is insufficient: observe attempted export during outage
+        # and real queue files before crashing the ephemeral Collector process.
+        failed = self.capture()
+        attempted = {(span['traceId'], span['spanId'])
+                     for resource in failed['resourceSpans']
+                     for scope in resource['scopeSpans'] for span in scope['spans']}
+        self.assertEqual(attempted, expected)
+        self.assertTrue(any(item.is_file() and item.stat().st_size > 0
+                            for item in self.queue_directory.iterdir()))
+        self.process.kill()
+        self.process.wait(timeout=5)
+        self.assertEqual(self.process.returncode, -9)
+        # Discard failed attempts only after the old process has exited.
+        while not self.received.empty():
+            self.received.get_nowait()
+        self.destination_status = 200
+        self.process = subprocess.Popen(
+            ['otelcol-contrib', '--config', str(self.directory / 'config.yaml')],
+            stdout=self.log, stderr=subprocess.STDOUT)
+        # No second send: all accepted records must come from retained storage.
+        replayed = self.capture()
+        observed = [(span['traceId'], span['spanId'])
+                    for resource in replayed['resourceSpans']
+                    for scope in resource['scopeSpans'] for span in scope['spans']]
+        self.assertEqual(set(observed), expected)
+        self.assertEqual(len(observed), len(expected))
+        time.sleep(3)
+        self.assertTrue(self.received.empty(), 'Unexpected duplicate after replay drained')
+        print('Durable synthetic outage: 3 admitted IDs; SIGKILL; 3 replayed without '
+              'resubmission; 0 missing/unexpected; no duplicate in 3-second quiet window.')
+
+    def test_native_outage_retry_queue_exhaustion_and_shutdown(self):
+        self.destination_status = 503
+        self.start(native=True, failure=True)
+        request = fixture()
+        self.assertEqual(self.raw_native(json.dumps(request).encode()), 200)
+        self.capture()
+        self.destination_status = 200
+        self.capture()  # Same span retried after destination recovers.
+        time.sleep(.3)
+        self.assertTrue(self.received.empty())
+        self.destination_status = 503
+        span = request['resourceSpans'][0]['scopeSpans'][0]['spans'][0]
+        request['resourceSpans'][0]['scopeSpans'][0]['spans'] = [dict(span, spanId=f'{i:016x}') for i in range(1, 401)]
+        self.assertLess(len(json.dumps(request).encode()), 65536 * 4)
+        # Split the fabricated spans into valid requests under the native cap.
+        spans = request['resourceSpans'][0]['scopeSpans'][0]['spans']
+        for offset in range(0, len(spans), 40):
+            request['resourceSpans'][0]['scopeSpans'][0]['spans'] = spans[offset:offset + 40]
+            body = json.dumps(request).encode()
+            self.assertLess(len(body), 65536)
+            self.assertEqual(self.raw_native(body), 200)
+        deadline = time.monotonic() + 75
+        while time.monotonic() < deadline:
+            log = self.log_path.read_text()
+            if 'sending queue is full' in log and 'no more retries left' in log:
+                break
+            time.sleep(.2)
+        log = self.log_path.read_text()
+        self.assertIn('sending queue is full', log)
+        self.assertIn('no more retries left', log)
+        started = time.monotonic()
+        self.process.terminate()
+        self.process.wait(timeout=10)
+        self.assertEqual(self.process.returncode, 0)
+        self.assertLess(time.monotonic() - started, 10)
+        print('Native queue=256 and retry window=60s retained; outage recovery, overflow, exhaustion and bounded shutdown verified.')
 
 
 if __name__ == '__main__':

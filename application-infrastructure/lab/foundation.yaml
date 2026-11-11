@@ -50,11 +50,38 @@ metadata:
   name: namespace-and-dns
   namespace: dots-synthetic-lab
 spec:
-  podSelector: {}
+  podSelector:
+    matchExpressions:
+      - {key: app.kubernetes.io/name, operator: NotIn, values: [homarr, tokscale-hub, tokscale-postgres, tokscale-gateway]}
   policyTypes: [Ingress, Egress]
   ingress:
     - from:
         - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: homarr-private-https
+  namespace: dots-synthetic-lab
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: homarr}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector: {}
+      ports: [{port: 8444, protocol: TCP}]
   egress:
     - to:
         - podSelector: {}

@@ -58,6 +58,15 @@ that exact origin and project; it reloads once per browser session when changing
 preferences. Browser storage is enabled for this pane. Refreshing a table does
 not itself enroll a telemetry source or create observations.
 
+For a native Tracing or Sessions overview, set `langfuse_all_history: true`
+alongside `langfuse_refresh_ms`. This opts into an overview-page reload at that
+interval and advances the native custom date filter from the Unix epoch through
+the current time. It avoids a saved date window hiding older or newly arriving
+sessions. Reloads apply only to the configured origin and exact overview path;
+opening a session or trace detail is not interrupted. The native UI, sign-in,
+filters and project permissions remain authoritative. Do not label this view
+complete unless source session IDs have been reconciled against persisted data.
+
 An optional `cluster` object selects an existing kubectl `context`, the observed
 `system_namespace_uid` of `kube-system`, and a `namespace_uids` mapping. Each
 `forwards` item names an `id`, `namespace`, `service`, `local_port` and
@@ -203,3 +212,43 @@ unsafe bookmark URLs, weighted pane placement, native refresh scoping, health
 envelope allowlisting, destination ownership and inactive/escaped hub links.
 It does not launch a browser,
 connect to a cluster, test authentication or enable the paused CI workflows.
+
+## Direct desktop navigation
+
+`desktop-dashboard --open <link-id>` navigates the matching existing pane. Other
+configured views, including the automatic `overview` link, use the last pane.
+Unavailable views open the hub with their current status. `--restore` restores
+every pane's configured startup page. Commands accept configured IDs only.
+A pane that starts before its service is ready recovers to its intended page
+when that connection becomes available.
+
+Run `sh desktop-dashboard/install.sh --desktop-shortcuts` to install desktop
+and application-menu shortcuts for the hub, restore action, configured forwarded
+services and optional workload/OpenTelemetry view. Shortcuts reuse the supervised
+windows. Staged services remain labeled in the hub. The live overview reports
+accepted spans, failed/skipped export batches and the last successful acceptance;
+these counters describe delivery attempts, while persisted observation readback
+provides independent storage verification. Its freshness threshold follows the
+configured refresh cadence.
+
+Set `workspace` to a zero-based desktop index to restrict the panes to one
+workspace (`3` means desktop 4). These panes use borderless normal windows below
+ordinary applications, without sticky state. Omit it to retain all-workspace
+placement. Runtime pane records include the selected workspace and owned PIDs.
+Startup retires orphaned surf processes only for the exact dedicated cookie
+profile, same local UID and parent PID 1; other browsers are preserved.
+
+## Single-screen operations overview
+
+The overview combines service availability, workload readiness, storage, memory,
+CPU history, OpenTelemetry delivery counters and recent persisted Langfuse health
+observations in one responsive view. A wide desktop uses a two-column dashboard
+with four summary counters and panels sized to the viewport. Workload and trace
+tables can scroll internally if the number of rows grows. Native Homarr and
+Langfuse links support detailed inspection.
+
+Stored observation readback uses only the explicitly configured local-health
+project, filters the local-desktop environment and known health span names, and
+returns bounded metadata only. Content, arbitrary attributes and credentials
+remain outside the page. Staged sources retain their configured status.
+Use a single `overview` pane with zoom 1 for this presentation.

@@ -24,7 +24,7 @@ class SafeParser(argparse.ArgumentParser):
 
 def main():
     parser = SafeParser(description=__doc__)
-    parser.add_argument('stage', choices=('lint', 'contracts', 'collector-runtime', 'setup'))
+    parser.add_argument('stage', choices=('lint', 'contracts', 'collector-runtime', 'setup', 'secret-scan'))
     parser.add_argument('--bundle', choices=('all', 'primary', 'application'), default='all')
     parser.add_argument('--action', choices=ACTIONS)
     args = parser.parse_args()
@@ -36,6 +36,11 @@ def main():
         raise SystemExit(setup_main(args.action))
     if args.action is not None:
         parser.error('action only applies to setup')
+    if args.stage == 'secret-scan':
+        if not Path('/scan').is_dir():
+            parser.exit(2, 'BLOCKED: mount only the reviewed publication staging directory at /scan.\n')
+        run(ROOT, 'gitleaks', 'dir', '/scan', '--redact=100', '--no-banner')
+        return
     if args.stage == 'lint':
         run(ROOT, sys.executable, 'validation/lint.py')
         run(ROOT, sys.executable, '-m', 'unittest', 'discover', '-s', 'validation/tests', '-v')

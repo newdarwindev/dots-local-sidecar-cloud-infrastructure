@@ -9,10 +9,12 @@ sh validation/run.sh primary      # Lint + primary bundle tests/Helm/schemas
 sh validation/run.sh application  # Lint + application tests/Helm/Tokscale schemas
 ```
 
-**Current status:** the full Docker runner passed locally on 2026-11-05: lint,
-54 validator tests, 7 primary tests, application tests, Helm rendering and strict
-schema checks. Live cluster acceptance remains separate. Both GitHub workflows
-remain owner-paused. Missing tools or schemas fail; they are never skipped.
+**Current status:** the full Docker runner passed locally on 2026-11-07: lint
+(91 validator tests), 8 isolated Collector runtime tests, 7 primary tests, 115
+application tests, 16 Tokscale tests, exact Collector configuration validation,
+Helm rendering and strict schema checks. Live cluster acceptance remains separate
+and is recorded in private local receipts. Both GitHub workflows remain
+owner-paused. Missing tools or schemas fail; they are never skipped.
 
 ## Execution boundary
 
@@ -142,13 +144,22 @@ self-signed SAN certificates solely in ephemeral container tmpfs. These test
 keys never leave the container or enter a deployment. Collector process logs
 are emitted into the caller's validation log before ephemeral files disappear.
 
-Six tests exercise the exact pinned Collector 0.163.2 with the unchanged privacy
+Eight tests exercise the exact pinned Collector 0.163.2 with the unchanged privacy
 processors and strict receiver/exporter TLS. Test-only substitutions are local
 endpoints, ephemeral certificate paths, obvious synthetic authorization, JSON
 export encoding and shorter batch/retry time bounds. Positive export verifies
 the authorization and ingestion headers; missing/untrusted client certificates,
 TLS 1.2, wrong exporter CA and wrong exporter hostname must fail. These are
 bounded synthetic controls, not delivery durability, load, or live acceptance.
+
+The native rollout tests additionally load `native-monitoring/collector.yaml`.
+They verify empty OTLP at exactly 65,536 bytes, rejection at 65,537 bytes,
+malformed JSON rejection, destination outage/reconnection, queue overflow,
+retry exhaustion and bounded shutdown. Failure tests retain the 256-request
+volatile queue and 60-second retry window; test-only one-span batches and a
+one-second HTTP timeout fill the queue without large receiver requests.
+Shutdown can drop queued spans, so successful receiver acknowledgement does
+not establish durable delivery.
 
 **Confirmed limitation:** direct Collector input retains resource and scope
 schema URLs. That test intentionally verifies the limitation rather than

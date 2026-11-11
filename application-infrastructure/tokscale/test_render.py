@@ -15,7 +15,7 @@ class RenderTests(unittest.TestCase):
                 'appImage': 'example.invalid/synthetic@sha256:' + '1' * 64,
                 'postgresImage': 'example.invalid/synthetic@sha256:' + '2' * 64,
                 'origin': 'https://synthetic.example.invalid', 'gatewayPodLabel': 'synthetic-gate',
-                'databaseSize': '1Gi'}
+                'databaseSize': '1Gi', 'githubCidrs': ['140.82.112.0/20']}
 
     def test_zero_replicas_and_no_secret_material(self):
         items = module.render(self.config())['items']
@@ -69,6 +69,24 @@ class RenderTests(unittest.TestCase):
         for value in ('http://example.invalid', 'https://example.invalid/path', 'https://x\nTOKEN=secret'):
             config = self.config()
             config['origin'] = value
+            with self.assertRaises(ValueError):
+                module.render(config)
+
+    def test_network_policy_is_narrow_and_gateway_only(self):
+        items = module.render(self.config())['items']
+        policies = {i['metadata']['name']: i['spec'] for i in items if i['kind'] == 'NetworkPolicy'}
+        app_egress = policies['tokscale-app-to-postgres']['egress']
+        cidrs = [net['ipBlock']['cidr'] for rule in app_egress for net in rule['to'] if 'ipBlock' in net]
+        self.assertEqual(cidrs, ['140.82.112.0/20'])
+        self.assertFalse(any(c == '0.0.0.0/0' for c in cidrs))
+        hub_ingress = policies['tokscale-gate-to-app']['ingress'][0]['from']
+        self.assertEqual(hub_ingress, [{'podSelector': {'matchLabels': {'app.kubernetes.io/name': 'synthetic-gate'}}}])
+        self.assertIn('synthetic-gate', policies['tokscale-default-deny']['podSelector']['matchExpressions'][0]['values'])
+
+    def test_invalid_github_cidrs_rejected(self):
+        for cidrs in ([], ['0.0.0.0/0'], ['140.82.112.1/20'], ['not-a-cidr']):
+            config = self.config()
+            config['githubCidrs'] = cidrs
             with self.assertRaises(ValueError):
                 module.render(config)
 

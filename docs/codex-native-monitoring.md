@@ -42,6 +42,13 @@ or modify provider authentication to turn monitoring on.
 
 ## Privacy, delivery and cutover
 
+For a local-only Tokscale installation, use the pinned upstream CLI's offline
+Codex reports with discovery restricted to the selected user's Codex source
+root. Keep submission, autosubmit, login, analytics and pricing refresh disabled;
+label costs as unavailable or cached estimates. Keep the web hub at zero replicas
+when GitHub OAuth is unavailable. Display: **Local usage available; web login
+unavailable**. Do not replace the supported authentication flow.
+
 Keep prompts, agent responses and automatic-review text export off; leave log
 export disabled in the initial trace rollout. Native prompt redaction does not
 establish a whole-envelope metadata allowlist or eliminate tool/path/error

@@ -1,0 +1,31 @@
+# Standard nginx configuration preserves the upstream request-identity boundary.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: homarr-loopback-proxy
+data:
+  nginx.conf: |
+    events { worker_connections 1024; }
+    http {
+      ${NGINX_TRUSTED_PROXIES}
+      server {
+        listen 127.0.0.1:7575;
+        location /websockets {
+          proxy_pass http://127.0.0.1:3001;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection "Upgrade";
+          proxy_set_header Host $http_host;
+        }
+        location / {
+          proxy_pass http://127.0.0.1:3000;
+          proxy_set_header Host $http_host;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Homarr-Client-IP $remote_addr;
+          proxy_set_header X-Homarr-Proxy-Secret "${HOMARR_REQUEST_IDENTITY_SECRET}";
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+          client_max_body_size 256M;
+        }
+      }
+    }

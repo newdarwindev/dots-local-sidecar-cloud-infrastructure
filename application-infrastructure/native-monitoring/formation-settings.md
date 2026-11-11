@@ -47,3 +47,19 @@ read back; timestamps alone do not prove a session-to-trace mapping.
 Validation: `sh validation/run.sh application`. No credentials or host identities
 belong in this source tree. Runtime readback and native client coverage remain
 separate from offline tests.
+
+## Optional session identity
+
+`formation_settings.session_attribution_config` prepares an opt-in change to
+the existing `transform/privacy` processor. It captures attributes before the
+existing stripping step and retains only valid UUID strings from `thread_id`,
+`thread.id`, `conversation.id`, or `session.id` as the standard `session.id`.
+Content, arbitrary labels, paths and malformed IDs remain excluded. Apply this
+only within the owner's requested session-metadata scope and validate the
+resulting configuration with the pinned upstream Collector before rollout.
+
+Source-side Collectors must retain the UUID before forwarding: the central
+Collector cannot recover a discarded ID. Older records, inactive sessions,
+hosted surfaces and unreachable hosts remain coverage gaps until separately
+reconciled. A native Sessions view lists received identities; it is not proof of
+complete transcripts, complete span delivery, or complete fleet enrollment.

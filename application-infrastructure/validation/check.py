@@ -77,6 +77,27 @@ with tempfile.TemporaryDirectory() as directory:
     version = subprocess.run(['otelcol-contrib', '--version'], check=True, capture_output=True, text=True).stdout
     assert '0.163.2' in version, 'Collector binary/version lock mismatch'
     subprocess.run(['otelcol-contrib', 'validate', '--config', str(collector_config)], check=True, env=environment)
+    native = list(yaml.safe_load_all((ROOT / 'native-monitoring/collector.yaml').read_text()))
+    native_config = next(obj['data']['collector.yaml'] for obj in native if obj['kind'] == 'ConfigMap')
+    collector_config.write_text(native_config)
+    environment['LANGFUSE_TRACES_ENDPOINT'] = environment['LANGFUSE_DIAGNOSTIC_TRACES_ENDPOINT']
+    subprocess.run(['otelcol-contrib', 'validate', '--config', str(collector_config)], check=True, env=environment)
+    assert set(yaml.safe_load(native_config)['service']['pipelines']) == {'traces'}
+    tls_documents = list(yaml.safe_load_all((ROOT / 'native-monitoring/langfuse-tls.yaml').read_text()))
+    caddy_config = Path(directory) / 'Caddyfile'
+    caddy_config.write_text(next(obj['data']['Caddyfile'] for obj in tls_documents if obj['kind'] == 'ConfigMap'))
+    subprocess.run(['caddy', 'adapt', '--adapter', 'caddyfile', '--config', str(caddy_config)], check=True, stdout=subprocess.DEVNULL)
+    gateway_documents = list(yaml.safe_load_all((ROOT / 'native-monitoring/tokscale-private-gateway.yaml').read_text()))
+    gateway_caddy = next(obj['data']['Caddyfile'] for obj in gateway_documents if obj['kind'] == 'ConfigMap')
+    assert all(path in gateway_caddy for path in ('/api/submit', '/api/auth/token',
+                                                   '/api/auth/github/callback', '/healthz'))
+    assert 'handle_path /api/*' not in gateway_caddy
+    caddy_config.write_text(gateway_caddy)
+    test_hash = subprocess.run(['caddy', 'hash-password', '--plaintext', 'synthetic-gateway-fixture'],
+                               check=True, capture_output=True, text=True).stdout.strip()
+    subprocess.run(['caddy', 'adapt', '--adapter', 'caddyfile', '--config', str(caddy_config)],
+                   check=True, stdout=subprocess.DEVNULL,
+                   env=dict(environment, TOKSCALE_GATEWAY_PASSWORD_HASH=test_hash))
     print('PASS: exact digest-pinned Collector 0.163.2 validates rendered configuration; no service started.')
     collector = yaml.safe_load((ROOT / 'values/collector.yaml').read_text())['alternateConfig']
     assert set(collector['service']['pipelines']) == {'traces'}
