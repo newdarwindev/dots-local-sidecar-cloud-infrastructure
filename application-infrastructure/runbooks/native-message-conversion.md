@@ -1,5 +1,40 @@
 # Bounded native message conversion experiment
 
+## Optional future enrollment and tool content (source only)
+
+The renderer accepts `future_after_ns` for additional UUID sessions after an
+explicit source-event cutoff. Exact existing cutoffs and permanent denials take
+precedence. This does not establish fresh-session or fork provenance, backfill
+history, or change a running producer. Parent-conversation records remain denied.
+
+An independent `tool_results: true` option admits the pinned Codex 0.167.0
+`codex.tool_result` log event. It projects arguments (Collector `Len` at most
+65,536), output (`Len` at most 65,600, including the producer truncation notice),
+and a fixed metadata map: tool name/namespace, agent name, MCP server/origin,
+call ID, result sequence, duration, success and output truncation. Larger or
+malformed records fail closed. The native `otel.tool_result.max_bytes` producer
+limit should be 65,536 UTF-8 bytes for this profile. Known secret patterns are
+redacted in projected strings; this is not general secret detection. Never
+enter recovery material in an enrolled session.
+
+The matching central native gate must opt in to both options and route
+`codex.native.tool_result`; changing only the Mac cannot establish enrollment.
+Tool records retain deterministic per-record IDs for retry, not reconstructed
+turn parentage. Prompt/response projection is unchanged. The native diagnostic
+fan-out remains a separate dependency and must be preserved during activation.
+
+Owner-authorized future producer settings can enable prompt and assistant
+response logs and bounded tool previews after synthetic local/hub qualification.
+The inspected native emitter exposes reasoning event types and token counts,
+not hidden reasoning or reasoning-summary text. Enabling SSE event logging does
+not add that text. Do not promise unsupported content, read raw session history,
+or activate a duplicate plugin conversation producer for the same sessions.
+
+Validate admitted and denied synthetic controls through exact-ID backend
+readback, then outage/replay, before claiming end-to-end acceptance. No live
+configuration, producer flag, credential, queue or supervisor is changed by
+these renderer options.
+
 This renderer uses only standard upstream Collector 0.163.2 components:
 OTLP logs receiver → filter → transform → `otlp_json` → traces exporter.
 The connector is alpha. Nothing here enables native content flags or services.
@@ -68,7 +103,51 @@ remain separate and unchanged. In runtime tests the exporter is replaced by an
 ephemeral synthetic file and outbound networking is disabled.
 
 
-## Bounded live qualification: 2026-11-09
+## Coordinated source handoff
+
+Use the [enrollment contract](conversation-capture.md#enrollment-and-backfill-boundary)
+for denial, cutoff and provenance requirements. A preparation-time cutoff is not
+activation authority. Candidate files without policy provenance do not establish
+a complete denial registry, especially when another producer has an empty list.
+
+Future-event or tool opt-in also adds a per-record clock parser and rejection gate.
+Parse failures are silent and fail closed for that record, preserving valid
+neighbors instead of treating an entire failed request as successful rejection.
+The source-supplied parser marker is overwritten and removed from projections.
+
+With `tool_results=true`, the local graph now includes
+`filter/native_messages_projected` after transformation. It rejects tool fields
+that exceed central limits after redaction or metadata JSON encoding, preserving
+neighboring valid events. Diagnostic fan-out remains independent. Earlier
+two-processor candidates must be re-rendered; changing only their filter and
+transform is insufficient. Central metadata retention is restricted to tool
+events, so enabling tools does not widen ordinary message metadata.
+
+`central_native_message_policy.reviewed_update(config, previous, proposed)`
+prepares a guarded content-policy change without I/O. Both policies must contain
+`enrolled`, `denied`, `future_after_ns` and `tool_results`. It verifies the exact
+previous processors and router, refuses removal of denials or backwards cutoffs,
+and accepts either the original batching graph or its exact persistent exporter-
+batching equivalent. Only the native filter, transform and routing row change;
+TLS, authentication, endpoints, queues, diagnostic/plugin routes and pipelines
+are preserved. Unknown/mixed pipeline shapes fail closed. This source guard does
+not establish authoritative input provenance or replace action-time checks.
+
+Field bounds are not request bounds. JSON escaping, OTLP envelopes and batching
+increase wire size; a 65,536-byte body cap cannot carry a maximum-size tool field.
+The committed runtime tests exercise the native routing connector, rejection at
+that cap and acceptance of an escaped maximum-size synthetic tool envelope under
+an explicit 1-MiB **test-only** cap. This does not change deployment defaults or
+qualify every batch, serialization or hop. Review actual encoded maximum batches
+at every receiver before a separately coordinated cap change.
+
+Keep source tests, installed configuration, publication, backend persistence and
+lifecycle acceptance separate. Render inert candidates, compare structural
+changes without dumping private configurations, and recheck live hashes and
+resourceVersions immediately before any authorized guarded update. Do not
+restart active sessions or stop shared backends for synthetic outage tests.
+
+## Historical bounded qualification: 2026-11-09
 
 The standard-component conversion was deployed to separate authenticated
 loopback Collectors on the two approved desktop sources. Existing local Basic

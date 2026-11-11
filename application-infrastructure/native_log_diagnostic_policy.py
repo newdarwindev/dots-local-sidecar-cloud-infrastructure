@@ -67,7 +67,7 @@ def render():
     return config
 
 
-def merge(config, enrolled, denied):
+def merge(config, enrolled, denied, *, future_after_ns=None, tool_results=False):
     """Add independent diagnostic fan-out only to the exact known content graph.
 
     Explicit enrollment reproduces the expected content processors for comparison,
@@ -75,7 +75,7 @@ def merge(config, enrolled, denied):
     Refuses unknown structure and collisions instead of guessing an update.
     """
     import copy
-    expected = BASE_RENDER(enrolled, denied)
+    expected = BASE_RENDER(enrolled, denied, future_after_ns=future_after_ns, tool_results=tool_results)
     try:
         if set(config) != set(expected):
             raise ValueError('Unrecognized configuration keys')

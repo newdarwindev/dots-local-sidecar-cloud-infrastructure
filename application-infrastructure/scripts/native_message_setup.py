@@ -8,6 +8,8 @@ SPEC.loader.exec_module(POLICY)
 
 
 def render(config):
-    if not isinstance(config, dict) or set(config) != {'enrolled', 'denied'}:
+    required = {'enrolled', 'denied'}
+    if not isinstance(config, dict) or not required <= set(config) or set(config) - required - {'future_after_ns', 'tool_results'}:
         raise ValueError('Exact native enrollment fields required')
-    return POLICY.render(config['enrolled'], config['denied'])
+    return POLICY.render(config['enrolled'], config['denied'], future_after_ns=config.get('future_after_ns'),
+                         tool_results=config.get('tool_results', False))

@@ -3,7 +3,6 @@
 import http.client
 import importlib.util
 import json
-import os
 from pathlib import Path
 import socket
 import subprocess
@@ -68,23 +67,25 @@ def free_port():
 class ConversationTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if not Path('/.dockerenv').exists() or set(os.listdir('/sys/class/net')) != {'lo'}:
-            raise RuntimeError('Docker --network=none required')
+        from network_isolation import require_isolated_network
+        require_isolated_network()
         if '0.163.2' not in subprocess.check_output(['otelcol-contrib', '--version'], text=True):
             raise RuntimeError('Pinned Collector required')
 
-    def collect(self, payload, generations=False, authenticated=True, enrolled=None, denied=None):
+    def collect(self, payload, generations=False, authenticated=True, enrolled=None, denied=None,
+                future_after_ns=None, capture_pipeline='traces/conversation'):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
             config = POLICY.render({FRESH: CUTOFF, RECOVERY: CUTOFF} if enrolled is None else enrolled,
-                                   [RECOVERY] if denied is None else denied, generations=generations)
+                                   [RECOVERY] if denied is None else denied, generations=generations,
+                                   future_after_ns=future_after_ns)
             port = free_port()
             receiver = config['receivers']['otlp/conversation']['protocols']['http']
             receiver['endpoint'] = f'127.0.0.1:{port}'
             # Synthetic SHA password: test / test; not usable outside this ephemeral process.
             config['extensions']['basicauth/conversation']['htpasswd'] = {'inline': 'test:{SHA}qUqP5cyxm6YcTAhz05Hph5gvu9M='}
             config['exporters'] = {'file/sanitized': {'path': str(directory / 'output.jsonl'), 'flush_interval': '100ms'}}
-            config['service']['pipelines']['traces/conversation']['exporters'] = ['file/sanitized']
+            config['service']['pipelines'][capture_pipeline]['exporters'] = ['file/sanitized']
             path = directory / 'collector.json'
             path.write_text(json.dumps(config))
             with (directory / 'log').open('w') as log:
@@ -135,6 +136,15 @@ class ConversationTests(unittest.TestCase):
         attrs = {item['key']: item['value']['stringValue'] for item in spans[0]['attributes']}
         self.assertEqual(attrs, {'session.id': FRESH, P + 'type': 'agent',
                                  P + 'input': 'hello <secret excluded>', P + 'output': 'answer <secret excluded>'})
+
+    def test_future_enrollment_is_bounded_by_time_uuid_and_permanent_denial(self):
+        _, documents, spans = self.collect(fixture(UNKNOWN), future_after_ns=CUTOFF)
+        self.assertEqual(len(spans), 1)
+        self.assertNotIn(CANARY, json.dumps(documents))
+        for payload in (fixture(RECOVERY), fixture(UNKNOWN, start=CUTOFF - 1),
+                        fixture('*'), fixture(''), fixture(**{'session.id': None})):
+            self.assertEqual(self.collect(payload, future_after_ns=CUTOFF)[2], [])
+        self.assertEqual(len(self.collect(fixture(), future_after_ns=CUTOFF + 1)[2]), 1)
 
     def test_session_exclusion_and_original_cutoff(self):
         cases = {'unknown': fixture(UNKNOWN), 'old_session_replay': fixture(UNKNOWN, start=1),

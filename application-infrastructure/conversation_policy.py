@@ -12,11 +12,29 @@ SECRET_PATTERN = (r'SYNTHETIC_SECRET_[A-Z0-9_]+'
                   r'|-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----')
 
 
-def render(enrolled, denied, *, generations=False):
+def enrollment_predicates(enrolled, denied, session, clock, future_after_ns=None):
+    """Optional owner-approved future-event admission; permanent denials still win."""
+    if future_after_ns is not None and (type(future_after_ns) is not int
+                                        or not 0 < future_after_ns < 2**63):
+        raise ValueError('Future enrollment requires a positive UTC nanosecond cutoff')
+    known = f'ContainsValue({json.dumps(sorted(enrolled))}, {session})'
+    if future_after_ns is None:
+        drop = [f'not {known}']
+    else:
+        drop = [f'not IsString({session})',
+                f'not IsMatch({session}, "^{ID.pattern}$")',
+                f'not {known} and {clock} < {future_after_ns}']
+    drop.append(f'ContainsValue({json.dumps(sorted(set(denied)))}, {session})')
+    return drop
+
+
+def render(enrolled, denied, *, generations=False, future_after_ns=None):
     """IDs map to original-start nanosecond cutoffs, verified fresh outside this renderer.
 
     Denials are permanent operational policy, even if an ID is also enrolled.
-    No runtime discovery, auto-enrollment, wildcard IDs, state or backfill.
+    Optional future_after_ns admits future events from additional UUID sessions.
+    It does not prove their creation time or classify their contents. No discovery,
+    historical readers, state, producer settings or service activation occurs.
     """
     if not isinstance(enrolled, dict) or not isinstance(denied, list):
         raise ValueError('Explicit enrollment map and permanent denial list required')
@@ -36,8 +54,8 @@ def render(enrolled, denied, *, generations=False):
     generation = f'{kind} == "generation"'
     input_ = f'{a}["{PREFIX}input"]'
     output = f'{a}["{PREFIX}output"]'
-    drop = [f'not ContainsValue({json.dumps(sorted(enrolled))}, {session})',
-            f'ContainsValue({json.dumps(sorted(set(denied)))}, {session})',
+    drop = enrollment_predicates(enrolled, denied, session, 'UnixNano(span.start_time)', future_after_ns)
+    drop += [
             f'{kind} != "agent" and {kind} != "generation"',
             f'{root} and span.name != "Codex Turn"',
             f'{generation} and span.name != "LLM"',

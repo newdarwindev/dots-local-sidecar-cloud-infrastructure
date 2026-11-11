@@ -8,6 +8,8 @@ SPEC.loader.exec_module(POLICY)
 
 
 def render(config):
-    if not isinstance(config, dict) or set(config) != {'enrolled', 'denied', 'generations'}:
+    required = {'enrolled', 'denied', 'generations'}
+    if not isinstance(config, dict) or set(config) not in (required, required | {'future_after_ns'}):
         raise ValueError('Exact conversation enrollment fields required')
-    return POLICY.render(config['enrolled'], config['denied'], generations=config['generations'])
+    return POLICY.render(config['enrolled'], config['denied'], generations=config['generations'],
+                         future_after_ns=config.get('future_after_ns'))

@@ -21,7 +21,9 @@ BASE_PIPELINES = {
 }
 
 
-def build_processors(enrolled, denied):
+def build_processors(enrolled, denied, *, future_after_ns=None, tool_results=False):
+    if type(tool_results) is not bool:
+        raise ValueError('Explicit boolean tool_results required')
     if not isinstance(enrolled, dict) or not isinstance(denied, list):
         raise ValueError('Explicit enrollment map and denial list required')
     for sid, cutoff in enrolled.items():
@@ -29,8 +31,19 @@ def build_processors(enrolled, denied):
             raise ValueError('Invalid enrollment')
     if any(not isinstance(sid, str) or not SESSION.fullmatch(sid) for sid in denied):
         raise ValueError('Invalid denial')
+    if future_after_ns is not None and (type(future_after_ns) is not int
+                                        or not 0 < future_after_ns < 2**63):
+        raise ValueError('Invalid future enrollment cutoff')
     allowed = [f'(span.attributes["session.id"] == {json.dumps(sid)} and UnixNano(span.start_time) >= {cutoff})'
                for sid, cutoff in sorted(enrolled.items()) if sid not in denied]
+    if future_after_ns is not None:
+        # Match the local future-event UUID gate, preserving earlier exact cutoffs.
+        uuid = r'^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$'
+        allowed.append('(IsString(span.attributes["session.id"]) and '
+                       f'IsMatch(span.attributes["session.id"], {json.dumps(uuid)}) and '
+                       f'not ContainsValue({json.dumps(sorted(enrolled))}, span.attributes["session.id"]) and '
+                       f'not ContainsValue({json.dumps(sorted(set(denied)))}, span.attributes["session.id"]) and '
+                       f'UnixNano(span.start_time) >= {future_after_ns})')
     a = 'span.attributes'
     conditions = ['not (' + ' or '.join(allowed) + ')' if allowed else 'true',
                   'instrumentation_scope.name != "codex.native.conversation" or instrumentation_scope.version != "1"',
@@ -39,21 +52,91 @@ def build_processors(enrolled, denied):
                   f'{a}["langfuse.observation.type"] != "event"',
                   f'span.name == "codex.native.user_message" and (not IsString({a}["langfuse.observation.input"]) or {a}["langfuse.observation.output"] != nil)',
                   f'span.name == "codex.native.assistant_message" and (not IsString({a}["langfuse.observation.output"]) or {a}["langfuse.observation.input"] != nil)']
+    if tool_results:
+        conditions[2] += ' and span.name != "codex.native.tool_result"'
+        tool = 'span.name == "codex.native.tool_result"'
+        conditions += [f'{tool} and (not IsString({a}["langfuse.observation.input"]) or not IsString({a}["langfuse.observation.output"]) or not IsString({a}["langfuse.observation.metadata"]))',
+                       f'{tool} and (Len({a}["langfuse.observation.input"]) > 65536 or Len({a}["langfuse.observation.output"]) > 65600 or Len({a}["langfuse.observation.metadata"]) > 8192)']
+    retained = ['session.id', 'langfuse.observation.type', 'langfuse.observation.input', 'langfuse.observation.output']
+    if tool_results:
+        retained.append('langfuse.observation.metadata')
+    statements = [
+        'keep_keys(resource.attributes, [])', 'keep_keys(instrumentation_scope.attributes, [])',
+        f'keep_keys(span.attributes, {json.dumps(retained)})',
+        'set(span.status.message, "")', 'set(span.trace_state, "")']
+    if tool_results:
+        statements.append('delete_key(span.attributes, "langfuse.observation.metadata") where span.name != "codex.native.tool_result"')
     return {FILTER: {'error_mode': 'propagate', 'traces': {'span': conditions, 'spanevent': ['true']}},
-            TRANSFORM: {'error_mode': 'propagate', 'trace_statements': [{'context': 'span', 'statements': [
-                'keep_keys(resource.attributes, [])', 'keep_keys(instrumentation_scope.attributes, [])',
-                'keep_keys(span.attributes, ["session.id", "langfuse.observation.type", "langfuse.observation.input", "langfuse.observation.output"])',
-                'set(span.status.message, "")', 'set(span.trace_state, "")']}]}}
+            TRANSFORM: {'error_mode': 'propagate', 'trace_statements': [{'context': 'span', 'statements': statements}]}}
 
 
-def patch_config(config, enrolled, denied):
+def reviewed_update(config, previous, proposed):
+    """Pure guarded policy update; preserve every transport/storage/pipeline value.
+
+    Explicit private policy inputs are required, never inferred from admitted IDs.
+    Accept the original graph or its exact durable exporter-batching equivalent.
+    This does not apply a config, validate credentials, or establish provenance.
+    """
+    fields = {'enrolled', 'denied', 'future_after_ns', 'tool_results'}
+    for policy in (previous, proposed):
+        if not isinstance(policy, dict) or set(policy) != fields:
+            raise ValueError('Complete previous and proposed policy inputs required')
+        build_processors(**policy)
+    if not set(previous['denied']).issubset(proposed['denied']):
+        raise ValueError('Permanent denials cannot be removed')
+    for sid, cutoff in previous['enrolled'].items():
+        if sid not in proposed['denied'] and proposed['enrolled'].get(sid, 0) < cutoff:
+            raise ValueError('Known enrollment and cutoffs must be preserved')
+    old_future, new_future = previous['future_after_ns'], proposed['future_after_ns']
+    if old_future is not None and new_future is not None and new_future < old_future:
+        raise ValueError('Future cutoff cannot move backwards')
+    try:
+        normalized = copy.deepcopy(config)
+        pipelines = normalized['service']['pipelines']
+        expected = {**BASE_PIPELINES, PIPELINE: NATIVE_PIPELINE}
+        batchless = copy.deepcopy(expected)
+        for pipeline in batchless.values():
+            pipeline['processors'] = [p for p in pipeline['processors'] if not p.startswith('batch')]
+        if pipelines == batchless:
+            for name in ('otlphttp/langfuse', 'otlphttp/conversations'):
+                queue = normalized['exporters'][name]['sending_queue']
+                storage = queue['storage']
+                if (queue.get('enabled') is not True or not storage.startswith('file_storage/')
+                        or normalized['extensions'][storage].get('fsync') is not True
+                        or queue.get('sizer') != 'bytes' or not isinstance(queue.get('batch'), dict)
+                        or queue['batch'].get('sizer') != 'items'
+                        or type(queue['batch'].get('max_size')) is not int or queue['batch']['max_size'] <= 0):
+                    raise ValueError('Unrecognized durable exporter batching')
+            normalized['service']['pipelines'] = copy.deepcopy(expected)
+        elif pipelines != expected:
+            raise ValueError('Unrecognized existing pipelines')
+        # Reuse exact existing-policy, routing and reference checks; do not install
+        # a missing native route or silently replace unknown current processors.
+        if FILTER not in normalized['processors'] or TRANSFORM not in normalized['processors']:
+            raise ValueError('Existing native policy required')
+        patch_config(normalized, **previous)
+        result = copy.deepcopy(config)
+        result['processors'].update(build_processors(**proposed))
+        row = copy.deepcopy(ROW)
+        if proposed['tool_results']:
+            row['condition'] = row['condition'][:-1] + ' or span.name == "codex.native.tool_result")'
+        result['connectors'][ROUTER]['table'][0] = row
+        return result
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError('Unrecognized central configuration') from error
+
+
+def patch_config(config, enrolled, denied, *, future_after_ns=None, tool_results=False):
     """Insert native route only in recognized central shape, or return exact match.
 
     Existing differing native policy is not updated implicitly. The caller must
     separately review such changes. Private transport objects are deep-copied,
     never logged or read by this module.
     """
-    generated = build_processors(enrolled, denied)
+    generated = build_processors(enrolled, denied, future_after_ns=future_after_ns, tool_results=tool_results)
+    row = copy.deepcopy(ROW)
+    if tool_results:
+        row['condition'] = row['condition'][:-1] + ' or span.name == "codex.native.tool_result")'
     if not isinstance(config, dict):
         raise ValueError('Unrecognized central configuration')
     try:
@@ -80,12 +163,12 @@ def patch_config(config, enrolled, denied):
                 or 'memory_limiter' not in processors or 'batch/conversations' not in processors
                 or 'otlphttp/conversations' not in config['exporters']):
             raise ValueError('Unrecognized central routing structure')
-        plugin_rows = [row for row in table if row != ROW]
+        plugin_rows = [item for item in table if item != row]
         if len(plugin_rows) != 1 or plugin_rows[0] != PLUGIN_ROW:
             raise ValueError('Unrecognized existing plugin route')
-        present = [FILTER in processors, TRANSFORM in processors, PIPELINE in pipelines, ROW in table]
+        present = [FILTER in processors, TRANSFORM in processors, PIPELINE in pipelines, row in table]
         if any(present):
-            if (not all(present) or table != [ROW, PLUGIN_ROW] or pipelines[PIPELINE] != NATIVE_PIPELINE
+            if (not all(present) or table != [row, PLUGIN_ROW] or pipelines[PIPELINE] != NATIVE_PIPELINE
                     or any(processors[key] != value for key, value in generated.items())):
                 raise ValueError('Existing native policy differs; explicit review required')
             return copy.deepcopy(config)
@@ -95,6 +178,6 @@ def patch_config(config, enrolled, denied):
         raise ValueError('Unrecognized central configuration') from error
     result = copy.deepcopy(config)
     result['processors'].update(generated)
-    result['connectors'][ROUTER]['table'].insert(0, copy.deepcopy(ROW))
+    result['connectors'][ROUTER]['table'].insert(0, row)
     result['service']['pipelines'][PIPELINE] = copy.deepcopy(NATIVE_PIPELINE)
     return result

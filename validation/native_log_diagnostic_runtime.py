@@ -30,7 +30,7 @@ class DiagnosticTests(NativeMessageTests):
         with mock.patch.object(base.POLICY, 'render', side_effect=lambda *args, **kw: policy.render()):
             return super().collect(payload, **kwargs)
 
-    def wire(self, payload, mode=200, merged=False, response_text="synthetic upstream failure", response_type="application/json"):
+    def wire(self, payload, mode=200, merged=False, response_text="synthetic upstream failure", response_type="application/json", tool_results=False):
         captured = []
         class Backend(BaseHTTPRequestHandler):
             def log_message(self, *_args):
@@ -52,7 +52,7 @@ class DiagnosticTests(NativeMessageTests):
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         from conversation_runtime import FRESH, RECOVERY, CUTOFF, free_port
-        config = policy.merge(policy.BASE_RENDER({FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY]), {FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY]) if merged else policy.render()
+        config = policy.merge(policy.BASE_RENDER({FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY], tool_results=tool_results), {FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY], tool_results=tool_results) if merged else policy.render()
         port = free_port()
         config["receivers"]["otlp/native_messages"]["protocols"]["http"]["endpoint"] = f"127.0.0.1:{port}"
         config["extensions"]["basicauth/native_messages"]["htpasswd"] = {"inline": "test:{SHA}qUqP5cyxm6YcTAhz05Hph5gvu9M="}
@@ -97,6 +97,20 @@ class DiagnosticTests(NativeMessageTests):
             captured, logs = self.wire(fixture("codex.tool_result", arguments=CANARY), mode=status)
             self.assertIn("Exporting failed", logs)
             self.assertEqual(bool(captured), status != 0)
+
+    def test_expanded_content_preserves_diagnostic_fanout_and_redacts_errors(self):
+        payload = fixture('codex.tool_result', arguments=CANARY, output=CANARY,
+                          call_id='call_synthetic', tool_name='read', tool_namespace='functions',
+                          agent_name='main', mcp_server='', mcp_server_origin='', success='true', duration_ms='1')
+        attrs = payload['resourceLogs'][0]['scopeLogs'][0]['logRecords'][0]['attributes']
+        attrs += [{'key': 'tool_result_seq', 'value': {'intValue': '1'}},
+                  {'key': 'output_truncated', 'value': {'boolValue': False}}]
+        captured, _ = self.wire(payload, merged=True, tool_results=True)
+        docs = [json.loads(body) for body in captured]
+        names = [span['name'] for doc in docs for resource in doc.get('resourceSpans', [])
+                 for scope in resource.get('scopeSpans', []) for span in scope.get('spans', [])]
+        self.assertEqual(sorted(names), ['codex.native.tool_result', 'codex.operation'])
+        self.wire(payload, mode=503, merged=True, tool_results=True)
 
     def test_content_parser_guard_blocks_raw_error_text(self):
         marker = "SYNTHETIC_BAD_CLOCK_PRIVATE_TEXT"

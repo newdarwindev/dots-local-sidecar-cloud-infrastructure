@@ -6,7 +6,6 @@ import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import importlib.util
 import json
-import os
 from pathlib import Path
 import queue
 import socket
@@ -55,9 +54,8 @@ class RuntimeTests(unittest.TestCase):
     def setUpClass(cls):
         if not Path('/.dockerenv').exists():
             raise RuntimeError('Docker-only test')
-        # Refuse even a Docker bridge; only loopback may exist in this stage.
-        if set(os.listdir('/sys/class/net')) != {'lo'}:
-            raise RuntimeError('Collector runtime tests require --network=none')
+        from network_isolation import require_isolated_network
+        require_isolated_network()
         version = subprocess.check_output(['otelcol-contrib', '--version'], text=True)
         if '0.163.2' not in version:
             raise RuntimeError('Collector version lock mismatch')

@@ -30,8 +30,11 @@ class NativeMessageTests(ConversationTests):
     # Reuse transport harness, not the plugin tests.
     def collect(self, payload, **kwargs):
         import conversation_runtime as harness
+        future_after_ns = kwargs.pop('future_after_ns', None)
+        tool_results = kwargs.pop('tool_results', False)
         def rendered(*args, **ignored):
-            config = POLICY.render({FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY])
+            config = POLICY.render({FRESH: CUTOFF, RECOVERY: CUTOFF}, [RECOVERY],
+                                   future_after_ns=future_after_ns, tool_results=tool_results)
             config['receivers']['otlp/conversation'] = config['receivers'].pop('otlp/native_messages')
             config['extensions'] = {'basicauth/conversation': {}}
             config['service']['extensions'] = ['basicauth/conversation']
@@ -43,6 +46,69 @@ class NativeMessageTests(ConversationTests):
             return config
         with mock.patch.object(harness.POLICY, 'render', side_effect=rendered):
             return super().collect(payload, **kwargs)
+
+    def test_future_enrollment_preserves_denials_cutoffs_and_source_gate(self):
+        for event in ('codex.user_prompt', 'codex.agent_response'):
+            _, docs, spans = self.collect(fixture(event, session=UNKNOWN), future_after_ns=CUTOFF)
+            self.assertEqual(len(spans), 1)
+            self.assertNotIn(CANARY, json.dumps(docs))
+        for payload in (fixture(session=RECOVERY), fixture(session='*'), fixture(session=''),
+                        fixture(session=UNKNOWN, timestamp=CUTOFF - 1000000),
+                        fixture(session=UNKNOWN, **{'app.version': '0.168.0'}),
+                        fixture(session=UNKNOWN, event='codex.tool_result')):
+            self.assertEqual(self.collect(payload, future_after_ns=CUTOFF)[2], [])
+        # Existing explicit enrollment retains its earlier cutoff.
+        self.assertEqual(len(self.collect(fixture(), future_after_ns=CUTOFF + 1000000)[2]), 1)
+
+    def test_opt_in_tool_content_is_bounded_typed_and_deterministic(self):
+        def tool(**changes):
+            values = {'arguments': '{"query":"Synthetic 雪 ' + CANARY + '"}',
+                      'output': 'Synthetic tool result ' + CANARY, 'call_id': 'call_synthetic',
+                      'tool_name': 'read', 'tool_namespace': 'functions', 'agent_name': 'main',
+                      'mcp_server': '', 'mcp_server_origin': '', 'success': 'true', 'duration_ms': '12'}
+            values.update(changes)
+            payload = fixture(event='codex.tool_result', **values)
+            attrs = payload['resourceLogs'][0]['scopeLogs'][0]['logRecords'][0]['attributes']
+            attrs += [{'key': 'tool_result_seq', 'value': {'intValue': '7'}},
+                      {'key': 'output_truncated', 'value': {'boolValue': True}}]
+            return payload
+        self.assertEqual(self.collect(tool())[2], [])
+        _, docs, spans = self.collect(tool(), tool_results=True)
+        self.assertEqual(len(spans), 1)
+        self.assertNotIn(CANARY, json.dumps(docs))
+        self.assertEqual(spans[0]['name'], 'codex.native.tool_result')
+        attrs = {a['key']: a['value']['stringValue'] for a in spans[0]['attributes']}
+        self.assertIn('<secret excluded>', attrs['langfuse.observation.input'])
+        self.assertIn('<secret excluded>', attrs['langfuse.observation.output'])
+        metadata = json.loads(attrs['langfuse.observation.metadata'])
+        self.assertEqual(metadata['tool_result_seq'], 7)
+        self.assertIs(metadata['output_truncated'], True)
+        self.assertEqual(metadata['call_id'], 'call_synthetic')
+        self.assertEqual(spans[0]['spanId'], self.collect(tool(), tool_results=True)[2][0]['spanId'])
+        for payload in (tool(arguments='x' * 65537), tool(output='x' * 65601),
+                        tool(call_id='bad/id'), tool(duration_ms='NaN'), tool(success='unknown'),
+                        tool(**{'conversation.id': RECOVERY}), tool(**{'parent.conversation.id': UNKNOWN})):
+            self.assertEqual(self.collect(payload, tool_results=True)[2], [])
+        payload = tool()
+        attrs = payload['resourceLogs'][0]['scopeLogs'][0]['logRecords'][0]['attributes']
+        next(a for a in attrs if a['key'] == 'tool_result_seq')['value'] = {'stringValue': '7'}
+        self.assertEqual(self.collect(payload, tool_results=True)[2], [])
+        # Opt-in preserves the original prompt/response projection as well.
+        self.assertEqual(len(self.collect(fixture(), tool_results=True)[2]), 1)
+        # Validate the serialized projection after redaction/encoding, with a
+        # healthy neighboring event so a failed request cannot masquerade as rejection.
+        for invalid in (tool(**{field: '\x00' * 1024 for field in
+                                 ('tool_name', 'tool_namespace', 'agent_name', 'mcp_server', 'mcp_server_origin')}),
+                        tool(output='hvs.a ' * 10000), tool(arguments=None), tool(duration_ms='NaN'),
+                        tool(**{'event.timestamp': '2026-99-99T00:00:00.000Z'}),
+                        tool(**{'event.timestamp': None}),
+                        tool(**{'event.timestamp': 'invalid', 'conversation.id': UNKNOWN}),
+                        tool(**{'app.version': '0.168.0'})):
+            records = invalid['resourceLogs'][0]['scopeLogs'][0]['logRecords']
+            records.extend(fixture()['resourceLogs'][0]['scopeLogs'][0]['logRecords'])
+            status, _, spans = self.collect(invalid, tool_results=True, future_after_ns=CUTOFF)
+            self.assertEqual(status, 200)
+            self.assertEqual([span['name'] for span in spans], ['codex.native.user_message'])
 
     def test_conversion_encoding_and_envelope(self):
         for event in ('codex.user_prompt', 'codex.agent_response'):

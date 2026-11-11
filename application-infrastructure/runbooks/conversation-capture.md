@@ -46,10 +46,29 @@ backfill an excluded turn. Keep recovery and other secret-bearing sessions
 permanently denied, even if an operator accidentally includes one in enrollment.
 Do not resume an old session as an enrollment technique. Do not import history.
 
-Static exact enrollment supports bounded sessions only. Automatic enrollment of
-all future sessions remains unimplemented and is not safe to infer from these
-checks. Restart tests prove that the same saved policy retains its denials; they
-do not prove an external operator cannot overwrite that policy.
+Static exact enrollment remains the default. The optional `future_after_ns`
+argument permits events from additional syntactically valid UUID sessions after
+an explicit UTC nanosecond cutoff. This requires separate owner approval; it is
+not enabled by rendering the default policy. Earlier exact enrollments retain
+their original cutoffs and permanent denials always win. Missing/malformed IDs,
+unknown types and the other envelope/content exclusions remain rejected.
+
+This option qualifies event time, not session creation time, fork provenance or
+semantic content. It must not be described as proving that every admitted session
+is fresh or safe. No history is read or replayed by the renderer. An unknown old
+session can emit a new event after the cutoff; retaining old denials is mandatory.
+Do not enable the option where independently verified fresh-session provenance
+is required. Keep source content flags disabled until the owner separately
+chooses content export. Runtime source/version qualification and exact backend
+readback remain required before claiming full enrollment acceptance.
+
+The native-message renderer supports the same optional argument, using the
+source event timestamp and retaining its existing source/version, parent-agent,
+message-shape and denial gates. Its independent numeric diagnostic pipeline is
+unchanged. Choose one canonical conversation producer per session; activating
+both plugin and native content paths can duplicate conversation records.
+Restart tests prove that the same saved policy retains its denials; they do not
+prove an external operator cannot overwrite that policy.
 
 ## Content policy and deliberate limitations
 
