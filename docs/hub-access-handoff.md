@@ -81,6 +81,31 @@ scope before publication. No live cluster or peer acceptance follows.
 
 ## Resume checklist
 
+The November 11 hub-only continuation reran the same Docker CLI/BuildKit route:
+**316 tests and 184 strict-schema resources passed**, with zero invalid resources,
+errors or skips. These remain isolated source/runtime-contract checks; no peer
+delivery, live outage or independent restore acceptance follows.
+
+Hub-only preparation can continue while a selected peer is deferred: refresh
+capacity and object identities, review a memory-only quota adjustment with
+UID/resourceVersion/spec/status guards, and submit the exact Pod template for
+server-side dry-run. Share that template with the activation renderer so the
+admission probe cannot silently diverge. Leave unknown source checks false; do
+not emit a full activation packet or substitute another client. A quota patch
+dry-run does not alter the quota used by a later Pod dry-run. Generate rollback
+only after an actual change, from a fresh post-change version and confirmed unused
+allowance; never invent a future resourceVersion.
+
+An explicitly authorized closed startup is a separate stage: one normal gateway
+Pod, no Service or published application routes, and deny-all ingress/egress
+without additive namespace-policy grants. It must not invent a verified peer
+source. Inspect provider startup and strict TLS as well as TCP readiness; an
+empty dynamic middleware map can fail provider loading while the listener is
+Ready. Opening later requires guarded updates of the same owned objects. Keep
+initial-create collision checks intact and preserve the existing app origin and
+forwarders until the appropriate acceptance gates pass. Private deployment
+observations and renderer inputs remain outside this public repository.
+
 1. Refresh installed/source revisions, pod/PVC readiness, backing storage,
    reservations, forwarders and enabled units; preserve existing dirty work.
 2. Inspect exact Pod admission as well as the Deployment. Namespace quota can
